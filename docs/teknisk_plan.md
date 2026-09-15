@@ -12,7 +12,7 @@ Profilens fält läggs in från start, även de som bara används av kaloriberä
 
 ## G-version, det som ska fungera först
 - läsa in loggar från CSV
-- snitt: vikt, kalorier, protein, steg, antal träningspass
+- snitt: vikt, kalorier, protein, steg, antal träningsdagar
 - rullande sjudagarssnitt och bedömning av takt
 - regelbaserade rekommendationer som text
 - viktdiagram
@@ -32,14 +32,14 @@ Profilens fält läggs in från start, även de som bara används av kaloriberä
 ## Klasser
 ### User (basklass)
 Attribut: name, height_cm, age, sex, activity_level, start_weight, created_date, logs (lista med DailyLog).
-Metoder: add_log, get_logs, average_weight(days), weight_change(days).
+Metoder: add_log, get_logs(days), average_weight(days), weight_change(days), training_days(days).
 
 ### CutProfile(User), barnklass
 Extra attribut: goal_weight, calorie_goal, protein_goal_per_kg, step_goal, target_rate_percent.
 Extra metoder: calculate_bmr, calculate_tdee, suggest_calorie_goal, check_goals.
 
 ### DailyLog
-Attribut: date, weight, calories, protein, steps, training_minutes, waist (valfritt).
+Attribut: date, weight, calories, protein, steps, trained (bool), waist (valfritt).
 Validerar i `__init__` att weight och calories är rimliga tal, annars ValueError som fångas med try/except där loggen skapas.
 
 ## Hantering av valfria värden
@@ -50,6 +50,11 @@ Två regler:
 - när snitt räknas, hoppa över tomma värden i loopen och räkna antalet träffar, kontrollera att antalet är större än noll innan du dividerar
 
 Det här är den enda konstruktionen i projektet som ligger över ren nybörjarnivå. Den ska kunna förklaras muntligt med orden ovan.
+
+## Metoder som returnerar None respektive noll
+`average_weight` och `weight_change` returnerar `None` när underlaget är för tunt, inga loggar alls respektive färre än två. Skälet är samma som för `waist`: 0 skulle betyda att vikten inte ändrades, vilket är ett annat påstående än att det saknas underlag.
+
+`training_days` returnerar däremot 0 när det inte finns några loggar, eftersom noll träningsdagar är ett korrekt svar och inte ett saknat värde.
 
 ## Regler och beräkningar
 
@@ -93,12 +98,21 @@ Bedöms som procent av kroppsvikt per vecka, inte i kilo, så att samma gränser
 ### Proteinmål
 Räknas mot målvikten, inte nuvarande vikt, och ligger därmed fast genom hela deffen. Utgångspunkt 1,9 gram per kilo målvikt.
 
+### Träningsfrekvens
+Loggas som `trained`, en bool per dag, inte som antal minuter. Under en deff är det frekvensen som håller muskelmassan uppe, inte passets längd. Ett långt pass med mycket vila ger inte mer stimulans än ett kort och fokuserat. Frekvens går dessutom att bedöma mot en tydlig regel, antal dagar per vecka, medan minuter kräver ett godtyckligt tröskelvärde som skulle behöva försvaras muntligt.
+
+Kostnaden av valet: programmet kan inte se om träningsvolymen kryper nedåt när energin sjunker under deffen. Ett valfritt minutfält som inte bedöms kan läggas till senare om det behovet uppstår.
+
+Räknas med `training_days(days)` på User, som loopar över loggarna i fönstret och räknar antalet där `trained` är True.
+
 ### Trend och tidsfönster
 Sjudagarssnittet räknas på de sju senaste kalenderdagarna, inte de sju senaste loggarna. Skälet är att trend handlar om tid. Sju loggar utspridda över en månad är inte ett veckosnitt.
 
 Minst fyra loggar inom fönstret krävs för att snittet ska användas. Färre än så säger programmet att underlaget är för tunt.
 
 Kräver `datetime` från standardbiblioteket för att göra om datumsträngar till datumobjekt som kan jämföras.
+
+Urvalet ligger i `get_logs(days)`, som anropas av `average_weight`, `weight_change` och `training_days`. Regeln finns därmed på ett enda ställe och behöver bara ändras där.
 
 ### Väntetexter
 Dag 1 till 6 och dag 7 till 13 visar programmet en kort förklaring av varför det inte ger råd än, plus hur många dagar som återstår. Två till tre meningar, inte mer. Läggs i en egen funktion, inte inbakat i check_goals.
@@ -114,6 +128,7 @@ Statusöversikt över alla områden plus en sak att fokusera på. Ordning: vikt,
 - plot_weight(logs): matplotlib
 - search_food(name): Open Food Facts API, tilläggsfunktion
 - run_menu(): CLI-loop med input(), separat från beräkningslogiken
+- log_today(user): frågar efter dagens värden och lägger till en DailyLog
 
 Kravet på 3 till 5 egna funktioner räknas på funktioner definierade med def utanför klasserna. Metoder inuti en klass räknas till OOP-kravet.
 
@@ -121,6 +136,8 @@ Kravet på 3 till 5 egna funktioner räknas på funktioner definierade med def u
 
 ### Format
 Datum skrivs alltid som ÅÅÅÅ-MM-DD, till exempel 2026-09-15. Sorteras rätt som text och läses direkt av datetime.strptime med formatsträngen "%Y-%m-%d". Inmatning som inte följer formatet avvisas. datetime kastar ValueError vid fel format, så felhanteringen kommer via try/except.
+
+Att formatet sorteras rätt som text används i `weight_change`, som hittar tidigaste och senaste logg genom att jämföra datumsträngarna direkt i en loop, utan att sortera listan.
 
 ### Dubbletter samma dag
 Den nya loggen ersätter den gamla. Två poster för samma datum gör alla snitt fel eftersom dagen räknas dubbelt.
@@ -160,10 +177,10 @@ Externt: requests (API), matplotlib (diagram).
 ## Var varje obligatoriskt moment används
 
 ### Variabler och datatyper
-- int: steps, training_minutes, age
+- int: steps, age
 - float: weight, calories, protein, waist
 - str: name, date, sex
-- bool: om ett mål är uppnått
+- bool: trained i DailyLog, samt om ett mål är uppnått
 - lista: logs
 - dict: JSON-datan vid läsning och sparning
 
@@ -229,6 +246,7 @@ Håll input() och print() i egna funktioner, separat från klasserna och beräkn
 3. Varför 7700-regeln används trots kända brister. Enkelhet och förklarbarhet före precision, med användarens egen data som korrigering efter två veckor.
 4. Varför golvet är det högsta av fast gräns och BMR, och varför programmet säger till istället för att justera tyst.
 5. Varför sjudagarssnittet räknas på kalenderdagar och inte på antal loggar.
+6. Varför träning loggas som ja eller nej och inte i minuter, och vad det valet kostar.
 
 ## Källor att ange i README
 - Mifflin-St Jeor: formeln och aktivitetsfaktorerna

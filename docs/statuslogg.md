@@ -9,14 +9,14 @@ Ett moment bockas av först när allt tre stämmer:
 ## Checklista, G-versionen
 | Moment | Var i CutTrack | Klart |
 | --- | --- | --- |
-| Variabler och datatyper | DailyLog-attributen, profilen | [ ] |
-| Valfria värden (None) | waist i DailyLog | [ ] |
-| If-satser | check_goals, run_menu, filinläsning | [ ] |
-| Loop | for över loggar, while i run_menu | [ ] |
+| Variabler och datatyper | DailyLog-attributen | [x] |
+| Valfria värden (None) | waist i DailyLog | [x] |
+| If-satser | log_today (waist-hantering), add_log (dubblettkontroll), byggda och testade. check_goals och run_menu ej byggda än | [x] |
+| Loop | add_log (for-loop vid dublettkontroll), byggd och testad. while i run_menu ej byggt än | [x] |
 | 3 till 5 egna funktioner | load_profile, save_profile, export_logs_csv, calculate_trend, plot_weight | [ ] |
-| Felhantering med try/except | filinläsning, DailyLog-validering | [ ] |
+| Felhantering med try/except | log_today (DailyLog-validering), byggd och testad. filinläsning ej byggd än | [x] |
 | Datahantering JSON eller CSV | save_profile, export_logs_csv | [ ] |
-| Minst en klass | User, DailyLog | [ ] |
+| Minst en klass | User, DailyLog | [x] |
 | Barnklass med arv | CutProfile(User) | [ ] |
 | Standardbibliotek | json, csv, datetime, statistics | [ ] |
 | Externt bibliotek | matplotlib | [ ] |
@@ -45,9 +45,14 @@ Påbörjas först när hela G-listan ovan är avbockad.
 ## Senaste uppdateringar
 (fylls på löpande, senaste överst)
 
+- 2026-09-15: DailyLog, User-stubben och log_today testade och körda med egen inmatning i VS Code, och committade till repot.
+- 2026-09-15: DailyLog-klassen skriven, med validering av vikt (0 till 300 kg) och kalorier (0 till 10 000 kcal) i `__init__`. En minimal User-stub (bara `__init__` och `add_log`, inte hela klassen) skapad för att kunna testa kedjan. `add_log` ersätter befintlig logg vid samma datum istället för att skapa en dubblett. `log_today` skriven, frågar efter dagens värden med input() och fångar ValueError från datumformat, orimlig vikt/kalorier och textinmatning där tal förväntas. Testat med simulerad inmatning i sex fall av Claude innan koden skickades, alla gav rätt resultat.
+- Resten av User (average_weight, weight_change, activity_level med mera) är inte byggd än, det kommer i nästa steg.
+
 ## Beslut
 - Bygg G-versionen klar, testad och förklarbar först. Bygg därefter mot VG om tiden räcker, enligt VG-utbyggnaden i teknisk_plan.md.
 - Commit-mål höjt till minst 15 tydliga commits.
+- Arbetsrutin ändrad: Claude bygger inte längre fristående .ipynb-filer att ladda ner. Kod och markdown-text ges som text i chatten, jag klistrar in själv i min egen cuttrack.ipynb i VS Code, kör och testar där, och committar själv efter varje del som fungerar.
 
 ## Att verifiera mot källa innan koden skrivs
 Alla ska anges i README:s metodavsnitt. Kan komma som muntlig fråga.
@@ -58,4 +63,4 @@ Alla ska anges i README:s metodavsnitt. Kan komma som muntlig fråga.
 - [x] Kalorigolv beslutat: högsta av fast gräns (1200 kvinnor / 1500 män) och personens BMR. Källa: amerikanska obesitasriktlinjerna 2013. Läs källan själv före redovisning.
 
 ## Öppna frågor
-- [ ] Gör repot publikt före inlämning (ligger privat nu, läraren kommer inte åt länken)
+- [x] Gör repot publikt före inlämning (ligger privat nu, läraren kommer inte åt länken)
