@@ -10,6 +10,7 @@ Ett moment bockas av först när allt tre stämmer:
 | Moment | Var i CutTrack | Klart |
 | --- | --- | --- |
 | Variabler och datatyper | DailyLog-attributen, profilen | [ ] |
+| Valfria värden (None) | waist i DailyLog | [ ] |
 | If-satser | check_goals, run_menu, filinläsning | [ ] |
 | Loop | for över loggar, while i run_menu | [ ] |
 | 3 till 5 egna funktioner | load_profile, save_profile, export_logs_csv, calculate_trend, plot_weight | [ ] |
@@ -48,5 +49,13 @@ Påbörjas först när hela G-listan ovan är avbockad.
 - Bygg G-versionen klar, testad och förklarbar först. Bygg därefter mot VG om tiden räcker, enligt VG-utbyggnaden i teknisk_plan.md.
 - Commit-mål höjt till minst 15 tydliga commits.
 
+## Att verifiera mot källa innan koden skrivs
+Alla ska anges i README:s metodavsnitt. Kan komma som muntlig fråga.
+- [ ] Mifflin-St Jeor, formel och aktivitetsfaktorer
+- [ ] 7700 kcal per kilo kroppsfett, ursprung och kritiken mot regeln
+- [ ] Takt 0,5 till 1,0 procent per vecka, Garthe m.fl. 2011
+- [ ] Protein per kilo, Helms m.fl. 2014 och nyare metaanalys
+- [x] Kalorigolv beslutat: högsta av fast gräns (1200 kvinnor / 1500 män) och personens BMR. Källa: amerikanska obesitasriktlinjerna 2013. Läs källan själv före redovisning.
+
 ## Öppna frågor
-(fylls på löpande när något är oklart och behöver beslutas)
+- [ ] Gör repot publikt före inlämning (ligger privat nu, läraren kommer inte åt länken)
