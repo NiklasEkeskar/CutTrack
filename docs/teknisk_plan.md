@@ -147,13 +147,14 @@ Protein, träning och steg kräver bara ett snitt, ingen trend, och analyseras d
 - load_profile(filename): läser profil och loggar från JSON, try/except
 - save_profile(profile, filename): sparar till JSON
 - export_logs_csv(profile, filename): loggarna som CSV, detta är datafilen som lämnas in
-- calculate_trend(logs, days=7): rullande medelvikt över kalenderdagar
 - plot_weight(logs): matplotlib
 - search_food(name): Open Food Facts API, tilläggsfunktion
 - run_menu(): CLI-loop med input(), separat från beräkningslogiken
 - log_today(user): frågar efter dagens värden och lägger till en DailyLog
 
-Kravet på 3 till 5 egna funktioner räknas på funktioner definierade med def utanför klasserna. Metoder inuti en klass räknas till OOP-kravet.
+calculate_trend är struken ur listan. average_weight och weight_change på User gör redan det jobbet, rullande medelvikt över kalenderdagar, via get_logs. En separat calculate_trend hade gjort samma sak två gånger.
+
+Kravet på 3 till 5 egna funktioner räknas på funktioner definierade med def utanför klasserna: load_profile, save_profile, export_logs_csv, plot_weight, det räcker för kravet. Metoder inuti en klass räknas till OOP-kravet, inte hit.
 
 ## Datumformat och dubbletter
 
@@ -240,7 +241,7 @@ och
             break
 
 ### Funktioner
-load_profile, save_profile, export_logs_csv, calculate_trend, plot_weight.
+load_profile, save_profile, export_logs_csv, plot_weight.
 
 ### Felhantering
 - filinläsning, filen saknas eller är trasig JSON
