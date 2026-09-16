@@ -35,8 +35,8 @@ Attribut: name, height_cm, age, sex, activity_level, start_weight, created_date,
 Metoder: add_log, get_logs(days), average_weight(days), weight_change(days), training_days(days).
 
 ### CutProfile(User), barnklass
-Extra attribut: goal_weight, calorie_goal, protein_goal_per_kg, step_goal, target_rate_percent.
-Extra metoder: current_weight, calculate_bmr, calculate_tdee, protein_goal, suggest_calorie_goal, check_goals.
+Extra attribut: goal_weight, calorie_goal, protein_goal_per_kg, step_goal, target_rate_percent, training_goal_days (standard 3).
+Extra metoder: current_weight, calculate_bmr, calculate_tdee, protein_goal, suggest_calorie_goal, days_since_start, waiting_message, check_goals.
 
 Validerar i `__init__` att målvikten är lägre än startvikten och att takten ligger mellan 0 och 1,0 procent per vecka. Samma mönster som DailyLog, felet kastas där objektet skapas.
 
@@ -96,10 +96,17 @@ Beteende när golvet slår i: programmet ska INTE tyst justera upp siffran. Det 
 
 ### Takt på viktnedgången
 Bedöms som procent av kroppsvikt per vecka, inte i kilo, så att samma gränser fungerar för olika kroppsstorlekar.
-- vikten ökar: underskottet räcker inte
-- under 0,5 procent: går för långsamt
-- 0,5 till 1,0 procent: rätt takt
-- över 1,0 procent: för snabbt, risk för muskelförlust
+
+Två olika gränser med olika syften, inte ett gemensamt fast intervall:
+- undre gränsen är personens eget target_rate_percent, satt vid profilskapande. Går det långsammare än det egna målet, flaggas det.
+- övre gränsen är ett fast säkerhetstak på 1,0 procent per vecka, oavsett vad personen själv satt som mål. Risken för muskelförlust vid för snabb nedgång är en säkerhetsfråga, inte en preferens, och ska inte gå att ställa in bort.
+
+Konsekvens: sätter någon sitt mål till 0,3 procent och når exakt det, räknas det som rätt takt, inte som för långsamt. Sätter någon sitt mål till 1,0 och landar på 1,3, flaggas det ändå, trots att de själva bad om en snabb takt.
+
+- vikten ökar: underskottet räcker inte, flaggas alltid
+- under eget mål men inom säkerhetstaket: långsammare än önskat, flaggas
+- vid eller över eget mål och inom säkerhetstaket: rätt takt
+- över 1,0 procent: över säkerhetsgränsen, flaggas alltid, oavsett eget mål
 
 ### Proteinmål
 Räknas mot målvikten, inte nuvarande vikt, och ligger därmed fast genom hela deffen. Utgångspunkt 1,9 gram per kilo målvikt. Ligger i metoden `protein_goal()` på CutProfile.
@@ -123,10 +130,18 @@ Kräver `datetime` från standardbiblioteket för att göra om datumsträngar ti
 Urvalet ligger i `get_logs(days)`, som anropas av `average_weight`, `weight_change` och `training_days`. Regeln finns därmed på ett enda ställe och behöver bara ändras där.
 
 ### Väntetexter
-Dag 1 till 6 och dag 7 till 13 visar programmet en kort förklaring av varför det inte ger råd än, plus hur många dagar som återstår. Två till tre meningar, inte mer. Läggs i en egen funktion, inte inbakat i check_goals.
+Dag 1 till 6 och dag 7 till 13 visar programmet en kort förklaring av varför det inte ger råd än, plus hur många dagar som återstår. Två till tre meningar, inte mer.
+
+Byggd som en egen metod, waiting_message, på CutProfile, inte inbakat i check_goals. Räknar dagar via days_since_start, som räknar från created_date till senast loggade dagen, inte till dagens riktiga datum, av samma skäl som get_logs: har du inte loggat på några dagar ska analysen ändå utgå från din senaste aktiva period.
+
+check_goals anropar waiting_message först. Finns det text att visa, skrivs den och funktionen avbryter innan någon analys görs. Först från dag 14 returnerar waiting_message None och full analys körs.
 
 ### Prioritering av råd
 Statusöversikt över alla områden plus en sak att fokusera på. Ordning: vikt, protein, träningsfrekvens, steg.
+
+Byggd i check_goals som en flagga (focus_area) som bara sätts av det första området som inte når sitt mål, genom `if focus_area is None:` i varje gren. Vikten kollas först i koden, så ett viktproblem vinner alltid över ett proteinproblem oavsett vilken ordning de faktiskt hittas i. Är focus_area fortfarande None efter alla fyra kontrollerna, skrivs en sammanfattning byggd på att inget slog till, inte en generell fras.
+
+Protein, träning och steg kräver bara ett snitt, ingen trend, och analyseras därför oavsett hur många dagar som gått sedan start, till skillnad från vikten som kräver kalenderdagarna i waiting_message.
 
 ## Funktioner (utöver klassmetoder)
 - load_profile(filename): läser profil och loggar från JSON, try/except
