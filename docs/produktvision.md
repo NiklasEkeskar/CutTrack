@@ -72,6 +72,6 @@ Grundkursen bygger kärnan. Kärnlogiken (klasser, beräkningar, regler) hålls 
 - midjemått och styrkeutveckling över tid
 - träningsvolym, inte bara frekvens
 - personliga kost- och träningsrekommendationer
-- lägen för deff, muskelbygge och viktbalans
+- lägen för deff, muskelbygge och viktbalans, byggda som nya barnklasser till User (BulkProfile med kaloriöverskott, MaintenanceProfile utan viktmål) utan att koden i User behöver ändras
 - veckorapporter
 - integration med hälso- och träningsappar

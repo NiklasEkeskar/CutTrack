@@ -36,7 +36,11 @@ Metoder: add_log, get_logs(days), average_weight(days), weight_change(days), tra
 
 ### CutProfile(User), barnklass
 Extra attribut: goal_weight, calorie_goal, protein_goal_per_kg, step_goal, target_rate_percent.
-Extra metoder: calculate_bmr, calculate_tdee, suggest_calorie_goal, check_goals.
+Extra metoder: current_weight, calculate_bmr, calculate_tdee, protein_goal, suggest_calorie_goal, check_goals.
+
+Validerar i `__init__` att målvikten är lägre än startvikten och att takten ligger mellan 0 och 1,0 procent per vecka. Samma mönster som DailyLog, felet kastas där objektet skapas.
+
+`super().__init__(...)` anropar Users `__init__` så att alla ärvda attribut sätts, inklusive den tomma logglistan. Klassraden `class CutProfile(User)` ger tillgång till förälderns metoder, men attributen kommer inte med automatiskt när barnklassen har en egen `__init__`.
 
 ### DailyLog
 Attribut: date, weight, calories, protein, steps, trained (bool), waist (valfritt).
@@ -62,6 +66,8 @@ Det här är den enda konstruktionen i projektet som ligger över ren nybörjarn
 Mifflin-St Jeor för basalomsättning:
 - man: BMR = 10 × vikt(kg) + 6,25 × längd(cm) − 5 × ålder + 5
 - kvinna: BMR = 10 × vikt(kg) + 6,25 × längd(cm) − 5 × ålder − 161
+
+BMR räknas på aktuell vikt, inte på startvikten. `current_weight()` hämtar senaste loggade vikten och faller tillbaka på start_weight när det inte finns några loggar än. Skälet: under en deff sjunker vikten, och därmed sjunker förbrukningen. Räknas BMR på startvikten överskattas behovet mer och mer ju längre deffen pågår.
 
 TDEE = BMR × aktivitetsfaktor:
 - 1,2 stillasittande
@@ -96,7 +102,9 @@ Bedöms som procent av kroppsvikt per vecka, inte i kilo, så att samma gränser
 - över 1,0 procent: för snabbt, risk för muskelförlust
 
 ### Proteinmål
-Räknas mot målvikten, inte nuvarande vikt, och ligger därmed fast genom hela deffen. Utgångspunkt 1,9 gram per kilo målvikt.
+Räknas mot målvikten, inte nuvarande vikt, och ligger därmed fast genom hela deffen. Utgångspunkt 1,9 gram per kilo målvikt. Ligger i metoden `protein_goal()` på CutProfile.
+
+Skälet till målvikten: proteinbehovet finns för att skydda den muskelmassa som ska vara kvar när deffen är slut. Räknades det på nuvarande vikt skulle målet sjunka i takt med att vikten går ner, alltså precis tvärtemot syftet.
 
 ### Träningsfrekvens
 Loggas som `trained`, en bool per dag, inte som antal minuter. Under en deff är det frekvensen som håller muskelmassan uppe, inte passets längd. Ett långt pass med mycket vila ger inte mer stimulans än ett kort och fokuserat. Frekvens går dessutom att bedöma mot en tydlig regel, antal dagar per vecka, medan minuter kräver ett godtyckligt tröskelvärde som skulle behöva försvaras muntligt.
@@ -247,6 +255,7 @@ Håll input() och print() i egna funktioner, separat från klasserna och beräkn
 4. Varför golvet är det högsta av fast gräns och BMR, och varför programmet säger till istället för att justera tyst.
 5. Varför sjudagarssnittet räknas på kalenderdagar och inte på antal loggar.
 6. Varför träning loggas som ja eller nej och inte i minuter, och vad det valet kostar.
+7. Skillnaden mellan vad `class CutProfile(User)` gör och vad `super().__init__()` gör. Klassraden ger metoderna, super() sätter attributen. Utan super() hade objektet saknat self.logs och kraschat vid första add_log.
 
 ## Källor att ange i README
 - Mifflin-St Jeor: formeln och aktivitetsfaktorerna
