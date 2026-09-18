@@ -22,12 +22,17 @@ Profilens fält läggs in från start, även de som bara används av kaloriberä
 - allt kan ligga samlat i notebooken i det här steget
 
 ## VG-utbyggnad
+Redan uppfyllt, byggt som en del av G:
+- specifik felhantering per feltyp (load_profile har tre skilda except-block, import_logs_csv hanterar ValueError och KeyError var för sig)
+- extra funktionalitet utöver minimikraven (meny med sex val, CSV-import, kaloriförslag på begäran)
+- 20+ commits
+
+Kvar om tiden räcker:
 - dela upp koden i models.py och analysis.py som importeras in i notebooken
-- konsekvent PEP 8-namngivning
+- konsekvent PEP 8-namngivning i hela koden
 - fler diagram: protein och steg, inte bara vikt
-- specifik felhantering per feltyp istället för generella try/except
 - val av analysperiod, 7, 14 eller 30 dagar
-- djupare reflektion i README
+- djupare reflektion i README om tekniska val och AI-trender
 
 ## Klasser
 ### User (basklass)
@@ -144,17 +149,25 @@ Byggd i check_goals som en flagga (focus_area) som bara sätts av det första om
 Protein, träning och steg kräver bara ett snitt, ingen trend, och analyseras därför oavsett hur många dagar som gått sedan start, till skillnad från vikten som kräver kalenderdagarna i waiting_message.
 
 ## Funktioner (utöver klassmetoder)
-- load_profile(filename): läser profil och loggar från JSON, try/except
-- save_profile(profile, filename): sparar till JSON
+Byggda:
+- make_filename(name): bygger säkert filnamn från användarnamnet, teckenvis i en loop
+- save_profile(profile): sparar profil och loggar till JSON
+- load_profile(name): läser profil och loggar från JSON, try/except för tre feltyper
 - export_logs_csv(profile, filename): loggarna som CSV, detta är datafilen som lämnas in
-- plot_weight(logs): matplotlib
-- search_food(name): Open Food Facts API, tilläggsfunktion
+- import_logs_csv(profile, filename): läser loggar från CSV, hoppar över trasiga rader
+- plot_weight(profile, days): viktdiagram med matplotlib
+- ask_number(question, is_integer): frågar tills svaret går att tolka som tal
+- create_profile(name): frågar efter uppgifterna som behövs och skapar en ny CutProfile
+- show_welcome(): välkomsttext, riktlinjer och ansvarsfriskrivning
 - run_menu(): CLI-loop med input(), separat från beräkningslogiken
 - log_today(user): frågar efter dagens värden och lägger till en DailyLog
 
+Inte byggd, medvetet bortprioriterad:
+- search_food(name), Open Food Facts API. Kravet på extern data uppfylls redan av CSV-inläsningen, se avsnittet Externt API nedan.
+
 calculate_trend är struken ur listan. average_weight och weight_change på User gör redan det jobbet, rullande medelvikt över kalenderdagar, via get_logs. En separat calculate_trend hade gjort samma sak två gånger.
 
-Kravet på 3 till 5 egna funktioner räknas på funktioner definierade med def utanför klasserna: load_profile, save_profile, export_logs_csv, plot_weight, det räcker för kravet. Metoder inuti en klass räknas till OOP-kravet, inte hit.
+Kravet på 3 till 5 egna funktioner räknas på funktioner definierade med def utanför klasserna: make_filename, save_profile, load_profile, export_logs_csv, plot_weight räcker gott och gott för kravet, resten är utöver minimum. Metoder inuti en klass räknas till OOP-kravet, inte hit.
 
 ## Datumformat och dubbletter
 
@@ -189,14 +202,17 @@ Fallgropar att hantera med try/except:
 Tilläggsfunktion. Prioriteras bort om tiden inte räcker. Kravet på extern data uppfylls då genom CSV-inläsning istället.
 
 ## Bibliotek
-Standard: json, csv, datetime, os, statistics.
-Externt: requests (API), matplotlib (diagram).
+Standard, faktiskt använda: json (spara/läsa profil), csv (export/import loggar), datetime (datum och kalenderdagar), os (kolla om fil finns).
+Externt, faktiskt använt: matplotlib (viktdiagram).
+Inte använt: statistics (all snittberäkning görs med egna loopar, inte statistics.mean), requests (Open Food Facts inte byggd).
 
 ## Programflöde
-1. Fråga efter användarnamn. Finns profilen, ladda den. Annars skapa ny CutProfile och fråga efter längd, ålder, kön, aktivitetsnivå, startvikt, målvikt och önskad takt.
-2. Visa ansvarsfriskrivning vid skapande av ny profil.
-3. Meny: logga dagens data, slå upp livsmedel, visa analys, visa diagram, avsluta.
-4. Vid avslut, spara profilen och exportera CSV.
+1. show_welcome() visar välkomsttext, riktlinjer och ansvarsfriskrivning.
+2. Fråga efter användarnamn. load_profile(name) laddar profilen om den finns. Finns den inte, create_profile(name) frågar efter längd, ålder, kön, aktivitetsnivå, startvikt, målvikt och önskad takt, och visar ett första kaloriförslag och proteinmål direkt.
+3. Meny i run_menu(), sex val: logga dagens data, visa analys, visa viktdiagram, visa kaloriförslag, läs in loggar från CSV, spara och avsluta.
+4. Vid avslut (val 6), save_profile sparar profilen som JSON och export_logs_csv exporterar loggarna som CSV, innan programmet avslutas.
+
+Uppslag av livsmedel (sök_food) finns inte med i menyn, eftersom Open Food Facts-integrationen inte byggts, se Externt API nedan.
 
 ## Var varje obligatoriskt moment används
 
@@ -209,9 +225,11 @@ Externt: requests (API), matplotlib (diagram).
 - dict: JSON-datan vid läsning och sparning
 
 ### If-satser
-- check_goals, jämför värden mot mål
+- check_goals, jämför värden mot mål på fyra områden
 - run_menu, vilket menyval användaren skrev
-- load_profile, om filen finns
+- create_profile, giltigt kön och giltig aktivitetsnivå
+- load_profile, om filen finns, samt tre olika feltyper var för sig
+- import_logs_csv, om varje rad går att tolka
 - kontroll av `waist is not None`
 - kontroll av hur många loggar som finns innan analys
 
@@ -223,10 +241,14 @@ Exempel:
         recommendation = "Öka proteinet."
 
 ### Loopar
-- for över logs för att räkna snitt
-- for när loggarna skrivs till CSV
+- for över logs för att räkna snitt (fyra olika average-metoder samt training_days)
+- for när loggarna skrivs till och läses från CSV
 - for när JSON-data görs om till DailyLog-objekt
-- while i run_menu
+- for i make_filename, teckenvis genom användarnamnet
+- for i plot_weight, för att bygga det rullande sjudagarssnittet
+- while True i ask_number, tills svaret går att tolka som tal
+- while i create_profile, tills kön och aktivitetsnivå är giltiga, samt tills vikt och takt går ihop
+- while running i run_menu, huvudloopen
 
 Exempel:
 
@@ -241,22 +263,23 @@ och
             break
 
 ### Funktioner
-load_profile, save_profile, export_logs_csv, plot_weight.
+make_filename, save_profile, load_profile, export_logs_csv, import_logs_csv, plot_weight, ask_number, create_profile, show_welcome, run_menu, log_today.
 
 ### Felhantering
-- filinläsning, filen saknas eller är trasig JSON
-- DailyLog-validering, ValueError
-- API-anrop, nätverksfel och timeout
-- division med noll när inga loggar finns i fönstret
+- load_profile, tre skilda except-block: json.JSONDecodeError (trasig fil), KeyError (saknat fält), ValueError (ogiltiga värden)
+- import_logs_csv, try/except inne i loopen så en trasig rad hoppas över utan att stoppa resten av importen
+- log_today och create_profile, ValueError vid ogiltig inmatning eller orimliga värden
+- save_profile och export_logs_csv, OSError vid skrivproblem
+- API-anrop (om Open Food Facts byggs), nätverksfel och timeout
 
 ### Datahantering
-JSON vid spara och läsa profil, CSV vid export.
+JSON vid spara och läsa profil (save_profile, load_profile). CSV vid export och import av loggar (export_logs_csv, import_logs_csv), CSV-filen är den datafil som lämnas in vid examination.
 
 ### Klasser och arv
 User är basklass, CutProfile ärver och lägger till mål och beräkningar. DailyLog är egen klass.
 
 ### Bibliotek
-Standard: json, csv, datetime, statistics. Externt: matplotlib, requests.
+Standard: json, csv, datetime, os. Externt: matplotlib.
 
 ### API eller extern data
 Open Food Facts, alternativt CSV-inläsning.
