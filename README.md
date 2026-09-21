@@ -108,6 +108,12 @@ Den största tekniska utmaningen var metoden `get_logs` i klassen `User`. Metode
 
 Om jag gjorde om projektet skulle jag bestämma fil- och mappstrukturen redan från början. Under arbetet skapades dubbla mappar och vissa filer hamnade både i docs och i projektroten. Det kostade en hel kväll att reda ut och gjorde det svårare att veta vilken version som var aktuell. Nästa gång skulle jag tidigt skilja på exempelvis kod, data, dokumentation och tester. Den viktigaste lärdomen är därför att en tydlig struktur runt koden är lika viktig som att själva koden fungerar.
 
+CutTrack visar även skillnaden mellan regelbaserad programmering och maskininlärning. I den nuvarande versionen har jag själv bestämt reglerna, bland annat sjudagarsfönstret, säkerhetstaket på 1,0 procent per vecka och hur proteinmålet beräknas. Metoden `check_goals` jämför användarens resultat mot dessa fasta gränser och ger återkoppling utifrån dem.
+
+Vid en framtida vidareutveckling skulle stora delar av den befintliga lösningen kunna återanvändas. Klasserna, valideringen, filhanteringen och datainsamlingen fyller samma funktion även om bedömningen görs med maskininlärning. Däremot skulle ytterligare delar behövas för att förbereda data, träna och utvärdera en modell samt använda modellens resultat i programmet. `check_goals` skulle då kunna basera sin återkoppling på modellens förutsägelse i stället för enbart på mina fasta regler.
+
+Projektet har därmed gjort kopplingen till AI-utveckling konkret för mig. En modell kan inte ge tillförlitliga bedömningar utan tillräcklig och välstrukturerad data. CutTrack bygger inte en sådan modell, men skapar det dataflöde som en framtida AI-lösning skulle vara beroende av.
+
 ## GitHub
 
 https://github.com/NiklasEkeskar/CutTrack
