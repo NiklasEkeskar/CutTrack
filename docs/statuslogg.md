@@ -23,10 +23,10 @@ Ett moment bockas av först när allt tre stämmer:
 | API eller extern fil | CSV-inläsning (import_logs_csv). Open Food Facts bortprioriterat, se Beslut | [x] |
 | Programmet körs utan kritiska fel | hela notebooken uppifrån och ner, bekräftat med Run All | [x] |
 | Datafil skapad och sparad | cuttrack_loggar.csv | [x] |
-| Notebook med markdown-celler som förklarar | .ipynb, 62 celler | [x] |
+| Notebook med markdown-celler som förklarar | .ipynb, 69 celler | [x] |
 | README komplett | mål, metod, resultat, analys, certifikat, reflektion, länk, installation | [x] |
 | GitHub-repo med länk i README | repo, publikt | [x] |
-| Minst 5 commits | repo, 23+ commits | [x] |
+| Minst 5 commits | repo, 37 commits, verifierat direkt mot GitHub | [x] |
 | Jag kan förklara varje del muntligt | DailyLog, User, CutProfile, filhantering klart. Meny och check_goals nyligen byggda, öva mer | [ ] |
 | Zip med alla tre filerna inlämnad | lärarplattformen | [ ] |
 
@@ -39,12 +39,21 @@ Flera VG-moment är redan uppfyllda som en del av G-arbetet, se Beslut.
 | --- | --- | --- |
 | Specifik felhantering per feltyp | load_profile (tre skilda except), import_logs_csv | [x] |
 | Extra funktionalitet utöver minimikraven | meny med sex val, CSV-import, kaloriförslag på begäran | [x] |
-| 10+ commits | repo | [x] |
+| 10+ commits | repo, 37 commits | [x] |
 | Kod uppdelad i egna filer | models.py, analysis.py | [ ] |
 | Konsekvent PEP 8-namngivning | hela koden | [ ] |
 | Diagram för protein och steg | plot-funktionerna | [ ] |
 | Val av analysperiod, 7, 14 eller 30 dagar | run_menu | [ ] |
 | Djupare reflektion i README | README | [ ] |
+
+### Plan för de fem återstående, i prioritetsordning
+1. Diagram för protein och steg, kopiera plot_weight-mönstret, byt datafält. Cirka 20-30 min.
+2. PEP 8-kontrollrunda, mest en genomläsning, koden följer redan mönstret. Några minuter.
+3. Djupare reflektion om tekniska val och AI-trender, ren skrivuppgift, knyt ihop med Analys-avsnittet. Cirka 20-30 min.
+4. Val av analysperiod (7/14/30 dagar). plot_weight tar redan emot days som parameter, check_goals har 7 hardkodat på fyra ställen och behöver byggas om. Tänk igenom om waiting_message (dag 7/14-logiken) ska gälla oavsett vald period eller bara vikttrenden. Cirka en timme.
+5. Uppdelning i models.py och analysis.py. Mekaniskt enkel, men ändrar vad som måste kunna förklaras och redigeras live: vilken fil en funktion bor i, import-satsen, och att kernelen måste startas om efter en ändring i en .py-fil för att den ska synas. Den enda av de fem som lägger till en ny sorts risk inför redovisningen, inte bara mer kod.
+
+Bedömning: tre till fyra timmar totalt. Med arton dagar kvar och G klart är VG rimligt, men punkt 4 och 5 förtjänar en extra tanke innan de påbörjas, eftersom de påverkar hur redovisningen går, inte bara vad som finns i koden.
 
 ## Kvar att göra
 1. Committa de sista filerna, se Öppna frågor, notebooken med resultatsektionen, kravspec.md, teknisk_plan.md, statuslogg.md, README.md och resultat_diagram.png
@@ -56,6 +65,9 @@ Flera VG-moment är redan uppfyllda som en del av G-arbetet, se Beslut.
 ## Senaste uppdateringar
 (fylls på löpande, senaste överst)
 
+- 2026-09-18: Källor till kaloriberäkningarna sökta fram och lästa på riktigt, inte bara sammanfattningar. Ny sektion "Källor, kaloriberäkningarna" i README med direktlänkar till PubMed/PMC för alla sex källor. Två viktiga nyanser upptäckta och dokumenterade: Garthe 2011 rekommenderar specifikt 0,7 procent per vecka, vårt säkerhetstak på 1,0 är en marginal, inte studiens resultat. Helms 2014 rekommenderar protein per kilo fettfri massa, inte kroppsvikt, vårt tal 1,9 g/kg kroppsvikt kommer i stället från Morton m.fl. 2018.
+- 2026-09-18: Gick igenom en egen problem- och riskanalys av projektet (filstruktur, testfiler, dubbletter i kod, obekräftade påståenden). Två buggar bekräftade och rättade i notebooken: introcellen hade dubblerade rader om plot_weight och menyfunktionerna, och CSV-testcellen skrev över cuttrack_loggar.csv med tre testrader istället för Resultat-avsnittets tjugo dagar. export_logs_csv(demo_user, ...) tillagd sist i Resultat-avsnittet så filen på disk efter Run All nu innehåller rätt data. Commit-antalet i teknisk_plan.md ("20+") verifierat direkt mot GitHub: 37 commits, stämmer.
+- 2026-09-18: Vikten visas nu i både procent och kg i check_goals (till exempel "cirka 0,6 kg"), samt ett kg-exempel direkt i create_profile när takten matas in, räknat på startvikten. Testat mot den faktiska demo-datan innan det gick in i koden.
 - 2026-09-18: Upptäckte att inget arbete committats sedan "Add menu, welcome text and profile creation", trots att notebook (resultatsektion med midjemått) och samtliga docs-filer ändrats sedan dess. Rutin för framöver: kör `git status` innan `git add` för att se exakt vilka filer som faktiskt är ändrade, i stället för att gissa filnamn.
 - 2026-09-18: README.md färdigställt i sin helhet, alla nio avsnitt enligt kravspec.md: Mål, Metod, Resultat, Analys, Certifikat, Reflektion, GitHub-länk, Installation, AI-användning. Reflektion skriven av mig själv efter frågor om vad som gick bra, vad som var svårast (get_logs, kalenderdagsfiltreringen som fyra andra metoder bygger på) och vad jag skulle gjort annorlunda (bestämma fil- och mappstruktur tidigare, efter en kväll som gick åt till att reda ut dubbla mappar).
 - 2026-09-18: Certifikatavsnittet klart. AI-900 och AI-102 kontrollerade och visade sig vara pensionerade av Microsoft den 30 juni 2026. README pekar istället på AI-901 (Azure AI Fundamentals) och AI-103 (Azure AI Apps and Agents Developer), verifierat direkt mot Microsoft Learn, inte bara branschbloggar.
@@ -83,11 +95,11 @@ Flera VG-moment är redan uppfyllda som en del av G-arbetet, se Beslut.
 - AI-användningen dokumenteras öppet i README enligt kursplanens krav: idén och besluten är mina, koden är till stor del AI-skriven men genomgången, testad och förstådd.
 
 ## Att verifiera mot källa innan koden skrivs
-Alla ska anges i README:s metodavsnitt. Kan komma som muntlig fråga.
-- [ ] Mifflin-St Jeor, formel och aktivitetsfaktorer
-- [ ] 7700 kcal per kilo kroppsfett, ursprung och kritiken mot regeln
-- [ ] Takt 0,5 till 1,0 procent per vecka, Garthe m.fl. 2011
-- [ ] Protein per kilo, Helms m.fl. 2014 och nyare metaanalys
+Alla angivna i README under "Källor, kaloriberäkningarna", med direktlänkar till PubMed/PMC. Läs själva artiklarna, inte bara sammanfattningen nedan, innan redovisning.
+- [x] Mifflin-St Jeor 1990, formeln stämmer exakt mot koden. https://pubmed.ncbi.nlm.nih.gov/2305711/
+- [x] 7700 kcal per kilo kroppsfett, Wishnofsky 1958 (ursprung) och Hall m.fl. 2011 (kritiken, dynamisk modell). https://pubmed.ncbi.nlm.nih.gov/13594881/ och https://pubmed.ncbi.nlm.nih.gov/21872751/
+- [x] Takt, Garthe m.fl. 2011. Viktigt att kunna: studien rekommenderar specifikt 0,7 procent som bäst för att bevara fettfri massa, inte "upp till 1,0". Vårt säkerhetstak på 1,0 är en marginal, inte en direkt återgivning av resultatet. https://pubmed.ncbi.nlm.nih.gov/21558571/
+- [x] Protein. Viktig nyans: Helms m.fl. 2014 rekommenderar 2,3-3,1 g per kilo FETTFRI MASSA för tävlande, inte kroppsvikt. CutTrack loggar ingen kroppsfettsprocent och räknar därför på målvikt istället, med 1,9 g/kg hämtat ur Morton m.fl. 2018 (metaanalys, nytta planar ut runt 1,6-2,2 g/kg kroppsvikt för icke-tävlande). Detta måste kunna förklaras exakt så om det kommer upp, annars låter det som att Helms-talet bara skrivits av fel. https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4033492/ och https://pmc.ncbi.nlm.nih.gov/articles/PMC5867436/
 - [x] Kalorigolv: högsta av fast gräns (1200 kvinnor / 1500 män) och personens BMR. Källa: amerikanska obesitasriktlinjerna 2013.
 - [x] SCB-siffror till analysavsnittet: AI-användning i företag 2025, kontrollerade direkt mot scb.se
 
@@ -111,8 +123,11 @@ Alla ska anges i README:s metodavsnitt. Kan komma som muntlig fråga.
 - Kommentarer i koden rekommenderas av läraren, kvar att göra.
 
 ## Öppna frågor
-- [ ] Committa notebooken med resultatsektionen (om det inte redan skett)
+- [x] Committa notebooken med resultatsektionen
 - [x] Committa docs/kravspec.md
-- [ ] Committa docs/teknisk_plan.md (pågår)
-- [ ] Committa docs/statuslogg.md
-- [ ] Committa README.md och resultat_diagram.png i projektroten
+- [x] Committa docs/teknisk_plan.md
+- [x] Committa docs/statuslogg.md
+- [x] Committa README.md och resultat_diagram.png i projektroten
+- [x] Committa bugfixar i notebooken (dubbletter i introcellen, CSV-testrader som skrev över den riktiga datan)
+- [x] Committa kg-visning i check_goals och create_profile
+- [ ] Committa README:s nya Källor-sektion och statuslogg.md:s ikryssade källverifiering (denna uppdatering)
