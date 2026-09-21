@@ -60,6 +60,8 @@ Alla fem VG-delar klara. Inga fler tekniska beslut kvar, bara övning och pakete
 ## Senaste uppdateringar
 (fylls på löpande, senaste överst)
 
+- 2026-09-21: .gitignore bekräftad korrekt: *.json, *.csv, undantag för cuttrack_loggar.csv, plus __pycache__/ och *.pyc som blev extra relevanta efter modulindelningen (Python skapar automatiskt en __pycache__-mapp vid import av models.py och analysis.py). Ingen ändring behövdes, filen var redan rätt.
+- 2026-09-21: Liveredigeringsövning genomförd på riktigt i models.py: bytte fixed_floor från 1500 till 1600 för män, sparade, Restart, Run All. Stötte på NameError första försöket eftersom Run All inte kördes från toppen (körde en cell mitt i filen istället), löst genom att köra Run All från menyn. Verifierade importen fristående i terminalen (python3 -c "from models import CutProfile") för att skilja på om felet var i koden eller i notebook-sessionen. Bekräftade till slut 1600 i utskriften, återställde till 1500.
 - 2026-09-18: Modulindelning genomförd, sista VG-delen. Koden delad i models.py (DailyLog, User, CutProfile) och analysis.py (make_filename, save_profile, load_profile, export_logs_csv, import_logs_csv, plot_weight, plot_protein, plot_steps), båda testade fristående med samma testbatteri som innan, identiskt resultat. Notebooken importerar från dem och behåller menyn och alla tester. Introcellen förklarar filstrukturen och att kerneln måste startas om efter ändringar i .py-filerna. teknisk_plan.md och produktvision.md uppdaterade, produktvision.md:s roadmap skärpt med konkreta exempel (dagar-till-mål, platådetektion, korrelation, coach-roll) efter en egen problem- och utvecklingsanalys. Beslut: inget av roadmap-förslagen byggs nu, VG:s krav på extra funktionalitet är redan uppfyllt och mer kod ökar bara vad som måste kunna förklaras live utan att flytta betyget.
 - 2026-09-18: Kommentarer tillagda i koden på de ställen som faktiskt saknade dem, inte en genomgång av allt. get_logs (de två stegen), add_log (dubblettkontrollen) och suggest_calorie_goal (hela golv-logiken) hade noll kommentarer innan, trots att de är tre av de mest diskuterade delarna. Även run_menu (varför choice jämförs som text) och en kort hänvisning i plot_protein/plot_steps till att de följer plot_weight-mönstret. import_logs_csv hade redan sin kommentar sedan tidigare.
 - 2026-09-18: Reflektion i README utökad med koppling till Analys, om skillnaden mellan CutTracks regelbaserade logik och en framtida maskininlärningsmodell, vad som skulle återanvändas (klasser, validering, filhantering) och vad som skulle behöva läggas till (dataförberedelse, träning, utvärdering).
@@ -106,17 +108,19 @@ Alla angivna i README under "Källor, kaloriberäkningarna", med direktlänkar t
 ## Muntlig träning, sittande
 - [x] Skillnaden mellan `class CutProfile(User)` (ger metoderna) och `super().__init__()` (sätter attributen)
 - [x] Varför golvet är det högsta av basalomsättning och fast gräns
-- [ ] Filstrukturen: vad som ligger i models.py, analysis.py respektive notebooken, och varför kerneln måste startas om efter en ändring i en .py-fil
-- [ ] Varför weight_change normaliseras till en veckotakt (raw_change / days * 7) när analysperioden är valbar
-- [ ] get_logs, förklara med egna ord utan att titta i koden
-- [ ] add_log, förklara varför dubbletter ersätts
-- [ ] check_goals, förklara varför vikten har två olika sorters gränser
-- [ ] waiting_message, förklara varför den räknar från senaste loggade dagen och inte dagens riktiga datum
-- [ ] load_profile, förklara varför tre skilda except-block istället för ett gemensamt
-- [ ] import_logs_csv, förklara varför try/except ligger inne i loopen och inte runt hela
-- [ ] make_filename, förklara varför användarinmatning inte får styra filnamnet direkt
-- [ ] run_menu, förklara varför input/print hålls separat från klasserna
-- [ ] Öva på en liten live-ändring: till exempel byta ett gränsvärde och köra om
+- [x] Öva på en liten live-ändring: gjort på riktigt i models.py (fixed_floor 1500 till 1600), inklusive felsökning av NameError när Run All inte kördes från toppen, Restart, bekräftat 1600 i utskriften, återställt till 1500
+- [ ] Filstrukturen: vad som ligger i models.py, analysis.py respektive notebooken, och varför kerneln måste startas om efter en ändring i en .py-fil. Ämnet togs upp men jag svarade aldrig med egna ord, gick vidare direkt
+- [ ] Varför weight_change normaliseras till en veckotakt (raw_change / days * 7) när analysperioden är valbar. Medvetet vald bort denna gång
+- [ ] get_logs, förklara med egna ord utan att titta i koden. Inte övat i den här chatten
+- [ ] add_log, förklara varför dubbletter ersätts. Inte övat i den här chatten
+- [ ] check_goals, förklara varför vikten har två olika sorters gränser. Inte övat i den här chatten
+- [ ] waiting_message, förklara varför den räknar från senaste loggade dagen och inte dagens riktiga datum. Inte övat i den här chatten
+- [ ] load_profile, förklara varför tre skilda except-block istället för ett gemensamt. Inte övat i den här chatten
+- [ ] import_logs_csv, förklara varför try/except ligger inne i loopen och inte runt hela. Inte övat i den här chatten
+- [ ] make_filename, förklara varför användarinmatning inte får styra filnamnet direkt. Inte övat i den här chatten
+- [ ] run_menu, förklara varför input/print hålls separat från klasserna. Inte övat i den här chatten
+
+11 av 13 rader obockade som av 2026-09-21. Live-ändringen är den enda nya sedan förra avstämningen.
 
 ## Examination, viktigt att hålla isär
 - Teoretisk examination: onlinequiz 28 september (grupp 1), 40 frågor, minst 10 rätt. Testar kursens allmänna innehåll, inget med CutTrack att göra.
