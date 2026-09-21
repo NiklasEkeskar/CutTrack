@@ -137,4 +137,7 @@ Alla angivna i README under "Källor, kaloriberäkningarna", med direktlänkar t
 - [x] Committa PEP 8-radbrytningarna, bekräftat
 - [x] Committa reflektionstillägget i README, bekräftat
 - [x] Committa dagens kodkommentarer, bekräftat
-- [ ] Committa analysperiod-ändringarna i cuttrack.ipynb (check_goals, waiting_message, ask_period, run_menu)
+- [x] Committa models.py, analysis.py och den omstrukturerade cuttrack.ipynb, bekräftat med commit-hash (Split code into models.py and analysis.py)
+- [x] Committa docs/teknisk_plan.md, docs/produktvision.md och docs/statuslogg.md, bekräftat med commit-hash (Update docs after module split and roadmap review)
+
+Allt committat och pushat som av 2026-09-21.
