@@ -40,30 +40,27 @@ Flera VG-moment är redan uppfyllda som en del av G-arbetet, se Beslut.
 | Specifik felhantering per feltyp | load_profile (tre skilda except), import_logs_csv | [x] |
 | Extra funktionalitet utöver minimikraven | meny med sex val, CSV-import, kaloriförslag på begäran | [x] |
 | 10+ commits | repo, 37 commits | [x] |
-| Kod uppdelad i egna filer | models.py, analysis.py | [ ] |
+| Kod uppdelad i egna filer | models.py, analysis.py, se teknisk_plan.md avsnitt Filstruktur | [x] |
 | Konsekvent PEP 8-namngivning | hela koden, radlängd kontrollerad, namngivning ren | [x] |
 | Diagram för protein och steg | plot_protein, plot_steps, samma mönster som plot_weight | [x] |
-| Val av analysperiod, 7, 14 eller 30 dagar | run_menu | [ ] |
+| Val av analysperiod, 7, 14 eller 30 dagar | ask_period(), check_goals(days), plot-funktionerna | [x] |
 | Djupare reflektion i README | README, koppling mellan Reflektion och Analys om regelbaserat kontra ML | [x] |
 
-### Plan för de återstående, i prioritetsordning
-Tre av fem klara: diagram för protein och steg, PEP 8-kontroll, djupare reflektion. Kvar:
-
-1. Val av analysperiod (7/14/30 dagar). plot_weight, plot_protein och plot_steps tar redan emot days som parameter, check_goals har 7 hardkodat på fyra ställen och behöver byggas om. Tänk igenom om waiting_message (dag 7/14-logiken) ska gälla oavsett vald period eller bara vikttrenden. Cirka en timme.
-2. Uppdelning i models.py och analysis.py. Mekaniskt enkel, men ändrar vad som måste kunna förklaras och redigeras live: vilken fil en funktion bor i, import-satsen, och att kernelen måste startas om efter en ändring i en .py-fil för att den ska synas. Den enda av de fem som lägger till en ny sorts risk inför redovisningen, inte bara mer kod.
-
-Bedömning: dessa två återstår, punkt 4 och 5 i den ursprungliga bedömningen, de som förtjänar en extra tanke innan de påbörjas eftersom de påverkar hur redovisningen går, inte bara vad som finns i koden.
+### VG, alla fem delar klara
+Diagram för protein och steg, PEP 8-kontroll, djupare reflektion, val av analysperiod, och nu även modulindelningen. Se teknisk_plan.md för detaljer om filstrukturen och de tekniska rättningar modulindelningen och analysperioden krävde (veckotakt normaliserad oavsett fönsterstorlek, träningsmål skalat till perioden).
 
 ## Kvar att göra
 1. Committa de sista filerna, se Öppna frågor
-2. Öva muntlig förklaring, se Muntlig träning
+2. Öva muntlig förklaring, se Muntlig träning, särskilt filstrukturen och kernel-omstarten
 3. Öva på att göra en liten ändring i koden live, inte bara förklara den
-4. Ta ställning till de två sista VG-delarna (analysperiod, modulindelning), eller lämna VG som den är nu (tre av fem klara)
-5. Zip-fil enligt kursplanens namnformat: projekt_python_fornamn_efternamn.zip
+4. Zip-fil enligt kursplanens namnformat: projekt_python_fornamn_efternamn.zip
+
+Alla fem VG-delar klara. Inga fler tekniska beslut kvar, bara övning och paketering.
 
 ## Senaste uppdateringar
 (fylls på löpande, senaste överst)
 
+- 2026-09-18: Modulindelning genomförd, sista VG-delen. Koden delad i models.py (DailyLog, User, CutProfile) och analysis.py (make_filename, save_profile, load_profile, export_logs_csv, import_logs_csv, plot_weight, plot_protein, plot_steps), båda testade fristående med samma testbatteri som innan, identiskt resultat. Notebooken importerar från dem och behåller menyn och alla tester. Introcellen förklarar filstrukturen och att kerneln måste startas om efter ändringar i .py-filerna. teknisk_plan.md och produktvision.md uppdaterade, produktvision.md:s roadmap skärpt med konkreta exempel (dagar-till-mål, platådetektion, korrelation, coach-roll) efter en egen problem- och utvecklingsanalys. Beslut: inget av roadmap-förslagen byggs nu, VG:s krav på extra funktionalitet är redan uppfyllt och mer kod ökar bara vad som måste kunna förklaras live utan att flytta betyget.
 - 2026-09-18: Kommentarer tillagda i koden på de ställen som faktiskt saknade dem, inte en genomgång av allt. get_logs (de två stegen), add_log (dubblettkontrollen) och suggest_calorie_goal (hela golv-logiken) hade noll kommentarer innan, trots att de är tre av de mest diskuterade delarna. Även run_menu (varför choice jämförs som text) och en kort hänvisning i plot_protein/plot_steps till att de följer plot_weight-mönstret. import_logs_csv hade redan sin kommentar sedan tidigare.
 - 2026-09-18: Reflektion i README utökad med koppling till Analys, om skillnaden mellan CutTracks regelbaserade logik och en framtida maskininlärningsmodell, vad som skulle återanvändas (klasser, validering, filhantering) och vad som skulle behöva läggas till (dataförberedelse, träning, utvärdering).
 - 2026-09-18: PEP 8 kontrollerat på riktigt, inte antaget. Namngivning (klasser PascalCase, funktioner snake_case) helt ren, 0 avvikelser av 32 funktioner/metoder och 3 klasser. Radlängd: 5 rader av 1101 över 99 tecken, radbrutna och verifierade.
@@ -109,6 +106,8 @@ Alla angivna i README under "Källor, kaloriberäkningarna", med direktlänkar t
 ## Muntlig träning, sittande
 - [x] Skillnaden mellan `class CutProfile(User)` (ger metoderna) och `super().__init__()` (sätter attributen)
 - [x] Varför golvet är det högsta av basalomsättning och fast gräns
+- [ ] Filstrukturen: vad som ligger i models.py, analysis.py respektive notebooken, och varför kerneln måste startas om efter en ändring i en .py-fil
+- [ ] Varför weight_change normaliseras till en veckotakt (raw_change / days * 7) när analysperioden är valbar
 - [ ] get_logs, förklara med egna ord utan att titta i koden
 - [ ] add_log, förklara varför dubbletter ersätts
 - [ ] check_goals, förklara varför vikten har två olika sorters gränser
@@ -134,7 +133,8 @@ Alla angivna i README under "Källor, kaloriberäkningarna", med direktlänkar t
 - [x] Committa bugfixar i notebooken (dubbletter i introcellen, CSV-testrader som skrev över den riktiga datan)
 - [x] Committa kg-visning i check_goals och create_profile
 - [x] Committa README:s Källor-sektion och statuslogg.md:s ikryssade källverifiering
-- [ ] Committa plot_protein/plot_steps (bekräftat inte uttryckligen, antas gjort eftersom arbetet fortsatte)
-- [x] Committa PEP 8-radbrytningarna, bekräftat gjort
-- [ ] Committa reflektionstillägget i README, inte uttryckligen bekräftat än
-- [ ] Committa dagens kodkommentarer, precis skickade, inte committat än
+- [x] Committa plot_protein/plot_steps, bekräftat
+- [x] Committa PEP 8-radbrytningarna, bekräftat
+- [x] Committa reflektionstillägget i README, bekräftat
+- [x] Committa dagens kodkommentarer, bekräftat
+- [ ] Committa analysperiod-ändringarna i cuttrack.ipynb (check_goals, waiting_message, ask_period, run_menu)

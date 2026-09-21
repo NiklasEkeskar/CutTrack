@@ -22,17 +22,15 @@ Profilens fält läggs in från start, även de som bara används av kaloriberä
 - allt kan ligga samlat i notebooken i det här steget
 
 ## VG-utbyggnad
-Redan uppfyllt, byggt som en del av G:
+Alla fem delar klara:
 - specifik felhantering per feltyp (load_profile har tre skilda except-block, import_logs_csv hanterar ValueError och KeyError var för sig)
 - extra funktionalitet utöver minimikraven (meny med sex val, CSV-import, kaloriförslag på begäran)
-- 20+ commits
-
-Kvar om tiden räcker:
-- dela upp koden i models.py och analysis.py som importeras in i notebooken
-- konsekvent PEP 8-namngivning i hela koden
-- fler diagram: protein och steg, inte bara vikt
-- val av analysperiod, 7, 14 eller 30 dagar
-- djupare reflektion i README om tekniska val och AI-trender
+- 37 commits
+- kod uppdelad i models.py och analysis.py, se avsnittet Filstruktur nedan
+- konsekvent PEP 8-namngivning, kontrollerad, 0 avvikelser i klass- och funktionsnamn, radlängd under 99 tecken överallt
+- diagram för protein och steg (plot_protein, plot_steps), samma mönster som plot_weight
+- val av analysperiod, 7, 14 eller 30 dagar, via ask_period() i menyn, kopplat till check_goals(days) och plot-funktionerna
+- djupare reflektion i README om tekniska val och AI-trender, kopplad till Analys-avsnittet
 
 ## Klasser
 ### User (basklass)
@@ -287,6 +285,13 @@ Open Food Facts, alternativt CSV-inläsning.
 ## Filstruktur
 Håll input() och print() i egna funktioner, separat från klasserna och beräkningslogiken, så att CLI kan bytas mot en app senare utan att röra kärnlogiken.
 
+Koden är uppdelad i tre filer, i samma mapp:
+- `models.py`: DailyLog, User, CutProfile
+- `analysis.py`: make_filename, save_profile, load_profile, export_logs_csv, import_logs_csv, plot_weight, plot_protein, plot_steps. Importerar DailyLog och CutProfile från models.py.
+- `cuttrack.ipynb`: importerar från de två andra filerna. Innehåller show_welcome, ask_number, ask_period, create_profile, log_today, run_menu (UI-lagret), samt alla test- och democeller.
+
+Notebooken måste ligga i samma mapp som models.py och analysis.py för att importen ska fungera. Ändras något i en av .py-filerna medan notebooken är öppen måste kerneln startas om (Restart) innan ändringen syns, Python läser bara in en modul en gång per körning. Det är den praktiska konsekvensen av uppdelningen, och den ska kunna förklaras och visas live vid redovisningen.
+
 ## Punkter att ha förberedda till muntlig redovisning
 1. Varför `is not None` och inte bara `if waist`. Noll och saknat värde är olika saker, och ett vanligt if-test behandlar dem lika.
 2. Varför användarinmatning aldrig går rakt in i ett filnamn. Den som skriver in text skulle annars kunna styra var filen hamnar.
@@ -295,6 +300,7 @@ Håll input() och print() i egna funktioner, separat från klasserna och beräkn
 5. Varför sjudagarssnittet räknas på kalenderdagar och inte på antal loggar.
 6. Varför träning loggas som ja eller nej och inte i minuter, och vad det valet kostar.
 7. Skillnaden mellan vad `class CutProfile(User)` gör och vad `super().__init__()` gör. Klassraden ger metoderna, super() sätter attributen. Utan super() hade objektet saknat self.logs och kraschat vid första add_log.
+8. Varför koden är uppdelad i models.py, analysis.py och notebooken, vad som ligger var, och varför kerneln måste startas om efter en ändring i en .py-fil för att ändringen ska synas.
 
 ## Källor att ange i README
 - Mifflin-St Jeor: formeln och aktivitetsfaktorerna
