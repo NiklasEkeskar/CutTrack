@@ -41,30 +41,33 @@ Flera VG-moment är redan uppfyllda som en del av G-arbetet, se Beslut.
 | Extra funktionalitet utöver minimikraven | meny med sex val, CSV-import, kaloriförslag på begäran | [x] |
 | 10+ commits | repo, 37 commits | [x] |
 | Kod uppdelad i egna filer | models.py, analysis.py | [ ] |
-| Konsekvent PEP 8-namngivning | hela koden | [ ] |
-| Diagram för protein och steg | plot-funktionerna | [ ] |
+| Konsekvent PEP 8-namngivning | hela koden, radlängd kontrollerad, namngivning ren | [x] |
+| Diagram för protein och steg | plot_protein, plot_steps, samma mönster som plot_weight | [x] |
 | Val av analysperiod, 7, 14 eller 30 dagar | run_menu | [ ] |
-| Djupare reflektion i README | README | [ ] |
+| Djupare reflektion i README | README, koppling mellan Reflektion och Analys om regelbaserat kontra ML | [x] |
 
-### Plan för de fem återstående, i prioritetsordning
-1. Diagram för protein och steg, kopiera plot_weight-mönstret, byt datafält. Cirka 20-30 min.
-2. PEP 8-kontrollrunda, mest en genomläsning, koden följer redan mönstret. Några minuter.
-3. Djupare reflektion om tekniska val och AI-trender, ren skrivuppgift, knyt ihop med Analys-avsnittet. Cirka 20-30 min.
-4. Val av analysperiod (7/14/30 dagar). plot_weight tar redan emot days som parameter, check_goals har 7 hardkodat på fyra ställen och behöver byggas om. Tänk igenom om waiting_message (dag 7/14-logiken) ska gälla oavsett vald period eller bara vikttrenden. Cirka en timme.
-5. Uppdelning i models.py och analysis.py. Mekaniskt enkel, men ändrar vad som måste kunna förklaras och redigeras live: vilken fil en funktion bor i, import-satsen, och att kernelen måste startas om efter en ändring i en .py-fil för att den ska synas. Den enda av de fem som lägger till en ny sorts risk inför redovisningen, inte bara mer kod.
+### Plan för de återstående, i prioritetsordning
+Tre av fem klara: diagram för protein och steg, PEP 8-kontroll, djupare reflektion. Kvar:
 
-Bedömning: tre till fyra timmar totalt. Med arton dagar kvar och G klart är VG rimligt, men punkt 4 och 5 förtjänar en extra tanke innan de påbörjas, eftersom de påverkar hur redovisningen går, inte bara vad som finns i koden.
+1. Val av analysperiod (7/14/30 dagar). plot_weight, plot_protein och plot_steps tar redan emot days som parameter, check_goals har 7 hardkodat på fyra ställen och behöver byggas om. Tänk igenom om waiting_message (dag 7/14-logiken) ska gälla oavsett vald period eller bara vikttrenden. Cirka en timme.
+2. Uppdelning i models.py och analysis.py. Mekaniskt enkel, men ändrar vad som måste kunna förklaras och redigeras live: vilken fil en funktion bor i, import-satsen, och att kernelen måste startas om efter en ändring i en .py-fil för att den ska synas. Den enda av de fem som lägger till en ny sorts risk inför redovisningen, inte bara mer kod.
+
+Bedömning: dessa två återstår, punkt 4 och 5 i den ursprungliga bedömningen, de som förtjänar en extra tanke innan de påbörjas eftersom de påverkar hur redovisningen går, inte bara vad som finns i koden.
 
 ## Kvar att göra
-1. Committa de sista filerna, se Öppna frågor, notebooken med resultatsektionen, kravspec.md, teknisk_plan.md, statuslogg.md, README.md och resultat_diagram.png
-2. Kommentarer i koden på de svåraste ställena, rekommenderat av läraren
-3. Öva muntlig förklaring på check_goals, run_menu och filhanteringen
-4. Öva på att göra en liten ändring i koden live, inte bara förklara den
+1. Committa de sista filerna, se Öppna frågor
+2. Öva muntlig förklaring, se Muntlig träning
+3. Öva på att göra en liten ändring i koden live, inte bara förklara den
+4. Ta ställning till de två sista VG-delarna (analysperiod, modulindelning), eller lämna VG som den är nu (tre av fem klara)
 5. Zip-fil enligt kursplanens namnformat: projekt_python_fornamn_efternamn.zip
 
 ## Senaste uppdateringar
 (fylls på löpande, senaste överst)
 
+- 2026-09-18: Kommentarer tillagda i koden på de ställen som faktiskt saknade dem, inte en genomgång av allt. get_logs (de två stegen), add_log (dubblettkontrollen) och suggest_calorie_goal (hela golv-logiken) hade noll kommentarer innan, trots att de är tre av de mest diskuterade delarna. Även run_menu (varför choice jämförs som text) och en kort hänvisning i plot_protein/plot_steps till att de följer plot_weight-mönstret. import_logs_csv hade redan sin kommentar sedan tidigare.
+- 2026-09-18: Reflektion i README utökad med koppling till Analys, om skillnaden mellan CutTracks regelbaserade logik och en framtida maskininlärningsmodell, vad som skulle återanvändas (klasser, validering, filhantering) och vad som skulle behöva läggas till (dataförberedelse, träning, utvärdering).
+- 2026-09-18: PEP 8 kontrollerat på riktigt, inte antaget. Namngivning (klasser PascalCase, funktioner snake_case) helt ren, 0 avvikelser av 32 funktioner/metoder och 3 klasser. Radlängd: 5 rader av 1101 över 99 tecken, radbrutna och verifierade.
+- 2026-09-18: plot_protein och plot_steps byggda, samma mönster som plot_weight (dictionary-sortering, rullande sjudagarssnitt). Testat med 20 dagars data och med för få loggar.
 - 2026-09-18: Källor till kaloriberäkningarna sökta fram och lästa på riktigt, inte bara sammanfattningar. Ny sektion "Källor, kaloriberäkningarna" i README med direktlänkar till PubMed/PMC för alla sex källor. Två viktiga nyanser upptäckta och dokumenterade: Garthe 2011 rekommenderar specifikt 0,7 procent per vecka, vårt säkerhetstak på 1,0 är en marginal, inte studiens resultat. Helms 2014 rekommenderar protein per kilo fettfri massa, inte kroppsvikt, vårt tal 1,9 g/kg kroppsvikt kommer i stället från Morton m.fl. 2018.
 - 2026-09-18: Gick igenom en egen problem- och riskanalys av projektet (filstruktur, testfiler, dubbletter i kod, obekräftade påståenden). Två buggar bekräftade och rättade i notebooken: introcellen hade dubblerade rader om plot_weight och menyfunktionerna, och CSV-testcellen skrev över cuttrack_loggar.csv med tre testrader istället för Resultat-avsnittets tjugo dagar. export_logs_csv(demo_user, ...) tillagd sist i Resultat-avsnittet så filen på disk efter Run All nu innehåller rätt data. Commit-antalet i teknisk_plan.md ("20+") verifierat direkt mot GitHub: 37 commits, stämmer.
 - 2026-09-18: Vikten visas nu i både procent och kg i check_goals (till exempel "cirka 0,6 kg"), samt ett kg-exempel direkt i create_profile när takten matas in, räknat på startvikten. Testat mot den faktiska demo-datan innan det gick in i koden.
@@ -130,4 +133,8 @@ Alla angivna i README under "Källor, kaloriberäkningarna", med direktlänkar t
 - [x] Committa README.md och resultat_diagram.png i projektroten
 - [x] Committa bugfixar i notebooken (dubbletter i introcellen, CSV-testrader som skrev över den riktiga datan)
 - [x] Committa kg-visning i check_goals och create_profile
-- [ ] Committa README:s nya Källor-sektion och statuslogg.md:s ikryssade källverifiering (denna uppdatering)
+- [x] Committa README:s Källor-sektion och statuslogg.md:s ikryssade källverifiering
+- [ ] Committa plot_protein/plot_steps (bekräftat inte uttryckligen, antas gjort eftersom arbetet fortsatte)
+- [x] Committa PEP 8-radbrytningarna, bekräftat gjort
+- [ ] Committa reflektionstillägget i README, inte uttryckligen bekräftat än
+- [ ] Committa dagens kodkommentarer, precis skickade, inte committat än
