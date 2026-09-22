@@ -7,6 +7,8 @@ class DailyLog:
     """En daglig logg med vikt, kalorier och annan data för ett datum."""
 
     def __init__(self, date, weight, calories, protein, steps, trained, waist=None):
+        # Validering sker här, i klassen, så den gäller oavsett varifrån ett
+        # DailyLog-objekt skapas, inte bara när det matas in via input()
         if weight <= 0 or weight > 300:
             raise ValueError("Vikten måste vara ett rimligt tal i kilogram, till exempel 82.5.")
         if calories < 0 or calories > 10000:
@@ -32,6 +34,7 @@ class User:
         self.activity_level = activity_level
         self.start_weight = start_weight
         self.created_date = created_date
+        # Tom lista, en ny användare har per definition inga loggar än
         self.logs = []
 
     def add_log(self, new_log):
@@ -73,6 +76,7 @@ class User:
         if len(selected_logs) == 0:
             return None
 
+        # Ackumulatormönster: summera alla värden, dela med antalet
         total_weight = 0
         for log in selected_logs:
             total_weight = total_weight + log.weight
@@ -86,6 +90,7 @@ class User:
         if len(selected_logs) == 0:
             return None
 
+        # Samma ackumulatormönster som average_weight, bara protein istället för vikt
         total_protein = 0
         for log in selected_logs:
             total_protein = total_protein + log.protein
@@ -99,6 +104,7 @@ class User:
         if len(selected_logs) == 0:
             return None
 
+        # Samma ackumulatormönster som average_weight, bara steg istället för vikt
         total_steps = 0
         for log in selected_logs:
             total_steps = total_steps + log.steps
@@ -110,9 +116,13 @@ class User:
         Returnerar None om det finns färre än två loggar."""
         selected_logs = self.get_logs(days)
 
+        # Minst två loggar krävs, annars finns ingen förändring att mäta
         if len(selected_logs) < 2:
             return None
 
+        # Hittar tidigaste och senaste loggen genom att jämföra datumsträngarna
+        # direkt, utan att sortera listan. Fungerar eftersom formatet ÅÅÅÅ-MM-DD
+        # sorteras rätt även som text.
         first_log = selected_logs[0]
         last_log = selected_logs[0]
         for log in selected_logs:
@@ -127,6 +137,8 @@ class User:
         """Antal dagar med träning under perioden."""
         selected_logs = self.get_logs(days)
 
+        # Räknar antal True-värden i fönstret. Returnerar 0, inte None, när det
+        # inte finns några loggar, eftersom noll träningsdagar är ett giltigt svar
         total_days = 0
         for log in selected_logs:
             if log.trained:
@@ -141,8 +153,12 @@ class CutProfile(User):
     def __init__(self, name, height_cm, age, sex, activity_level, start_weight, created_date,
                  goal_weight, target_rate_percent, protein_goal_per_kg=1.9, step_goal=8000,
                  training_goal_days=3):
+        # super() sätter alla ärvda attribut, inklusive self.logs, innan de
+        # egna attributen sätts nedan. Utan den här raden hade self.logs saknats.
         super().__init__(name, height_cm, age, sex, activity_level, start_weight, created_date)
 
+        # Valideras här, i klassen, av samma skäl som i DailyLog: gäller oavsett
+        # hur objektet skapas, inte bara vid inmatning via input()
         if goal_weight <= 0 or goal_weight >= start_weight:
             raise ValueError("Målvikten måste vara lägre än startvikten.")
         if target_rate_percent <= 0 or target_rate_percent > 1.0:
@@ -159,6 +175,7 @@ class CutProfile(User):
 
     def current_weight(self):
         """Senaste loggade vikten. Startvikten om inga loggar finns."""
+        # Faller tillbaka på startvikten så BMR går att räkna innan någon logg finns
         if len(self.logs) == 0:
             return self.start_weight
 
@@ -171,9 +188,12 @@ class CutProfile(User):
 
     def calculate_bmr(self):
         """Basalomsättning i kalorier per dygn, enligt Mifflin-St Jeor."""
+        # Räknas på aktuell vikt, inte startvikt, eftersom förbrukningen sjunker
+        # i takt med vikten under en deff
         weight = self.current_weight()
         bmr = 10 * weight + 6.25 * self.height_cm - 5 * self.age
 
+        # Mifflin-St Jeor, formeln är lika för båda könen förutom sista termen
         if self.sex == "man":
             bmr = bmr + 5
         else:
@@ -187,6 +207,8 @@ class CutProfile(User):
 
     def protein_goal(self):
         """Proteinmål i gram per dag, räknat på målvikten."""
+        # Räknas på målvikten, inte aktuell vikt, så målet ligger fast
+        # genom hela deffen i stället för att sjunka i takt med vikten
         return self.goal_weight * self.protein_goal_per_kg
 
     def suggest_calorie_goal(self):
@@ -245,6 +267,9 @@ class CutProfile(User):
             if log.date > latest_log.date:
                 latest_log = log
 
+        # Räknar till senaste loggade dagen, inte till dagens riktiga datum,
+        # av samma skäl som get_logs: har du inte loggat på några dagar ska
+        # analysen ändå utgå från din senaste aktiva period
         start_date = datetime.strptime(self.created_date, "%Y-%m-%d")
         latest_date = datetime.strptime(latest_log.date, "%Y-%m-%d")
         return (latest_date - start_date).days + 1
@@ -254,6 +279,7 @@ class CutProfile(User):
         Kräver en period för att visa ett snitt, två perioder för att bedöma takten."""
         total_days = self.days_since_start()
 
+        # En period krävs för att visa ett snitt alls
         if total_days < days:
             remaining = days - total_days
             return ("Vikten svänger flera hundra gram från dag till dag på grund av vätska och "
@@ -261,6 +287,8 @@ class CutProfile(User):
                     f"{total_days} dagars data vore bara brus. {remaining} dagar kvar tills ett "
                     f"{days}-dagarssnitt visas.")
 
+        # Två perioder krävs innan takten bedöms: den andra perioden visar
+        # om snittet faktiskt rör sig, inte bara vad det är just nu
         if total_days < days * 2:
             remaining = days * 2 - total_days
             return ("Snittet är nu tillräckligt med data för att visas, men "

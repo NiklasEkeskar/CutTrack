@@ -62,6 +62,8 @@ def save_profile(profile):
         "logs": log_list
     }
 
+    # OSError fångar problem med själva skrivningen, till exempel att disken
+    # är full eller att mappen saknar skrivrättigheter
     try:
         with open(filename, "w", encoding="utf-8") as file:
             json.dump(data, file, ensure_ascii=False, indent=4)
@@ -103,13 +105,18 @@ def load_profile(name):
         print(f"Profilen för {profile.name} laddades, {len(profile.logs)} loggar.")
         return profile
 
+    # Tre skilda except-block, inte ett gemensamt, eftersom felen betyder olika
+    # saker och kräver olika åtgärder av användaren
     except json.JSONDecodeError:
+        # Filen finns men innehållet är inte giltig JSON, t.ex. redigerad för hand
         print(f"Filen {filename} är skadad och kunde inte läsas.")
         return None
     except KeyError as error:
+        # Giltig JSON men saknar ett fält koden förväntar sig, t.ex. en äldre filversion
         print(f"Filen {filename} saknar fältet {error}.")
         return None
     except ValueError as error:
+        # Fälten finns men värdena är orimliga, DailyLog eller CutProfile vägrar dem
         print(f"Filen {filename} innehåller ogiltiga värden: {error}")
         return None
 
@@ -122,6 +129,7 @@ def export_logs_csv(profile, filename="cuttrack_loggar.csv"):
 
     column_names = ["date", "weight", "calories", "protein", "steps", "trained", "waist"]
 
+    # newline="" krävs av csv-modulen, annars kan filen få extra tomrader på Windows
     try:
         with open(filename, "w", newline="", encoding="utf-8") as file:
             writer = csv.writer(file)
@@ -159,11 +167,14 @@ def import_logs_csv(profile, filename="cuttrack_loggar.csv"):
 
     try:
         with open(filename, "r", newline="", encoding="utf-8") as file:
+            # DictReader läser varje rad som en dictionary, med kolumnnamnen från
+            # första raden som nycklar, så ordningen på kolumnerna spelar ingen roll
             reader = csv.DictReader(file)
 
             for row in reader:
                 # try/except inne i loopen, så en trasig rad inte stoppar hela importen
                 try:
+                    # Allt som läses från CSV är text, även talen, därför float()/int()
                     if row["waist"] == "":
                         waist = None
                     else:
