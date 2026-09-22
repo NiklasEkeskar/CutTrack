@@ -120,13 +120,34 @@ Alla angivna i README under "Källor, kaloriberäkningarna", med direktlänkar t
 - [ ] make_filename, förklara varför användarinmatning inte får styra filnamnet direkt. Inte övat i den här chatten
 - [ ] run_menu, förklara varför input/print hålls separat från klasserna. Inte övat i den här chatten
 
-11 av 13 rader obockade som av 2026-09-21. Live-ändringen är den enda nya sedan förra avstämningen.
+10 av 13 rader obockade som av 2026-09-21. Live-ändringen är den enda nya sedan förra avstämningen.
 
 ## Examination, viktigt att hålla isär
 - Teoretisk examination: onlinequiz 28 september (grupp 1), 40 frågor, minst 10 rätt. Testar kursens allmänna innehåll, inget med CutTrack att göra.
 - Praktisk examination: CutTrack, inlämning före redovisning, max 10 minuters muntlig redovisning av både kod och README-analys.
 - AI-användning ska dokumenteras och förklaras i README, se avsnittet i README och Beslut ovan.
 - Kommentarer i koden rekommenderas av läraren, kvar att göra.
+
+## Datum, bekräftade mot kursplanen
+- **28 september**: Teoretiskt prov, 09.00, 6h-pass
+- **4 oktober**: Sista dag för projektinlämning OCH individuell projektredovisning, samma dag
+- Ingen buffert mellan inlämning och redovisning, allt måste vara klart innan 4 oktober
+
+## Pluggplan, muntlig träning fram till 28 september
+Mål: kunna de flesta av de tio obockade punkterna innan handledningspasset med läraren den 28 september, direkt efter teoriprovet. Två punkter per dag, sista dagen repetition.
+
+- [ ] Dag 1: get_logs, add_log
+- [ ] Dag 2: check_goals, waiting_message
+- [ ] Dag 3: filstruktur/kernel-omstart, veckotakts-normaliseringen (raw_change / days * 7)
+- [ ] Dag 4: load_profile, make_filename
+- [ ] Dag 5: import_logs_csv, run_menu
+- [ ] Dag 6 (söndag 27:e): hela listan i snabb följd, repetition
+
+## Att göra före examinationsveckan
+- [ ] Ta med penna till teoriprovet 28 september
+- [ ] Ladda datorn helt både 28 september och 4 oktober
+- [ ] Planera att stanna kvar och visa projektet under handledningspasset direkt efter teoriprovet den 28 september, som en runda innan riktiga redovisningen den 4 oktober
+- [ ] Se till att zip-filen är klar och uppladdad i god tid före 4 oktober, samma dag som redovisningen ger ingen marginal
 
 ## Öppna frågor
 - [x] Committa notebooken med resultatsektionen

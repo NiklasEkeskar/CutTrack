@@ -8,10 +8,19 @@ Kursen examineras i två helt separata delar, med egna beskrivningar och eget in
 **2. Praktisk examination.** Individuellt projektarbete med muntlig redovisning, max 10 minuter. Examinerar mål 1 till 8. Jag ska presentera både kod och README-analysen, inte bara koden.
 
 ## Deadlines
-- Teoriprov: **28 september** (grupp 1)
-- Projektinlämning: sker **före** redovisningen, gäller även vid tidigare redovisningstillfälle
-- Inlämning sker på två ställen med samma deadline: zip-fil på lärarplattformen och repo på GitHub
-- Redovisning: ordinarie tillfälle, eller tidigare efter överenskommelse via Discord i god tid
+Bekräftat direkt mot kursplanens schema, inga uppskattningar.
+- Teoretiskt prov grupp 1: **28 september**, 6h-pass, start **09.00**, kom minst 10 minuter innan
+- Teoretiskt prov grupp 2: 30 september (ej relevant för mig)
+- **Projektinlämning, sista datum: 4 oktober**
+- **Individuell projektredovisning, grupp 1: 4 oktober**, samma dag som sista inlämningsdatum, ingen buffert mellan inlämning och redovisning
+- Individuell projektredovisning grupp 2: 7 oktober (ej relevant för mig)
+- Inlämning sker på två ställen med samma deadline: zip-fil på lärarplattformen och repo på GitHub. Länk till GitHub räcker inte ensamt, filerna ska in i systemet
+
+## Inför examinationsveckan
+- Ta med penna till den teoretiska examinationen
+- Ta med en fungerande, uppdaterad, fulladdad dator båda veckorna (teoriprov och redovisning)
+- Stark rekommendation från läraren: visa projektet under handledningspasset direkt efter teoriprovet, som en runda innan den riktiga redovisningen. Fångar problem i god tid, inte alltid tid för komplettering under själva examinationstillfället
+- Frågor i quizet om lektion 14 (Databricks) eller 15 (Multi-Agent System) kan påpekas och exkluderas från bedömningen
 
 ## Inlämning
 Tre filer, samlade i en enda .zip, samt samma filer i GitHub-repot.
