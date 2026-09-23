@@ -22,6 +22,11 @@ CutTrack är byggt i en enda Jupyter Notebook, med tre klasser och elva friståe
 
 **Gränssnitt:** En textbaserad meny (`run_menu`) med sex val: logga dagens data, visa analys, visa diagram, visa kaloriförslag, läsa in loggar från CSV, samt spara och avsluta. All inmatning och utskrift hålls i egna funktioner, separat från klasserna, så att logiken går att återanvända om gränssnittet byts ut senare.
 
+**Kaloriberäkningen visuellt.** Diagrammet nedan illustrerar hela kedjan i `suggest_calorie_goal` och `check_goals`, från TDEE till det slutliga kaloriförslaget, med ett fristående räkneexempel (inte samma profil som i Resultat-avsnittet). Skapat för att förklara golv-logiken, inte en skärmdump från CutTrack.
+
+![Hur CutTrack styr en deff, med räkneexempel](golvlogik_diagram.png)
+
+
 ## Källor, kaloriberäkningarna
 
 - Mifflin MD, St Jeor ST, Hill LA, Scott BJ, Daugherty SA, Koh YO. *A new predictive equation for resting energy expenditure in healthy individuals.* Am J Clin Nutr. 1990;51(2):241-247. https://pubmed.ncbi.nlm.nih.gov/2305711/
