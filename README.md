@@ -74,6 +74,10 @@ Midjemåttet minskade från 90,0 till 88,2 cm under perioden, vilket enligt prod
 
 ![Viktutveckling](resultat_diagram.png)
 
+![Proteinintag](resultat_protein.png)
+
+![Steg](resultat_steg.png)
+
 ## Analys – yrkesroller, verksamheter och trender
 
 CutTrack löser i grunden ett dataproblem. Enskilda vägningar påverkas av exempelvis vätska och ger därför begränsad information. Programmet samlar i stället in data konsekvent, kontrollerar att värdena är rimliga, lagrar dem strukturerat och analyserar utvecklingen över tid. Genom att använda tydliga datatyper och skilja saknade värden från nollor minskar risken för missvisande resultat.
