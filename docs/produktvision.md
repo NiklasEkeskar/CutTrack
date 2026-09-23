@@ -8,7 +8,7 @@ Många som deffar har svårt att:
 - förstå när något behöver justeras
 - skilja en verklig trend från tillfälliga svängningar i vätska och maginnehåll
 
-Idag löser jag det här manuellt i ett Claude-projekt (GYM 101), med klipp och klistra och skärmdumpar. Det fungerar för mig men är inte begripligt för gemene man.
+Idag löser jag det här manuellt, med klipp och klistra och skärmdumpar. Det fungerar för mig men är inte begripligt för gemene man.
 
 ## Målgrupp
 Andra personer som vill deffa och behålla muskelmassa, inte bara jag själv. Varje person ska kunna skapa sin egen profil i programmet.
