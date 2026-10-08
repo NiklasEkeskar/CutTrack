@@ -1,120 +1,119 @@
-# Kravspec (från examinationsbeskrivningen och kursplanen)
+# CutTrack, kravspecifikation
 
-## Två separata examinationer
-Kursen examineras i två helt separata delar, med egna beskrivningar och eget innehåll. De har inget med varandra att göra. Båda ska genomföras, även av den som examineras på annat datum än det ordinarie.
+Det här dokumentet beskriver vad CutTrack ska kunna och vilka krav koden ska uppfylla. `produktvision.md` beskriver varför, `teknisk_plan.md` beskriver hur. Statuskolumnen visar vad som är byggt och styr roadmapen i `statuslogg.md`.
 
-**1. Teoretisk examination.** Testar kursens allmänna innehåll, inte CutTrack. Onlinequiz vid de ordinarie tillfällena 28 och 30 september, upplagt ungefär som quizen efter varje lektion men längre och mer omfattande. 40 frågor, minst 10 rätt krävs. Jag tillhör grupp 1, quiz **28 september**. Den som examineras på annat datum gör i stället en muntlig teoriexamination med 3 till 5 öppna frågor utan svarsalternativ, max 10 minuter. Frågor om material som inte hunnits gå igenom, bland annat lektion 14 (Databricks) och 15 (Multi-Agent System), kan påpekas under quizet och exkluderas då från bedömningen.
+Status senast kontrollerad mot koden: 2026-10-08.
 
-**2. Praktisk examination.** Individuellt projektarbete med muntlig redovisning, max 10 minuter. Examinerar mål 1 till 8. Jag ska presentera både kod och README-analysen, inte bara koden.
+## Användare
 
-## Deadlines
-Bekräftat direkt mot kursplanens schema, inga uppskattningar.
-- Teoretiskt prov grupp 1: **28 september**, 6h-pass, start **09.00**, kom minst 10 minuter innan
-- Teoretiskt prov grupp 2: 30 september (ej relevant för mig)
-- **Projektinlämning, sista datum: 4 oktober**
-- **Individuell projektredovisning, grupp 1: 4 oktober**, samma dag som sista inlämningsdatum, ingen buffert mellan inlämning och redovisning
-- Individuell projektredovisning grupp 2: 7 oktober (ej relevant för mig)
-- Inlämning sker på två ställen med samma deadline: zip-fil på lärarplattformen och repo på GitHub. Länk till GitHub räcker inte ensamt, filerna ska in i systemet
+Primär användare är en person som deffar och vill följa sin viktnedgång utan att tappa muskelmassa. Personen behöver inte kunna programmera. Flera personer ska kunna använda programmet på samma dator, var och en med egen profil och egna loggar.
 
-## Inför examinationsveckan
-- Ta med penna till den teoretiska examinationen
-- Ta med en fungerande, uppdaterad, fulladdad dator båda veckorna (teoriprov och redovisning)
-- Stark rekommendation från läraren: visa projektet under handledningspasset direkt efter teoriprovet, som en runda innan den riktiga redovisningen. Fångar problem i god tid, inte alltid tid för komplettering under själva examinationstillfället
-- Frågor i quizet om lektion 14 (Databricks) eller 15 (Multi-Agent System) kan påpekas och exkluderas från bedömningen
+## Användningsfall
 
-## Inlämning
-Tre filer, samlade i en enda .zip, samt samma filer i GitHub-repot.
-1. **Jupyter Notebook (.ipynb)** med hela projektets kod och tydliga markdown-celler som förklarar logiken
-2. **Datafil (.csv eller .json)** med data programmet hämtat, sparat eller analyserat under körning
-3. **README (.md eller .pdf)** med mål, metod, branschanalys, certifikat och reflektion
+1. Skapa en profil.
+2. Logga dagens data.
+3. Se analys för en period (7, 14 eller 30 dagar).
+4. Se diagram över utvecklingen.
+5. Få ett kaloriförslag.
+6. Läsa in loggar från och exportera loggar till CSV.
+7. Spara och fortsätta nästa dag.
 
-Filnamn på zip: projekt_python_fornamn_efternamn.zip
+## Funktionella krav
 
-## Obligatoriska tekniska delar
-| Område | Vad som förväntas |
-| --- | --- |
-| Variabler och datatyper | int, float, str, bool, listor, dict |
-| If-satser | Villkor och beslut |
-| Loopar | Minst en for- eller while-loop |
-| Funktioner | Minst 3 till 5 egna funktioner med parametrar och returvärden |
-| Felhantering | try/except där det är rimligt (API-anrop, filhantering) |
-| Datahantering | Läsa eller spara data i JSON eller CSV, denna fil lämnas in |
-| Klasser | Minst en klass med attribut och metoder |
-| Arv | Minst en barnklass som ärver från basklass |
-| Standardbibliotek | json, csv, random, datetime, os, math |
-| Externt bibliotek | requests, matplotlib, beautifulsoup4 |
-| API eller extern data | Hämta data från ett offentligt API eller läsa från extern fil |
-| GitHub | Repository med projektet, länk i README |
-| Versionshantering | Minst 5 commits med tydliga meddelanden |
+Status är Klart, Delvis eller Ej byggt.
 
-## README ska innehålla
-| Avsnitt | Innehåll |
-| --- | --- |
-| Titel | Projektets namn |
-| Mål | Vad projektet ska lösa, kopplat till verkligheten och AI-utvecklarrollen |
-| Metod | Hur målet nåddes, vilka tekniska delar som användes (API, klasser, bibliotek) |
-| Resultat | Vad blev resultatet, med exempel på utskrifter eller data |
-| Analys | Tolkning av resultatet, vad betyder det för AI-utvecklarrollen och branschen. Mål 1 kräver analys av **bransch, yrkesroller och trender** |
-| Certifikat | Kort redogörelse för yrkescertifikat relevanta för rollen, till exempel AWS, Azure eller Databricks (mål 5) |
-| Reflektion | Vad gick bra, vad var svårt, vad skulle jag göra annorlunda (mål 8) |
-| GitHub-länk | Länk till repot, ska anges tydligt |
-| Installation | Hur man kör projektet |
-| **AI-användning** | **AI-genererad kod ska dokumenteras och förklaras i README (Del 12)** |
+### Profil
 
-## Regler kring AI-verktyg (Del 12)
-- AI får användas som stöd för idéer, felsökning och kodgenerering
-- **Viktigaste regeln: jag måste förstå ALL kod som lämnas in**
-- Personuppgifter (PII) får aldrig skickas till AI-verktyg
-- **AI-genererad kod ska dokumenteras och förklaras i README**
-- Inte tillåtet: lämna in kod jag inte kan förklara under redovisningen
-- Konsekvens om jag inte kan förklara koden: betyg IG
-- Plagiat, kopiering utan egna ändringar och förståelse, är förbjudet
-
-## Vid redovisningen
-- Max 10 minuter, individuellt
-- Presentera både kod och README-analysen
-- Ta med en fungerande dator, fulladdad, uppdaterad, med internetanslutning. Kontrollera i förväg att projektet och alla program fungerar
-- Kunna förklara all inlämnad kod och sina designval
-- **Kunna göra mindre ändringar i koden på egen hand under redovisningen**
-- Kommentarer i koden rekommenderas av läraren som stöd vid förklaringen
-
-## Vad som INTE krävs
-Avancerad matematik, avancerade AI-modeller (neurala nätverk), avancerad databashantering, stora komplexa system, professionell frontend eller webbdesign.
-
-Kursplanens egen formulering: gör inte projektet överkomplicerat, det räcker gott att använda grundläggande moment i Python. En enkel men fungerande lösning som jag förstår är alltid bättre än en avancerad lösning som jag inte kan förklara.
-
-## Betygskriterier
-| Betyg | Beskrivning | Huvudkrav |
+| ID | Krav | Status |
 | --- | --- | --- |
-| IG | Når inte alla kursmål eller kan inte förklara sin lösning | Saknar obligatoriska moment ELLER förstår inte sin egen kod |
-| G | Når kursmålen och visar grundläggande förståelse | Alla obligatoriska delar finns (klasser, arv, API, GitHub, README med certifikat-redogörelse) |
-| VG | Visar god struktur, självständighet och säkerhet i sina lösningar | Allt för G plus tydlig kodstruktur (mål 6), bra felhantering, djup reflektion (mål 8), extra funktionalitet, 10+ commits |
+| F1 | Användaren kan skapa en profil med längd, ålder, kön, aktivitetsnivå, startvikt, målvikt och önskad takt i procent per vecka. | Klart |
+| F2 | Orimliga profilvärden avvisas: målvikten ska vara lägre än startvikten och takten ligga mellan 0 och 1,0 procent per vecka. | Klart |
+| F3 | Profilen sparas som en JSON-fil per användare och laddas vid nästa start. | Klart |
+| F4 | Filnamnet byggs säkert från användarnamnet, bara a till z och siffror. | Klart |
+| F23 | Användaren kan ställa in eget proteinmål (gram per kilo), stegmål och träningsmål när profilen skapas. | Delvis. Fälten finns i profilen och JSON-filen, men menyn frågar inte efter dem. Standardvärdena gäller. |
 
-### VG-kriterier i detalj
-- **Kodstruktur:** uppdelad i flera moduler, exempelvis api_handler.py, analyzer.py
-- **Namngivning:** konsekvent, självförklarande funktions- och variabelnamn enligt PEP 8
-- **Felhantering:** specifika felmeddelanden för API-fel, nätverksproblem och filhantering via try/except
-- **Visualisering:** avancerade matplotlib-diagram som är integrerade i lösningen och förklaras i texten
-- **Reflektion:** djupgående reflektion över tekniska val och hur resultatet speglar aktuella AI-trender
-- **Certifikat:** analys av vilka yrkescertifikat som är relevanta för projektets teknikstack
-- **GitHub:** 15+ commits med tydlig struktur och beskrivande meddelanden
-- **Självständighet:** extra funktionalitet utöver minimikraven
+### Loggning
 
-## Checklista inför inlämning
-- [ ] Notebook, datafil och README finns
-- [ ] Alla filer samlade i en enda .zip
-- [ ] Programmet körs utan kritiska fel
-- [ ] Minst en klass med arv används
-- [ ] try/except används för API-anrop eller filinläsning
-- [ ] Både standardbibliotek och externa bibliotek används
-- [ ] Repot har minst 5 commits med tydliga meddelanden
-- [ ] README innehåller analys kopplad till yrkesroller och trender i AI-branschen
-- [ ] README innehåller kort redogörelse för relevanta certifikat
-- [ ] README innehåller djupgående reflektion över tekniska val och resultat
-- [ ] README innehåller AI-användningen dokumenterad och förklarad
-- [ ] Giltig GitHub-länk tydligt angiven i README
-- [ ] Jag är förberedd på att förklara all kod och mina designval muntligt
-- [ ] Jag är förberedd på att göra mindre ändringar i koden live
+| ID | Krav | Status |
+| --- | --- | --- |
+| F5 | Daglig logg med datum, vikt, kalorier, protein, steg, träning (ja eller nej) och midjemått (valfritt). | Klart |
+| F6 | En ny logg för ett datum som redan finns ersätter den gamla, och användaren får veta det. | Klart |
+| F7 | Orimliga värden avvisas: vikten ska vara över 0 och högst 300 kg, kalorierna mellan 0 och 10 000. | Klart |
+| F8 | Loggar kan exporteras till och läsas in från CSV. En rad med ogiltiga värden hoppas över och resten läses in. | Klart |
 
-## Viktigaste enskilda risken
-Att inte kunna förklara egen eller AI-genererad kod under redovisningen ger automatiskt IG. Kursplanen säger det rakt ut: studenten måste förstå ALL kod som lämnas in. Med det skärpta kravet på att kunna ändra koden live räcker det inte att känna igen den, jag ska veta var varje del ligger och kunna redigera den utan hjälp.
+### Beräkningar
+
+| ID | Krav | Status |
+| --- | --- | --- |
+| F9 | Kaloriförslag: basalomsättning enligt Mifflin-St Jeor på aktuell vikt, gånger aktivitetsfaktor, minus underskott från önskad takt (7700 kcal per kilo). | Klart |
+| F10 | Kalorigolv: förslaget går aldrig under det högsta av basalomsättningen och 1 500 kcal (män) respektive 1 200 kcal (kvinnor). Slår golvet i säger programmet vad som hände och vilken takt användaren faktiskt får. | Klart |
+| F11 | Proteinmålet är målvikt gånger gram per kilo, standard 1,9. | Klart |
+
+### Analys och råd
+
+| ID | Krav | Status |
+| --- | --- | --- |
+| F12 | Analys för vald period (7, 14 eller 30 dagar) av viktens takt i procent per vecka, protein, träningsfrekvens och steg. | Klart |
+| F13 | Vikttakten bedöms mot användarens eget mål (undre gräns) och ett fast säkerhetstak på 1,0 procent per vecka (övre gräns). Ökande vikt flaggas alltid. | Klart, men takten räknas på ett sätt som ska bytas, se F24 |
+| F14 | Programmet väntar med bedömningen: en period för att visa ett snitt, två perioder för att bedöma takten. Under väntetiden visas hur många dagar som återstår. | Klart |
+| F15 | Protein, steg och träning analyseras direkt, redan under väntetiden, eftersom de bara kräver ett snitt. | Ej byggt. `check_goals` skriver väntetexten och avbryter, så inget område analyseras förrän perioden är full. |
+| F16 | Sjudagarssnittet av vikten visas under dag 7 till 13. | Ej byggt. Väntetexten säger att snittet kan visas, men inget snitt skrivs ut. |
+| F17 | Statusöversikt för alla områden plus en sak att fokusera på, i ordningen vikt, protein, träning, steg. | Klart |
+| F18 | Midjemått jämförs mot vikt: vikt ner och midja ner pekar mot fettförlust, vikt ner och midja oförändrad är en varningssignal. | Ej byggt. Midjemåttet sparas men ingen kod läser det. |
+| F24 | Takten räknas på snitt, inte på enskilda vägningar: snittet för senaste perioden jämförs med snittet för perioden före. | Ej byggt. Takten räknas från första och sista vägningen i perioden och delas med periodens längd i stället för med antalet dagar mellan vägningarna, vilket ger ungefär 14 procent för låg takt på sjudagarsperioden. En enskild vägning kan flytta resultatet med flera tiondels procentenheter. |
+
+### Diagram
+
+| ID | Krav | Status |
+| --- | --- | --- |
+| F19 | Diagram över viktutvecklingen med rullande sjudagarssnitt och målvikt. | Klart |
+| F20 | Diagram för protein och steg med rullande sjudagarssnitt och mållinje. | Delvis. Funktionerna finns i `analysis.py` men nås inte från menyn. |
+
+### Gränssnitt och information
+
+| ID | Krav | Status |
+| --- | --- | --- |
+| F21 | Textmeny med val för att logga, visa analys, visa diagram, visa kaloriförslag, läsa in CSV samt spara och avsluta. | Klart, körs i notebooken |
+| F22 | Ansvarsfriskrivningen visas i README, vid start och i samband med kaloriberäkningen. Kaloriförslaget presenteras som en startpunkt som ska justeras efter ett par veckors utfall. | Delvis. Friskrivningen visas i README och vid start, inte vid kaloriförslaget, och ingen text säger att förslaget ska justeras. |
+
+## Datakrav
+
+| ID | Krav | Status |
+| --- | --- | --- |
+| D1 | Datum skrivs ÅÅÅÅ-MM-DD, så att de sorteras rätt som text och läses av `datetime`. | Klart |
+| D2 | Ett saknat värde är `None`, aldrig 0, och kontrolleras med `is not None`. | Klart |
+| D3 | Snitt och trender räknas på kalenderdagar bakåt från det senast loggade datumet, inte på antal loggar. | Klart |
+| D4 | Personlig data lämnar inte datorn. Profilfiler (`*.json`) och användarens egna CSV-exporter ignoreras av git. Exempeldata ligger i en egen incheckad fil. | Delvis. Det finns ingen incheckad exempelfil, och `.gitignore` har ett undantag för `cuttrack_loggar.csv`. Notebookens exempelcell och menyns export skriver båda till det filnamnet, så filen syns som ny i git när programmet körts och riktiga loggar kan committas av misstag. |
+
+## Säkerhets- och hälsokrav
+
+| ID | Krav | Status |
+| --- | --- | --- |
+| H1 | Säkerhetstaket på 1,0 procent per vecka och kalorigolvet går inte att ställa in bort. | Klart |
+| H2 | Programmet ger allmänna riktvärden och är inte medicinsk rådgivning. | Klart, se även F22 |
+| H3 | Förenklingar och begränsningar (till exempel 7700-regeln och att kroppsfett inte mäts) redovisas öppet i README. | Klart |
+| H4 | Programmet justerar aldrig ett förslag tyst. När en gräns slår i ska användaren få veta vad som hände och varför. | Klart |
+
+## Icke-funktionella krav
+
+| ID | Krav | Status |
+| --- | --- | --- |
+| N1 | All text som visas för användaren är på svenska. Klasser, funktioner och variabler namnges på engelska enligt PEP 8. Commit-meddelanden skrivs på engelska. | Klart |
+| N2 | Ren och underhållbar kod framför smart kod. Befintliga mönster följs innan nya införs. Kommentarer förklarar varför, inte vad. | Klart |
+| N3 | Dålig inmatning, en skadad fil eller en trasig CSV-rad får aldrig krascha programmet. Fel fångas specifikt (`ValueError`, `KeyError`, `JSONDecodeError`, `OSError`) och användaren får ett begripligt meddelande. | Klart |
+| N4 | Beroenden är standardbiblioteket plus matplotlib. Ett nytt externt bibliotek kräver att det underhålls, fungerar med aktuell Python och att det går att motivera varför det behövs. | Klart |
+| N5 | Programmet går att starta utan Jupyter, med ett kommando. | Ej byggt. Menyn ligger i notebooken. |
+| N6 | Reglerna (validering, kalenderdagsfönstret, kaloriförslag och golv, vikttakt, väntetid) täcks av automatiska tester. | Ej byggt. Koden är testad för hand. |
+| N7 | Dokumentationen hålls i synk med koden, och kod finns på ett ställe. | Delvis. Klasser och funktioner finns bara i `models.py` och `analysis.py`, och notebooken importerar dem. Notebookens förklaringstexter är inte genomgångna mot koden sedan kursfasen. |
+
+## Utanför omfattning
+
+- Medicinsk rådgivning eller diagnos.
+- Kroppsfettsprocent eller andra mätningar av kroppssammansättning.
+- En AI- eller maskininlärningsmodell. Den kräver betydligt fler observationer än ett enskilt projekt har, se roadmapen.
+- Konton, inloggning och molnlagring.
+- Andra lägen än deff (viktbalans, muskelbygge). Arkitekturen är förberedd för dem men de är inte byggda.
+
+## Vad klart betyder
+
+Ett krav är klart först när koden körs utan fel, är testad med realistisk data (och när det finns tester, av testerna) och går att förklara för en annan utvecklare utan att läsa innantill.

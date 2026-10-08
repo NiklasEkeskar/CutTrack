@@ -3,166 +3,93 @@
 ## Vad "klart" betyder
 Ett moment bockas av först när allt tre stämmer:
 1. koden finns och körs utan fel
-2. jag har testat den med riktig data
-3. jag kan förklara den muntligt utan att läsa innantill
+2. den är testad med realistisk data, och när det finns tester, av testerna
+3. jag kan förklara den för en annan utvecklare utan att läsa innantill
 
-## Checklista, G-versionen
-| Moment | Var i CutTrack | Klart |
-| --- | --- | --- |
-| Variabler och datatyper | DailyLog-, User- och CutProfile-attributen | [x] |
-| Valfria värden (None) | waist i DailyLog, calorie_goal i CutProfile | [x] |
-| If-satser | log_today, add_log, CutProfile-validering, check_goals, create_profile, load_profile, import_logs_csv | [x] |
-| Loop | samtliga average-metoder, training_days, make_filename, plot_weight, ask_number, create_profile, run_menu | [x] |
-| 3 till 5 egna funktioner | make_filename, save_profile, load_profile, export_logs_csv, plot_weight (fler byggda utöver kravet) | [x] |
-| Felhantering med try/except | log_today, load_profile (tre feltyper var för sig), import_logs_csv, save_profile | [x] |
-| Datahantering JSON eller CSV | save_profile/load_profile (JSON), export_logs_csv/import_logs_csv (CSV) | [x] |
-| Minst en klass | User, DailyLog | [x] |
-| Barnklass med arv | CutProfile(User), med super() | [x] |
-| Standardbibliotek | json, csv, datetime, os | [x] |
-| Externt bibliotek | matplotlib | [x] |
-| API eller extern fil | CSV-inläsning (import_logs_csv). Open Food Facts bortprioriterat, se Beslut | [x] |
-| Programmet körs utan kritiska fel | hela notebooken uppifrån och ner, bekräftat med Run All | [x] |
-| Datafil skapad och sparad | cuttrack_loggar.csv | [x] |
-| Notebook med markdown-celler som förklarar | .ipynb, 69 celler | [x] |
-| README komplett | mål, metod, resultat, analys, certifikat, reflektion, länk, installation | [x] |
-| GitHub-repo med länk i README | repo, publikt | [x] |
-| Minst 5 commits | repo, 37 commits, verifierat direkt mot GitHub | [x] |
-| Jag kan förklara varje del muntligt | DailyLog, User, CutProfile, filhantering klart. Meny och check_goals nyligen byggda, öva mer | [ ] |
-| Zip med alla tre filerna inlämnad | lärarplattformen | [ ] |
+## Nuläge, 2026-10-08
+Version 1 är klar: tre klasser med arv (DailyLog, User, CutProfile), JSON för profiler och CSV för loggar, analys över valbar period med väntetid, tre diagram och en textmeny. Koden är uppdelad i models.py och analysis.py och körs från cuttrack.ipynb. Repot är publikt.
 
-Hela G-listan är i praktiken klar, inklusive README. Det som återstår är att committa de sista filerna (se Öppna frågor), muntlig träning, och zip-inlämning.
+Projektet började som kursprojekt och är sedan 2026-10-08 ett portfolioprojekt. Den version som lämnades in i kursen finns bevarad i git-taggen `v1.0-course-submission`.
 
-## Checklista, VG-utbyggnaden
-Flera VG-moment är redan uppfyllda som en del av G-arbetet, se Beslut.
+### Luckor mellan vision och kod
+Kontrollerade mot koden 2026-10-08. Status per krav finns i kravspec.md.
+- Vikttakten räknas från första och sista vägningen i perioden och delas med periodens längd, inte med antalet dagar mellan vägningarna (F24). En enskild vägning flyttar resultatet, och takten blir ungefär 14 procent för låg på sjudagarsperioden. I README-exemplet skriver programmet 1,31, 0,41 och 0,61 procent per vecka, medan jämförelse av veckosnitt ger 1,66, 1,54 och 1,12.
+- Protein, steg och träning analyseras inte under väntetiden (F15). check_goals skriver väntetexten och avbryter.
+- Sjudagarssnittet visas inte under dag 7 till 13, trots att väntetexten säger att det kan visas (F16).
+- Midjemåttet sparas men läses inte av någon kod (F18).
+- Protein- och stegdiagrammen finns i analysis.py men nås inte från menyn (F20).
+- Friskrivningen visas vid start men inte vid kaloriförslaget, och ingen text säger att förslaget är en startpunkt som ska justeras (F22).
+- Programmet går inte att starta utan Jupyter, menyn ligger i notebooken (N5).
+- Det finns inga automatiska tester (N6).
 
-| Moment | Var i CutTrack | Klart |
-| --- | --- | --- |
-| Specifik felhantering per feltyp | load_profile (tre skilda except), import_logs_csv | [x] |
-| Extra funktionalitet utöver minimikraven | meny med sex val, CSV-import, kaloriförslag på begäran | [x] |
-| 10+ commits | repo, 37 commits | [x] |
-| Kod uppdelad i egna filer | models.py, analysis.py, se teknisk_plan.md avsnitt Filstruktur | [x] |
-| Konsekvent PEP 8-namngivning | hela koden, radlängd kontrollerad, namngivning ren | [x] |
-| Diagram för protein och steg | plot_protein, plot_steps, samma mönster som plot_weight | [x] |
-| Val av analysperiod, 7, 14 eller 30 dagar | ask_period(), check_goals(days), plot-funktionerna | [x] |
-| Djupare reflektion i README | README, koppling mellan Reflektion och Analys om regelbaserat kontra ML | [x] |
+### Kända småsaker
+- Väntetexten skriver "1 dagar kvar", ska vara "1 dag kvar".
+- Frågetexten i create_profile säger "0.5 till 1.0", medan CutProfile godtar allt över 0 till 1,0.
+- Med 30 dagars period krävs 60 dagars data innan takten bedöms. Avgör om två perioder verkligen ska krävas för långa perioder.
+- Notebookens exempelcell och menyns export skriver båda till cuttrack_loggar.csv, som är undantaget från .gitignore. Filen finns inte i repot (den har aldrig committats), men den syns som ny fil när programmet körts, och riktiga loggar kan committas av misstag (D4).
+- Välkomsttexten (show_welcome) säger att programmet väntar 14 dagar innan takten bedöms, men väntetiden är två perioder: 14, 28 eller 60 dagar beroende på vald period.
+- Notebookens förklaringstexter är inte genomgångna mot koden sedan kursfasen (N7).
+- Menyn frågar inte efter protein-, steg- och träningsmål. Standardvärdena kan bara ändras i profilens JSON-fil (F23).
+- CSV-importen skriver en rad per inläst logg ("Loggen för ... lades till."), vilket blir långt vid stora filer.
 
-### VG, alla fem delar klara
-Diagram för protein och steg, PEP 8-kontroll, djupare reflektion, val av analysperiod, och nu även modulindelningen. Se teknisk_plan.md för detaljer om filstrukturen och de tekniska rättningar modulindelningen och analysperioden krävde (veckotakt normaliserad oavsett fönsterstorlek, träningsmål skalat till perioden).
+## Roadmap, i ordning
 
-## Kvar att göra
-1. Committa de sista filerna, se Öppna frågor
-2. Öva muntlig förklaring, se Muntlig träning, särskilt filstrukturen och kernel-omstarten
-3. Öva på att göra en liten ändring i koden live, inte bara förklara den
-4. Zip-fil enligt kursplanens namnformat: projekt_python_fornamn_efternamn.zip
+### Steg 0, grund
+Görs först, så att varje senare ändring kan testas och inte behöver göras på två ställen.
+- [ ] Skilj exempeldata från användarens egna loggar: checka in en exempelfil i en egen mapp (till exempel data/exempel_loggar.csv), låt exporten få ett eget filnamn per användare och ta bort undantaget `!cuttrack_loggar.csv` ur .gitignore så att git ignorerar all export
+- [ ] Tester för models.py: validering, kalenderdagsfönstret i get_logs, kaloriförslag och golv, vikttakt, väntetid. Skriv först ett test som låser dagens beteende i check_goals, ändra sedan takten (steg 1). pytest är ett alternativ (senaste version 9.1.1, släppt 2026-06-19, kräver Python 3.10 eller senare enligt PyPI, kontrollerat 2026-10-08), vanliga assert-satser räcker
+- [ ] main.py: flytta menyn (show_welcome, ask_number, ask_period, create_profile, log_today, run_menu) från notebooken så att programmet startar med `python main.py`, och låt notebooken importera den i stället
+- [ ] requirements.txt
+- [ ] Välj licens. Utan licens gäller alla rättigheter förbehållna även om repot är publikt
 
-Alla fem VG-delar klara. Inga fler tekniska beslut kvar, bara övning och paketering.
+### Steg 1, rätta takten och bygg det visionen redan beskriver
+- [ ] Rätta vikttakten (F24): jämför snittet för senaste perioden med snittet för perioden före, i stället för första och sista vägningen. Kräver att get_logs kan välja en period längre bak i tiden. Uppdatera README:s exempel efteråt, utskrifterna ändras
+- [ ] Analysera protein, steg och träning redan under väntetiden (F15)
+- [ ] Visa sjudagarssnittet av vikten under dag 7 till 13 (F16)
+- [ ] Friskrivning och en rad om att förslaget är en startpunkt vid kaloriförslaget, både vid profilskapande och i menyval 4 (F22)
+- [ ] Protein- och stegdiagram i menyn (F20)
+- [ ] Midjejämförelse i check_goals (F18). Tröskeln för vad som räknas som oförändrad måste motiveras med källa, mätfelet på ett måttband kan vara större än den förändring man vill upptäcka
+
+### Steg 2, mer räkning på redan loggad data
+Visionens första block. Ordning:
+- [ ] Dagar till målvikt, linjär projektion av aktuell takt. Minst data, ingen ny regel att bestämma
+- [ ] Platådetektion. Kräver en regel för vad stillastående betyder och helst flera veckors verkliga data att prova den mot
+- [ ] Midjemått mot vikt över hela perioden
+- [ ] Korrelation mellan protein, steg, träning och viktförändring. Ger bara brus på några veckors data, bygg den sist
+
+### Steg 3, fler lägen
+- [ ] MaintenanceProfile och BulkProfile som barnklasser till User
+- [ ] Coachroll som kan läsa en användares analys utan att kunna ändra loggarna
+
+### Steg 4, datainsamling och gränssnitt
+- [ ] Automatisk inläsning av steg
+- [ ] Webbgränssnitt ovanpå samma klasser
+- [ ] Veckorapporter och koppling till hälso- och träningsappar
+
+## Beslut
+- Träning loggas som ja eller nej (bool), inte som antal minuter.
+- BMR räknas på aktuell vikt, inte startvikt.
+- Proteinmålet räknas på målvikten och ligger fast genom hela deffen.
+- Vikttrendens undre gräns är personens eget mål, övre gränsen är ett fast säkerhetstak på 1,0 procent per vecka.
+- Kalorigolvet är det högsta av en fast gräns och personens basalomsättning, och programmet justerar aldrig tyst.
+- Koden är uppdelad i models.py och analysis.py. Gränssnittet hålls separat från logiken.
+- Open Food Facts byggs inte i version 1. Extern data hanteras via CSV-inläsning.
+- Exempeldatan i README är simulerad och anges öppet som det.
+- AI-användningen dokumenteras öppet i README.
+- Kodstil: ren och underhållbar kod framför smart kod, befintliga mönster följs innan nya införs, och ny funktionalitet ska ha tester.
+- 2026-10-08: CutTrack går från kursuppgift till portfolioprojekt. Kursfasens kravspec och statuslogg ersätts, den inlämnade versionen bevaras i git-taggen.
+- 2026-10-08: Roadmapens ordning är grund, sedan det visionen redan beskriver, sedan visionens första block (mer räkning), arkitekturen och sist datainsamling och gränssnitt.
+
+## Källor, verifierade
+Alla står med direktlänkar i README under Källor och antaganden. Nyanser att komma ihåg:
+- [x] Mifflin-St Jeor 1990, formeln stämmer exakt mot koden.
+- [x] 7700 kcal per kilo kroppsfett: Wishnofsky 1958 (ursprung) och Hall m.fl. 2011 (kritiken, dynamisk modell).
+- [x] Takt: Garthe m.fl. 2011 rekommenderar specifikt 0,7 procent per vecka. Säkerhetstaket på 1,0 är en marginal, inte studiens resultat.
+- [x] Protein: Helms m.fl. 2014 räknar per kilo fettfri massa för tävlande, inte kroppsvikt. CutTrack loggar inget kroppsfett och räknar därför på målvikt, med 1,9 g/kg hämtat ur Morton m.fl. 2018.
+- [x] Kalorigolv: Jensen m.fl. 2013 (AHA/ACC/TOS) rekommenderar 1 200 till 1 500 kcal per dag för kvinnor och 1 500 till 1 800 för män, vanligen justerat efter kroppsvikt. Texten kontrollerad mot ACC och MDedge, artikelns uppgifter och DOI mot Crossref 2026-10-08. Sidnummer är inte kontrollerade och står därför inte i README. Riktlinjerna gäller personer med övervikt eller fetma.
 
 ## Senaste uppdateringar
 (fylls på löpande, senaste överst)
 
-- 2026-09-21: .gitignore bekräftad korrekt: *.json, *.csv, undantag för cuttrack_loggar.csv, plus __pycache__/ och *.pyc som blev extra relevanta efter modulindelningen (Python skapar automatiskt en __pycache__-mapp vid import av models.py och analysis.py). Ingen ändring behövdes, filen var redan rätt.
-- 2026-09-21: Liveredigeringsövning genomförd på riktigt i models.py: bytte fixed_floor från 1500 till 1600 för män, sparade, Restart, Run All. Stötte på NameError första försöket eftersom Run All inte kördes från toppen (körde en cell mitt i filen istället), löst genom att köra Run All från menyn. Verifierade importen fristående i terminalen (python3 -c "from models import CutProfile") för att skilja på om felet var i koden eller i notebook-sessionen. Bekräftade till slut 1600 i utskriften, återställde till 1500.
-- 2026-09-18: Modulindelning genomförd, sista VG-delen. Koden delad i models.py (DailyLog, User, CutProfile) och analysis.py (make_filename, save_profile, load_profile, export_logs_csv, import_logs_csv, plot_weight, plot_protein, plot_steps), båda testade fristående med samma testbatteri som innan, identiskt resultat. Notebooken importerar från dem och behåller menyn och alla tester. Introcellen förklarar filstrukturen och att kerneln måste startas om efter ändringar i .py-filerna. teknisk_plan.md och produktvision.md uppdaterade, produktvision.md:s roadmap skärpt med konkreta exempel (dagar-till-mål, platådetektion, korrelation, coach-roll) efter en egen problem- och utvecklingsanalys. Beslut: inget av roadmap-förslagen byggs nu, VG:s krav på extra funktionalitet är redan uppfyllt och mer kod ökar bara vad som måste kunna förklaras live utan att flytta betyget.
-- 2026-09-18: Kommentarer tillagda i koden på de ställen som faktiskt saknade dem, inte en genomgång av allt. get_logs (de två stegen), add_log (dubblettkontrollen) och suggest_calorie_goal (hela golv-logiken) hade noll kommentarer innan, trots att de är tre av de mest diskuterade delarna. Även run_menu (varför choice jämförs som text) och en kort hänvisning i plot_protein/plot_steps till att de följer plot_weight-mönstret. import_logs_csv hade redan sin kommentar sedan tidigare.
-- 2026-09-18: Reflektion i README utökad med koppling till Analys, om skillnaden mellan CutTracks regelbaserade logik och en framtida maskininlärningsmodell, vad som skulle återanvändas (klasser, validering, filhantering) och vad som skulle behöva läggas till (dataförberedelse, träning, utvärdering).
-- 2026-09-18: PEP 8 kontrollerat på riktigt, inte antaget. Namngivning (klasser PascalCase, funktioner snake_case) helt ren, 0 avvikelser av 32 funktioner/metoder och 3 klasser. Radlängd: 5 rader av 1101 över 99 tecken, radbrutna och verifierade.
-- 2026-09-18: plot_protein och plot_steps byggda, samma mönster som plot_weight (dictionary-sortering, rullande sjudagarssnitt). Testat med 20 dagars data och med för få loggar.
-- 2026-09-18: Källor till kaloriberäkningarna sökta fram och lästa på riktigt, inte bara sammanfattningar. Ny sektion "Källor, kaloriberäkningarna" i README med direktlänkar till PubMed/PMC för alla sex källor. Två viktiga nyanser upptäckta och dokumenterade: Garthe 2011 rekommenderar specifikt 0,7 procent per vecka, vårt säkerhetstak på 1,0 är en marginal, inte studiens resultat. Helms 2014 rekommenderar protein per kilo fettfri massa, inte kroppsvikt, vårt tal 1,9 g/kg kroppsvikt kommer i stället från Morton m.fl. 2018.
-- 2026-09-18: Gick igenom en egen problem- och riskanalys av projektet (filstruktur, testfiler, dubbletter i kod, obekräftade påståenden). Två buggar bekräftade och rättade i notebooken: introcellen hade dubblerade rader om plot_weight och menyfunktionerna, och CSV-testcellen skrev över cuttrack_loggar.csv med tre testrader istället för Resultat-avsnittets tjugo dagar. export_logs_csv(demo_user, ...) tillagd sist i Resultat-avsnittet så filen på disk efter Run All nu innehåller rätt data. Commit-antalet i teknisk_plan.md ("20+") verifierat direkt mot GitHub: 37 commits, stämmer.
-- 2026-09-18: Vikten visas nu i både procent och kg i check_goals (till exempel "cirka 0,6 kg"), samt ett kg-exempel direkt i create_profile när takten matas in, räknat på startvikten. Testat mot den faktiska demo-datan innan det gick in i koden.
-- 2026-09-18: Upptäckte att inget arbete committats sedan "Add menu, welcome text and profile creation", trots att notebook (resultatsektion med midjemått) och samtliga docs-filer ändrats sedan dess. Rutin för framöver: kör `git status` innan `git add` för att se exakt vilka filer som faktiskt är ändrade, i stället för att gissa filnamn.
-- 2026-09-18: README.md färdigställt i sin helhet, alla nio avsnitt enligt kravspec.md: Mål, Metod, Resultat, Analys, Certifikat, Reflektion, GitHub-länk, Installation, AI-användning. Reflektion skriven av mig själv efter frågor om vad som gick bra, vad som var svårast (get_logs, kalenderdagsfiltreringen som fyra andra metoder bygger på) och vad jag skulle gjort annorlunda (bestämma fil- och mappstruktur tidigare, efter en kväll som gick åt till att reda ut dubbla mappar).
-- 2026-09-18: Certifikatavsnittet klart. AI-900 och AI-102 kontrollerade och visade sig vara pensionerade av Microsoft den 30 juni 2026. README pekar istället på AI-901 (Azure AI Fundamentals) och AI-103 (Azure AI Apps and Agents Developer), verifierat direkt mot Microsoft Learn, inte bara branschbloggar.
-- 2026-09-17: Demo-data för resultatavsnittet byggd med riktiga kroppsmått (189 cm, 39 år, man, startvikt 101,5 kg, målvikt 98 kg), 20 dagar simulerad men realistisk data (protein 190-230g, steg 8000-12000, träning 4-6 ggr/vecka), samt midjemått en gång i veckan (90,0 till 88,2 cm). Testat genom check_goals vid flera tidpunkter, gav naturlig variation: för snabb takt dag 14-17, för långsam dag 18-19, rätt takt dag 20 med steg som fokusområde istället. Kaloriförslag 2409 kcal, jämfört med faktiskt intag 2300 kcal i datan. Diagram genererat och kontrollerat.
-- 2026-09-17: kravspec.md omskriven helt utifrån den faktiska kursplanen (tidigare byggd på en ofullständig sammanfattning). Nytt: krav på att dokumentera AI-användning i README, branschanalys preciserad till yrkesroller och trender, fullständig VG-matris, betygskriterier, checklista inför inlämning.
-- 2026-09-17: README-avsnitt skrivna och bekräftade: AI-användning (hur Claude använts genom projektet, att koden till stor del är AI-skriven men förstådd och testad), Analys (kopplar CutTracks datahantering till AI-branschen, med SCB-siffror: AI-användning i svenska företag 25,2 till 35,0 procent 2024-2025, Sverige mot EU-snittet 20 procent, klyftan mellan stora och små företag 71,9 mot 30,8 procent).
-- 2026-09-17: plot_weight byggd, matplotlib. Sorterar loggar med en dictionary och sorted() istället för bubbelsortering. Rullande sjudagarssnitt, ett värde per dag. Testat med för få loggar, loggar i oordning, och 20 dagars data.
-- 2026-09-17: CSV-hantering byggd, export_logs_csv och import_logs_csv. try/except inne i importloopen så en trasig rad inte stoppar resten. Testat med normalfall och en fil med två trasiga rader.
-- 2026-09-17: Menyn byggd: show_welcome (riktlinjer utan siffror som kan krocka med aktivitetsnivå), ask_number, create_profile, run_menu. Testat med simulerad inmatning i tre scenarier: ny profil, laddad profil, samtliga felvägar.
-- 2026-09-16: JSON-filhantering byggd: make_filename (teckenlista istället för isalnum, för att utesluta å/ä/ö), save_profile, load_profile med tre skilda feltyper. Testat med normalfall och tre feltyper.
-- 2026-09-16: check_goals byggd, med days_since_start och waiting_message. Vikttrenden bedöms mot personens eget mål som undre gräns och ett fast säkerhetstak på 1,0 procent som övre gräns.
-- 2026-09-16: suggest_calorie_goal byggd, golv som högsta av BMR och fast gräns.
-- 2026-09-16: CutProfile byggd som barnklass med super().
-- 2026-09-15: DailyLog, User, log_today byggda och testade. Dubblettmappar rensade, repot gjort publikt.
-
-## Beslut
-- Bygg G-versionen klar, testad och förklarbar först. G är nu i praktiken klart kodmässigt.
-- Open Food Facts byggs inte. Kravet på extern data uppfylls via CSV-inläsning (import_logs_csv) istället. Sparar tid inför inlämning, och slipper API-felhantering som inte går att testa lika grundligt som filhantering.
-- VG-moment som redan är uppfyllda av G-arbetet räknas som klara: specifik felhantering per feltyp, extra funktionalitet utöver kraven, 10+ commits. Modulindelning (models.py/analysis.py) prioriteras bort om tiden är knapp, eftersom den kräver att importstrukturen också kan förklaras och ändras live.
-- Träning loggas som ja eller nej (bool), inte som antal minuter.
-- BMR räknas på aktuell vikt, inte startvikt.
-- Proteinmålet räknas på målvikten.
-- Vikttrendens undre gräns är personens eget mål, övre gränsen är ett fast säkerhetstak på 1,0 procent.
-- Resultatavsnittet i README bygger på simulerad men realistisk data konstruerad utifrån min egen rutin, inte en logg förd dag för dag i realtid. Det anges öppet i README.
-- AI-användningen dokumenteras öppet i README enligt kursplanens krav: idén och besluten är mina, koden är till stor del AI-skriven men genomgången, testad och förstådd.
-
-## Att verifiera mot källa innan koden skrivs
-Alla angivna i README under "Källor, kaloriberäkningarna", med direktlänkar till PubMed/PMC. Läs själva artiklarna, inte bara sammanfattningen nedan, innan redovisning.
-- [x] Mifflin-St Jeor 1990, formeln stämmer exakt mot koden. https://pubmed.ncbi.nlm.nih.gov/2305711/
-- [x] 7700 kcal per kilo kroppsfett, Wishnofsky 1958 (ursprung) och Hall m.fl. 2011 (kritiken, dynamisk modell). https://pubmed.ncbi.nlm.nih.gov/13594881/ och https://pubmed.ncbi.nlm.nih.gov/21872751/
-- [x] Takt, Garthe m.fl. 2011. Viktigt att kunna: studien rekommenderar specifikt 0,7 procent som bäst för att bevara fettfri massa, inte "upp till 1,0". Vårt säkerhetstak på 1,0 är en marginal, inte en direkt återgivning av resultatet. https://pubmed.ncbi.nlm.nih.gov/21558571/
-- [x] Protein. Viktig nyans: Helms m.fl. 2014 rekommenderar 2,3-3,1 g per kilo FETTFRI MASSA för tävlande, inte kroppsvikt. CutTrack loggar ingen kroppsfettsprocent och räknar därför på målvikt istället, med 1,9 g/kg hämtat ur Morton m.fl. 2018 (metaanalys, nytta planar ut runt 1,6-2,2 g/kg kroppsvikt för icke-tävlande). Detta måste kunna förklaras exakt så om det kommer upp, annars låter det som att Helms-talet bara skrivits av fel. https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4033492/ och https://pmc.ncbi.nlm.nih.gov/articles/PMC5867436/
-- [x] Kalorigolv: högsta av fast gräns (1200 kvinnor / 1500 män) och personens BMR. Källa: amerikanska obesitasriktlinjerna 2013.
-- [x] SCB-siffror till analysavsnittet: AI-användning i företag 2025, kontrollerade direkt mot scb.se
-
-## Muntlig träning, sittande
-- [x] Skillnaden mellan `class CutProfile(User)` (ger metoderna) och `super().__init__()` (sätter attributen)
-- [x] Varför golvet är det högsta av basalomsättning och fast gräns
-- [x] Öva på en liten live-ändring: gjort på riktigt i models.py (fixed_floor 1500 till 1600), inklusive felsökning av NameError när Run All inte kördes från toppen, Restart, bekräftat 1600 i utskriften, återställt till 1500
-- [ ] Filstrukturen: vad som ligger i models.py, analysis.py respektive notebooken, och varför kerneln måste startas om efter en ändring i en .py-fil. Ämnet togs upp men jag svarade aldrig med egna ord, gick vidare direkt
-- [ ] Varför weight_change normaliseras till en veckotakt (raw_change / days * 7) när analysperioden är valbar. Medvetet vald bort denna gång
-- [ ] get_logs, förklara med egna ord utan att titta i koden. Inte övat i den här chatten
-- [ ] add_log, förklara varför dubbletter ersätts. Inte övat i den här chatten
-- [ ] check_goals, förklara varför vikten har två olika sorters gränser. Inte övat i den här chatten
-- [ ] waiting_message, förklara varför den räknar från senaste loggade dagen och inte dagens riktiga datum. Inte övat i den här chatten
-- [ ] load_profile, förklara varför tre skilda except-block istället för ett gemensamt. Inte övat i den här chatten
-- [ ] import_logs_csv, förklara varför try/except ligger inne i loopen och inte runt hela. Inte övat i den här chatten
-- [ ] make_filename, förklara varför användarinmatning inte får styra filnamnet direkt. Inte övat i den här chatten
-- [ ] run_menu, förklara varför input/print hålls separat från klasserna. Inte övat i den här chatten
-
-10 av 13 rader obockade som av 2026-09-21. Live-ändringen är den enda nya sedan förra avstämningen.
-
-## Examination, viktigt att hålla isär
-- Teoretisk examination: onlinequiz 28 september (grupp 1), 40 frågor, minst 10 rätt. Testar kursens allmänna innehåll, inget med CutTrack att göra.
-- Praktisk examination: CutTrack, inlämning före redovisning, max 10 minuters muntlig redovisning av både kod och README-analys.
-- AI-användning ska dokumenteras och förklaras i README, se avsnittet i README och Beslut ovan.
-- Kommentarer i koden rekommenderas av läraren, kvar att göra.
-
-## Datum, bekräftade mot kursplanen
-- **28 september**: Teoretiskt prov, 09.00, 6h-pass
-- **4 oktober**: Sista dag för projektinlämning OCH individuell projektredovisning, samma dag
-- Ingen buffert mellan inlämning och redovisning, allt måste vara klart innan 4 oktober
-
-## Pluggplan, muntlig träning fram till 28 september
-Mål: kunna de flesta av de tio obockade punkterna innan handledningspasset med läraren den 28 september, direkt efter teoriprovet. Två punkter per dag, sista dagen repetition.
-
-- [ ] Dag 1: get_logs, add_log
-- [ ] Dag 2: check_goals, waiting_message
-- [ ] Dag 3: filstruktur/kernel-omstart, veckotakts-normaliseringen (raw_change / days * 7)
-- [ ] Dag 4: load_profile, make_filename
-- [ ] Dag 5: import_logs_csv, run_menu
-- [ ] Dag 6 (söndag 27:e): hela listan i snabb följd, repetition
-
-## Att göra före examinationsveckan
-- [ ] Ta med penna till teoriprovet 28 september
-- [ ] Ladda datorn helt både 28 september och 4 oktober
-- [ ] Planera att stanna kvar och visa projektet under handledningspasset direkt efter teoriprovet den 28 september, som en runda innan riktiga redovisningen den 4 oktober
-- [ ] Se till att zip-filen är klar och uppladdad i god tid före 4 oktober, samma dag som redovisningen ger ingen marginal
-
-## Öppna frågor
-- [x] Committa notebooken med resultatsektionen
-- [x] Committa docs/kravspec.md
-- [x] Committa docs/teknisk_plan.md
-- [x] Committa docs/statuslogg.md
-- [x] Committa README.md och resultat_diagram.png i projektroten
-- [x] Committa bugfixar i notebooken (dubbletter i introcellen, CSV-testrader som skrev över den riktiga datan)
-- [x] Committa kg-visning i check_goals och create_profile
-- [x] Committa README:s Källor-sektion och statuslogg.md:s ikryssade källverifiering
-- [x] Committa plot_protein/plot_steps, bekräftat
-- [x] Committa PEP 8-radbrytningarna, bekräftat
-- [x] Committa reflektionstillägget i README, bekräftat
-- [x] Committa dagens kodkommentarer, bekräftat
-- [x] Committa models.py, analysis.py och den omstrukturerade cuttrack.ipynb, bekräftat med commit-hash (Split code into models.py and analysis.py)
-- [x] Committa docs/teknisk_plan.md, docs/produktvision.md och docs/statuslogg.md, bekräftat med commit-hash (Update docs after module split and roadmap review)
-
-Allt committat och pushat som av 2026-09-21.
+- 2026-10-08: Projektet går från kursuppgift till portfolioprojekt. README skrevs om: kursspecifika avsnitt (Analys, Certifikat, kursreflektionen) togs bort, Begränsningar och Roadmap tillkom, och utskrifterna i Exempel kontrollerades mot koden. Två rader med föråldrad text rättades ("planerade dagar den senaste veckan" blev "förväntade dagar under perioden"). Kravspecen ersattes av en produktkravspec med statuskolumn, produktvision och teknisk_plan rensades från kursframing och den här loggen startades om. Kontrollen mot koden visade åtta luckor mot visionen, se Nuläge. Den allvarligaste är att vikttakten räknas från första och sista vägningen, vilket gör att README-exemplets utskrifter (1,31, 0,41 och 0,61 procent per vecka) mest speglar enskilda dagars svängningar. README beskriver nu det öppet under Exempel och Begränsningar. Källan till kalorigolvet lades till i README, och en felaktig formulering rättades: README sa att kalorigolvet bygger på 7700-regeln, men det är underskottet som gör det. Dokumenten kontrollerades därefter mot själva repot: cuttrack_loggar.csv har aldrig checkats in (den skapas när notebooken körs), så påståendena om en incheckad exempelfil togs bort och D4 beskriver nu hur det faktiskt är. Notebooken i repot har inga kodkopior som markdown (de fanns bara i en äldre referenskopia), så skuldpunkten om kod på två ställen togs bort ur teknisk_plan, kravspec N7 och den här loggen.
+- Kursfasen, 2026-09-15 till 2026-10-04: se git-taggen `v1.0-course-submission` och tidigare versioner av den här filen i git-historiken.

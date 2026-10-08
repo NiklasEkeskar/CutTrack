@@ -122,7 +122,7 @@ def load_profile(name):
 
 
 def export_logs_csv(profile, filename="cuttrack_loggar.csv"):
-    """Sparar alla loggar som CSV. Detta är datafilen som lämnas in."""
+    """Sparar alla loggar som CSV."""
     if len(profile.logs) == 0:
         print("Det finns inga loggar att exportera.")
         return False

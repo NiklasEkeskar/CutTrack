@@ -22,7 +22,7 @@ Andra personer som vill deffa och behålla muskelmassa, inte bara jag själv. Va
 - träning, ja eller nej
 - midjemått (valfritt, mäts typiskt en gång i veckan)
 
-## Vad programmet gör
+## Vad programmet ska göra
 - räknar ut ett kaloriförslag utifrån profilen, så användaren slipper gissa
 - räknar rullande sjudagarssnitt på vikten
 - bedömer viktnedgångens takt som procent av kroppsvikt per vecka
@@ -30,6 +30,8 @@ Andra personer som vill deffa och behålla muskelmassa, inte bara jag själv. Va
 - räknar snitt på kalorier, protein och steg samt antal träningsdagar
 - visar viktutvecklingen i ett diagram
 - ger en statusöversikt plus en sak att fokusera på
+
+Vad av detta som är byggt står i kravspec.md.
 
 ## Varför midjemått
 Vikt ensam kan inte skilja fettförlust från muskelförlust. Två personer som tappar ett kilo i veckan ser identiska ut i datan, oavsett vad kilot bestod av. Midjan krymper när fett försvinner men i princip inte när muskler gör det. Vikt ner plus midja ner pekar mot fettförlust. Vikt ner plus midja oförändrad är en varningssignal. Det är en proxy, inte en mätning, men det är det bästa som går att få utan mätverktyg.
@@ -44,6 +46,8 @@ Dagliga viktsvängningar från vätska och maginnehåll ligger ofta på flera hu
 - dag 7 till 13: sjudagarssnitt visas, men takten kan inte bedömas än
 - från dag 14: full analys
 
+Tiderna gäller sjudagarsperioden. Med vald period krävs en period för att visa snittet och två perioder för att bedöma takten.
+
 Protein, steg och träning analyseras direkt, de kräver bara ett snitt och ingen trend.
 
 ## Prioritering av råden
@@ -57,18 +61,16 @@ Programmet visar status på alla områden och lyfter sedan fram en sak att fokus
 "Vikten minskar med 0,6 procent per vecka, vilket ligger i rätt intervall. Proteinmålet nås fem av sju dagar och träningsfrekvensen är stabil. Fokusera på stegen, snittet ligger under ditt mål."
 
 ## Ansvarsfriskrivning
-Programmet ger allmänna riktvärden baserade på etablerade rekommendationer. Det är inte medicinsk rådgivning. Texten visas i README, vid skapande av ny profil och i samband med kaloriberäkningen.
+Programmet ger allmänna riktvärden baserade på etablerade rekommendationer. Det är inte medicinsk rådgivning. Texten visas i README, vid skapande av ny profil och i samband med kaloriberäkningen. Kaloriförslaget presenteras som en startpunkt som ska justeras efter ett par veckors verkligt utfall.
 
-## Extra funktion, om tiden räcker
-Uppslag av livsmedel via Open Food Facts API, så att användaren kan slå upp protein och kalorier per 100 gram istället för att googla och skriva av för hand. Tilläggsfunktion, inte kärnan i betyget. Se teknisk_plan.md.
+## Möjlig tilläggsfunktion
+Uppslag av livsmedel via Open Food Facts API, så att användaren kan slå upp protein och kalorier per 100 gram i stället för att googla och skriva av för hand. Tilläggsfunktion, inte kärnan i produkten. Se teknisk_plan.md.
 
-## Kopplingen till AI-branschen
-Projektet behöver inte innehålla riktig AI. Kopplingen är att insamling, rengöring, analys och visualisering av data är grunden för framtida maskininlärning.
+## Riktning: från regler till maskininlärning
+CutTrack innehåller ingen AI-modell och behöver inte göra det för att fungera. Kopplingen till AI är att insamling, rengöring, analys och visualisering av data är grunden för maskininlärning. Programmet visar hur användardata kan samlas in, struktureras och analyseras. Samma arbetsflöde kan senare användas som grund för en modell som identifierar trender och ger personliga rekommendationer, men det kräver betydligt fler observationer än ett enskilt projekt har.
 
-Till README, ungefär: Projektet visar hur användardata kan samlas in, struktureras och analyseras. Samma arbetsflöde kan senare användas som grund för en AI-modell som identifierar trender och ger personliga rekommendationer.
-
-## Efter kursen
-Grundkursen bygger kärnan. Kärnlogiken (klasser, beräkningar, regler) hålls separat från in- och utmatning så den går att återanvända, och är nu uppdelad i models.py och analysis.py, redo att importeras av andra gränssnitt. Senare kan projektet växa till:
+## Roadmap
+Version 1 byggde kärnan. Kärnlogiken (klasser, beräkningar, regler) hålls separat från in- och utmatning så den går att återanvända, och är uppdelad i models.py och analysis.py, redo att importeras av andra gränssnitt. Blocken nedan står i den ordning de bör byggas: först mer räkning på det som redan loggas, sedan arkitekturen, sist ny datainsamling och nya gränssnitt. Det visionen ovan redan beskriver men koden ännu inte gör står som Ej byggt eller Delvis i kravspec.md och tas före blocken nedan.
 
 **Mer räkning på redan loggad data, ingen ny datainsamling:**
 - platådetektion, jämför flera sjudagarssnitt i rad för att upptäcka att vikten stått still trots rätt underskott, den vanligaste frustrationen vid en deff
