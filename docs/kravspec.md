@@ -39,7 +39,7 @@ Status är Klart, Delvis eller Ej byggt.
 | F5 | Daglig logg med datum, vikt, kalorier, protein, steg, träning (ja eller nej) och midjemått (valfritt). | Klart |
 | F6 | En ny logg för ett datum som redan finns ersätter den gamla, och användaren får veta det. | Klart |
 | F7 | Orimliga värden avvisas: vikten ska vara över 0 och högst 300 kg, kalorierna mellan 0 och 10 000. | Klart |
-| F8 | Loggar kan exporteras till och läsas in från CSV. Exporten får ett eget filnamn per användare, `<namn>_loggar.csv`. En rad med ogiltiga värden hoppas över och resten läses in. | Delvis. Exporten och inläsningen med trasiga rader är klara. Det egna filnamnet per användare är byggt 2026-10-08 men inte genomgånget. |
+| F8 | Loggar kan exporteras till och läsas in från CSV. Exporten får ett eget filnamn per användare, `<namn>_loggar.csv`. En rad med ogiltiga värden hoppas över och resten läses in. | Klart |
 
 ### Beräkningar
 
@@ -83,7 +83,7 @@ Status är Klart, Delvis eller Ej byggt.
 | D1 | Datum skrivs ÅÅÅÅ-MM-DD, så att de sorteras rätt som text och läses av `datetime`. | Klart |
 | D2 | Ett saknat värde är `None`, aldrig 0, och kontrolleras med `is not None`. | Klart |
 | D3 | Snitt och trender räknas på kalenderdagar bakåt från det senast loggade datumet, inte på antal loggar. | Klart |
-| D4 | Personlig data lämnar inte datorn. Profilfiler (`*.json`) och användarens egna CSV-exporter ignoreras av git. Exempeldata ligger i en egen incheckad fil, `data/exempel_loggar.csv`. | Delvis. Byggt och provkört 2026-10-08: exempelfilen är den enda CSV-filen som checkas in, och exporten får ett eget filnamn per användare (`<namn>_loggar.csv`) som `.gitignore` ignorerar. Sätts till Klart när det är genomgånget, se statuslogg.md. Filnamnshjälparna saknar tester tills Steg 0 punkt 2 är gjord. |
+| D4 | Personlig data lämnar inte datorn. Profilfiler (`*.json`) och användarens egna CSV-exporter ignoreras av git. Exempeldata ligger i en egen incheckad fil, `data/exempel_loggar.csv`. | Klart, men det programmet skriver ut när menyn körs i notebooken (namn, vikter, kalorier) sparas i notebookens utdata och kan följa med i en commit. Se statuslogg.md, Luckor. Exempelfilen är den enda CSV-filen som checkas in, och exporten får ett eget filnamn per användare (`<namn>_loggar.csv`) som `.gitignore` ignorerar. |
 
 ## Säkerhets- och hälsokrav
 
