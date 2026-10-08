@@ -60,7 +60,7 @@ Status är Klart, Delvis eller Ej byggt.
 | F16 | Sjudagarssnittet av vikten visas under dag 7 till 13. | Ej byggt. Väntetexten säger att snittet kan visas, men inget snitt skrivs ut. |
 | F17 | Statusöversikt för alla områden plus en sak att fokusera på, i ordningen vikt, protein, träning, steg. | Klart |
 | F18 | Midjemått jämförs mot vikt: vikt ner och midja ner pekar mot fettförlust, vikt ner och midja oförändrad är en varningssignal. | Ej byggt. Midjemåttet sparas men ingen kod läser det. |
-| F24 | Takten räknas på snitt, inte på enskilda vägningar: snittet för senaste perioden jämförs med snittet för perioden före. | Ej byggt. Takten räknas från första och sista vägningen i perioden och delas med periodens längd i stället för med antalet dagar mellan vägningarna, vilket ger ungefär 14 procent för låg takt på sjudagarsperioden. En enskild vägning kan flytta resultatet med flera tiondels procentenheter. |
+| F24 | Takten räknas på snitt, inte på enskilda vägningar: snittet för senaste perioden jämförs med snittet för perioden före. | Ej byggt. Takten räknas från första och sista vägningen i perioden och delas med periodens längd i stället för med antalet dagar mellan vägningarna, vilket ger ungefär 14 procent för låg takt på sjudagarsperioden. En enskild vägning kan flytta resultatet med flera tiondels procentenheter. Oförändrad vikt ger texten "minskar med -0.0 procent per vecka". Dagens takträkning är låst av tester i `tests/test_readme_example.py`, som ska ändras först när metoden byts. |
 
 ### Diagram
 
@@ -80,7 +80,7 @@ Status är Klart, Delvis eller Ej byggt.
 
 | ID | Krav | Status |
 | --- | --- | --- |
-| D1 | Datum skrivs ÅÅÅÅ-MM-DD, så att de sorteras rätt som text och läses av `datetime`. | Klart |
+| D1 | Datum skrivs ÅÅÅÅ-MM-DD, så att de sorteras rätt som text och läses av `datetime`. | Delvis. `log_today` kontrollerar datumet med `strptime`, som godtar `2026-10-8`, men sparar texten som den skrevs. `current_weight`, `days_since_start` och `weight_change` jämför datum som text, så ett datum utan nolla ger fel resultat utan felmeddelande. `DailyLog` validerar inte datumet alls, så ett ogiltigt datum i en CSV-fil läses in och kraschar först i `get_logs`. Se statuslogg.md, Luckor. |
 | D2 | Ett saknat värde är `None`, aldrig 0, och kontrolleras med `is not None`. | Klart |
 | D3 | Snitt och trender räknas på kalenderdagar bakåt från det senast loggade datumet, inte på antal loggar. | Klart |
 | D4 | Personlig data lämnar inte datorn. Profilfiler (`*.json`) och användarens egna CSV-exporter ignoreras av git. Exempeldata ligger i en egen incheckad fil, `data/exempel_loggar.csv`. | Klart, men det programmet skriver ut när menyn körs i notebooken (namn, vikter, kalorier) sparas i notebookens utdata och kan följa med i en commit. Se statuslogg.md, Luckor. Exempelfilen är den enda CSV-filen som checkas in, och exporten får ett eget filnamn per användare (`<namn>_loggar.csv`) som `.gitignore` ignorerar. |
@@ -100,10 +100,10 @@ Status är Klart, Delvis eller Ej byggt.
 | --- | --- | --- |
 | N1 | All text som visas för användaren är på svenska. Klasser, funktioner och variabler namnges på engelska enligt PEP 8. Commit-meddelanden skrivs på engelska. | Klart |
 | N2 | Ren och underhållbar kod framför smart kod. Befintliga mönster följs innan nya införs. Kommentarer förklarar varför, inte vad. | Klart |
-| N3 | Dålig inmatning, en skadad fil eller en trasig CSV-rad får aldrig krascha programmet. Fel fångas specifikt (`ValueError`, `KeyError`, `JSONDecodeError`, `OSError`) och användaren får ett begripligt meddelande. | Klart |
-| N4 | Beroenden är standardbiblioteket plus matplotlib. Ett nytt externt bibliotek kräver att det underhålls, fungerar med aktuell Python och att det går att motivera varför det behövs. | Klart |
+| N3 | Dålig inmatning, en skadad fil eller en trasig CSV-rad får aldrig krascha programmet. Fel fångas specifikt (`ValueError`, `KeyError`, `JSONDecodeError`, `OSError`) och användaren får ett begripligt meddelande. | Delvis. Upptäckt när testerna skrevs 2026-10-08: fem fall ger fortfarande ett Python-fel i stället för ett meddelande. En CSV-rad med för få kolumner (`TypeError`), en CSV-fil som inte är UTF-8 (`UnicodeDecodeError`), ett ogiltigt datum i en CSV-fil (läses in, kraschar sedan i `get_logs`), en profilfil med fel struktur eller fel typer (`TypeError`) och en profilfil som inte går att läsa som fil (`OSError`). Se statuslogg.md, Luckor. |
+| N4 | Körberoenden är standardbiblioteket plus matplotlib. Utvecklingsberoenden (pytest, bara för att köra testerna) räknas separat. Ett nytt externt bibliotek kräver att det underhålls, fungerar med aktuell Python och att det går att motivera varför det behövs. | Klart. pytest 9.1.1 kontrollerat mot PyPI 2026-10-08, se teknisk_plan.md, Bibliotek. |
 | N5 | Programmet går att starta utan Jupyter, med ett kommando. | Ej byggt. Menyn ligger i notebooken. |
-| N6 | Reglerna (validering, kalenderdagsfönstret, kaloriförslag och golv, vikttakt, väntetid) och filhanteringen (filnamn, profilfiler, CSV-inläsning med trasiga rader) täcks av automatiska tester. | Ej byggt. Koden är testad för hand. |
+| N6 | Reglerna (validering, kalenderdagsfönstret, kaloriförslag och golv, vikttakt, väntetid) och filhanteringen (filnamn, profilfiler, CSV-inläsning med trasiga rader) täcks av automatiska tester. | Delvis. Byggt och provkört 2026-10-08, men inte genomgånget än: 140 tester med pytest i `tests/` täcker reglerna i `models.py` och allt i `analysis.py` utom diagrammen. Menyn i notebooken och diagrammen är inte testade. |
 | N7 | Dokumentationen hålls i synk med koden, och kod finns på ett ställe. | Delvis. Klasser och funktioner finns bara i `models.py` och `analysis.py`, och notebooken importerar dem. Notebookens förklaringstexter är inte genomgångna mot koden sedan kursfasen. |
 
 ## Utanför omfattning

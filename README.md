@@ -21,7 +21,7 @@ Projektet började som slutprojekt i kursen Utveckling med Python, grund, inom Y
 - Ett personligt kaloriförslag beräknat från profilen, med ett golv som programmet förklarar när det slår i.
 - Analys över 7, 14 eller 30 dagar: viktens takt i procent per vecka, protein, träningsfrekvens och steg, plus en sak att fokusera på.
 - Diagram för vikt (med rullande sjudagarssnitt och målvikt), protein och steg. Menyn visar än så länge bara viktdiagrammet.
-- Export och import av loggar som CSV, med en egen exportfil per användare. En trasig rad i en CSV-fil hoppas över i stället för att stoppa hela importen.
+- Export och import av loggar som CSV, med en egen exportfil per användare. En rad med ogiltiga värden i en CSV-fil hoppas över i stället för att stoppa hela importen.
 
 ## Så bedömer CutTrack din deff
 
@@ -102,6 +102,13 @@ Diagrammen från samma testperiod: viktdiagrammet står överst på sidan, prote
 
 Profilen sparas som `<namn>.json` i mappen du kör från. Val 6 i menyn exporterar dessutom loggarna till `<namn>_loggar.csv` i samma mapp, med namnet byggt på samma sätt som för profilfilen: Anna Berg får `annaberg.json` och `annaberg_loggar.csv`. Git ignorerar alla `.json`- och `.csv`-filer, så dina egna profiler och loggar checkas inte in av misstag. Det enda undantaget är `data/exempel_loggar.csv`, den simulerade exempeldatan som exemplen i README bygger på. Den skrivs av notebookens exempelcell under Resultat och innehåller bara loggar, ingen profil och ingen riktig person.
 
+**Köra testerna.** Testerna använder pytest, som bara behövs för att utveckla, inte för att köra programmet. Installera det i samma virtuella miljö och kör från projektets rotmapp:
+```
+python -m pip install pytest
+python -m pytest
+```
+Senaste pytest (9.1) kräver Python 3.10 eller senare. Varje test som rör filer körs i en egen tillfällig mapp, så testerna skriver inga profiler eller CSV-filer i projektet.
+
 ## Projektstruktur
 
 ```
@@ -109,6 +116,8 @@ CutTrack/
   models.py             DailyLog, User och CutProfile (data och regler)
   analysis.py           filhantering (JSON, CSV) och diagram
   cuttrack.ipynb        menyn, förklaringar och exempelkörning
+  tests/                automatiska tester (pytest)
+  pytest.ini            inställning för pytest
   data/                 exempel_loggar.csv, simulerad exempeldata
   docs/                 produktvision, kravspec, teknisk plan, statuslogg
   README.md
@@ -128,6 +137,8 @@ CutTrack/
 **Felhantering.** `load_profile` har tre separata except-block (trasig JSON, saknat fält, ogiltigt värde) eftersom felen betyder olika saker för användaren. `import_logs_csv` har try/except inne i loopen så att en trasig rad hoppas över i stället för att stoppa importen. Skrivfel fångas med `OSError`.
 
 **Säkra filnamn.** Filnamnen byggs aldrig direkt av det användaren skriver. `make_safe_name` behåller bara a till z och siffror, så ett namn som `../../etc/passwd` inte kan styra var filen hamnar. `make_filename` och `make_csv_filename` lägger sedan till `.json` respektive `_loggar.csv`, så varje användare får en egen profilfil och en egen exportfil.
+
+**Tester.** `tests/` innehåller automatiska tester med pytest. `test_models.py` täcker reglerna: validering, kalenderdagsfönstret, snitt, kaloriförslag och golv, väntetid och vilken gren `check_goals` väljer. `test_analysis.py` täcker filhanteringen: filnamn, profilfiler, CSV-export och inläsning med trasiga rader. `test_readme_example.py` låser vad `check_goals` skriver ut i exemplet ovan och kontrollerar att README visar samma rader som koden. Förväntade värden är uträknade för hand i kommentarerna, inte kopierade från programmets utskrift. Diagrammen och menyn i notebooken testas inte.
 
 **Gränssnittet är separat från logiken.** All inmatning och utskrift ligger i egna funktioner, skilda från klasserna, så att menyn kan bytas mot ett annat gränssnitt utan att röra beräkningarna.
 
@@ -165,7 +176,10 @@ CutTrack/
 - Midjemåttet sparas men används inte i någon analys än.
 - Vald period styr väntetiden: med 30 dagar krävs 60 dagars data innan takten bedöms.
 - Menyn är en notebookcell, inte ett fristående program, och visar bara viktdiagrammet.
-- Det finns inga automatiska tester än. Koden är testad för hand med exempeldata, simulerad inmatning och trasiga JSON- och CSV-filer.
+- Testerna täcker reglerna och filhanteringen, inte diagrammen och inte menyn i notebooken. Några av dem låser dagens takträkning (F24) och ska ändras först när metoden byts.
+- Vissa trasiga filer stoppar fortfarande programmet med ett Python-fel i stället för ett begripligt meddelande: en CSV-rad med för få kolumner, en CSV-fil som inte är UTF-8, ett ogiltigt datum i en CSV-fil (loggen läses in men analysen kraschar efteråt) och en profilfil med fel struktur eller som inte går att läsa som fil. Listan och planen finns i [docs/statuslogg.md](docs/statuslogg.md).
+- Datum ska skrivas med nollor, 2026-10-08 och inte 2026-10-8. Menyn godtar det senare men sorterar det fel, så aktuell vikt, antal dagar sedan start och viktförändring blir fel utan något felmeddelande.
+- CSV-filer från kalkylprogram läses inte alltid rätt: TRUE och FALSE i kolumnen för träning läses som att ingen träning skett, och filer med semikolon som avgränsare eller med BOM (en dold markering först i filen) ger noll inlästa rader.
 - Exempeldatan är simulerad.
 
 ## Ansvarsfriskrivning
@@ -186,12 +200,12 @@ CutTrack ger allmänna riktvärden baserade på etablerade rekommendationer. Det
 
 Nästa steg, i den ordning jag tänker ta dem. Detaljer finns i [docs/produktvision.md](docs/produktvision.md) och [docs/statuslogg.md](docs/statuslogg.md).
 
-1. **Grund.** Automatiska tester för reglerna (golv, takt, fönster, väntetid) och för filhanteringen (profilfiler, CSV-inläsning), en körbar `main.py` så att programmet startar utan Jupyter och en `requirements.txt`.
-2. **Rätta vikttakten och bygg det visionen redan beskriver.** Takten räknas på snitt mot föregående snitt i stället för på första och sista vägningen, och antalet dagar sedan start räknas rätt även när loggarna är äldre än profilen. Därefter analys av protein, steg och träning redan under väntetiden, snittet under dag 7 till 13, friskrivningen även vid kaloriförslaget, protein- och stegdiagram i menyn och sist midjemått jämfört med vikt.
+1. **Grund.** Automatiska tester för reglerna och filhanteringen är skrivna (se Hur det är byggt). Kvar är en körbar `main.py` så att programmet startar utan Jupyter och en `requirements.txt`.
+2. **Rätta vikttakten och bygg det visionen redan beskriver.** Takten räknas på snitt mot föregående snitt i stället för på första och sista vägningen, och antalet dagar sedan start räknas rätt även när loggarna är äldre än profilen. Trasig indata (en CSV-rad med för få kolumner, datum utan nollor, vissa profilfiler) ger ett meddelande i stället för ett Python-fel eller ett tyst fel. Därefter analys av protein, steg och träning redan under väntetiden, snittet under dag 7 till 13, friskrivningen även vid kaloriförslaget, protein- och stegdiagram i menyn och sist midjemått jämfört med vikt.
 3. **Mer räkning på redan loggad data.** Dagar till målvikt (linjär projektion av aktuell takt), platådetektion (vikten har stått still trots rätt underskott), midjemått mot vikt över hela perioden, och korrelation mellan protein, steg, träning och viktförändring.
 4. **Fler lägen.** Viktbalans och muskelbygge som nya barnklasser till `User`, samt en coachroll som kan läsa en användares analys utan att kunna ändra loggarna.
 5. **Mer datainsamling och andra gränssnitt.** Automatisk inläsning av steg från telefon eller klocka, ett webbgränssnitt ovanpå samma klasser, veckorapporter och koppling till hälso- och träningsappar.
 
 ## AI-användning
 
-Jag har använt Claude (Anthropic) som bollplank och kodassistent genom hela projektet. Idén, produktvisionen och de bärande besluten är mina. Stora delar av koden har skrivits av Claude utifrån mina beslut och krav, och jag har gått igenom, testat och lagt in den själv. Claude har också förklarat koncept som var nya för mig och ifrågasatt mina val när de haft brister. Jag har gått igenom koden funktion för funktion och kan förklara vad varje del gör och varför den är skriven som den är.
+Jag har använt Claude (Anthropic) som bollplank och kodassistent genom hela projektet. Idén, produktvisionen och de bärande besluten är mina. Stora delar av koden har skrivits av Claude utifrån mina beslut och krav, och jag har gått igenom, testat och lagt in den själv. Testerna i `tests/` är skrivna av Claude utifrån kraven i `docs/kravspec.md`, med förväntade värden som är uträknade för hand i kommentarerna. Claude har också förklarat koncept som var nya för mig och ifrågasatt mina val när de haft brister. Jag har gått igenom koden i `models.py` och `analysis.py` funktion för funktion och kan förklara vad varje del gör och varför den är skriven som den är.

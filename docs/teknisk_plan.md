@@ -166,12 +166,32 @@ calculate_trend är struken ur listan. average_weight och weight_change på User
 - save_profile och export_logs_csv, OSError vid skrivproblem
 - API-anrop (om Open Food Facts byggs), nätverksfel och timeout
 
+Fem fall fångas inte ännu och ger ett Python-fel i stället för ett meddelande: en CSV-rad med för få kolumner, en CSV-fil som inte är UTF-8, ett ogiltigt datum i en CSV-fil (läses in, kraschar sedan i `get_logs`), en profilfil med fel struktur eller fel typer och en profilfil som inte går att läsa som fil (kravspec.md N3, statuslogg.md Luckor och Steg 1).
+
+## Tester
+pytest, installerat som utvecklingsberoende med `python -m pip install pytest`. Programmet kräver det inte för att köras. Testerna körs från rotmappen med `python -m pytest`. `pytest.ini` anger att `models` och `analysis` hittas från rotmappen (`pythonpath = .`) och att testerna ligger i `tests/`.
+
+Tre filer, och vad var och en täcker:
+- `tests/test_models.py`: validering (F2, F7), loggfönstret i kalenderdagar (D3), snitt, viktförändring och träningsdagar, kaloriförslag och golv (F9, F10), väntetid (F14) och vilken gren `check_goals` väljer (F13, F17)
+- `tests/test_analysis.py`: filnamn (F4, F8), profilfiler (F3), CSV-export och inläsning, inklusive trasiga rader (F8)
+- `tests/test_readme_example.py`: låser det `check_goals` skriver ut i README-exemplet, kontrollerar att README visar samma rader och låser den kända bristen F24
+
+Så är testerna skrivna:
+- Varje test i `test_analysis.py` körs i en egen tom mapp, med en fixtur (`autouse=True`) som byter arbetsmapp till `tmp_path`. Funktionerna skriver filer i den aktuella mappen, och utan fixturen hade testerna skrivit profiler och CSV-filer i repot.
+- Förväntade värden räknas ut för hand i kommentarerna och kopieras inte från programmets utskrift, så att testet kontrollerar koden i stället för att upprepa den. Undantaget är README-exemplet, som är programmets egen utskrift. Den är kontrollräknad utanför koden, och samma rader måste stå i README.
+- Allt som beror på hur takten räknas (F24) ligger i `test_readme_example.py`. De övriga testerna kontrollerar vilken gren som väljs, med data där alla rimliga taktmetoder ger samma gren.
+- Ett test som låser dagens beteende (på engelska characterization test) beskriver vad koden gör, inte vad den borde göra. Det används bara för F24. Övriga kända fel får sina tester först när de rättas (statuslogg.md, Luckor och Beslut).
+
+Inte täckt: diagramfunktionerna (`plot_weight`, `plot_protein`, `plot_steps`), menyn i notebooken (`ask_number`, `ask_period`, `create_profile`, `log_today`, `run_menu`) och de fem fallen under Felhantering.
+
+Hur testerna kontrollerades 2026-10-08: koden ändrades avsiktligt på 177 ställen, en ändring i taget, och testerna kördes mot varje. 173 ändringar gav ett misslyckat test, de fyra som inte gjorde det står i statuslogg.md. Täckning enligt coverage.py: `analysis.py` utom diagrammen täcks helt och `models.py` till 98 procent. Kontrollen gjordes för hand en gång och finns inte som skript i repot.
+
 ## Datumformat och dubbletter
 
 ### Format
-Datum skrivs alltid som ÅÅÅÅ-MM-DD, till exempel 2026-09-15. Sorteras rätt som text och läses direkt av datetime.strptime med formatsträngen "%Y-%m-%d". Inmatning som inte följer formatet avvisas. datetime kastar ValueError vid fel format, så felhanteringen kommer via try/except.
+Datum skrivs alltid som ÅÅÅÅ-MM-DD, till exempel 2026-09-15. Sorteras rätt som text och läses direkt av datetime.strptime med formatsträngen "%Y-%m-%d". Inmatning som inte följer formatet avvisas. datetime kastar ValueError vid fel format, så felhanteringen kommer via try/except. Undantag: `strptime` godtar månad och dag utan inledande nolla (`2026-10-8`), och `log_today` sparar då texten som den skrevs. Ett sådant datum sorteras fel som text, se nedan. Rättningen ligger i statuslogg.md, Steg 1 (kravspec.md D1).
 
-Att formatet sorteras rätt som text används i `weight_change`, som hittar tidigaste och senaste logg genom att jämföra datumsträngarna direkt i en loop, utan att sortera listan.
+Att formatet sorteras rätt som text används i `weight_change`, `current_weight` och `days_since_start`, som hittar tidigaste eller senaste logg genom att jämföra datumsträngarna direkt i en loop, utan att sortera listan. `get_logs` räknar i stället med `datetime`.
 
 ### Dubbletter samma dag
 Den nya loggen ersätter den gamla. Två poster för samma datum gör alla snitt fel eftersom dagen räknas dubbelt.
@@ -203,6 +223,7 @@ Tilläggsfunktion, inte byggd. Uppgifterna ovan kontrolleras mot aktuell dokumen
 ## Bibliotek
 Standard, faktiskt använda: json (spara/läsa profil), csv (export/import loggar), datetime (datum och kalenderdagar), os (kolla om fil finns).
 Externt, faktiskt använt: matplotlib (diagram för vikt, protein och steg).
+Externt, bara för utveckling: pytest (testerna). Version 9.1.1, släppt 2026-06-19, MIT-licens, kräver Python 3.10 eller senare och har Python 3.14 bland klassificeringarna på PyPI (kontrollerat 2026-10-08). Behövs för `tmp_path`, `monkeypatch`, `capsys`, `pytest.raises` och `pytest.approx`, som testerna bygger på.
 Inte använt: statistics (all snittberäkning görs med egna loopar, inte statistics.mean), requests (Open Food Facts inte byggd).
 
 ## Programflöde
@@ -222,6 +243,8 @@ Koden är uppdelad i tre filer, i samma mapp:
 - `cuttrack.ipynb`: importerar från de två andra filerna. Innehåller show_welcome, ask_number, ask_period, create_profile, log_today, run_menu (UI-lagret), samt alla test- och democeller.
 
 Exempeldata ligger i mappen `data/`: `exempel_loggar.csv` är simulerad data för 20 dagar och den enda CSV-filen som checkas in. Notebooken skriver den.
+
+Testerna ligger i mappen `tests/`, tre filer, och `pytest.ini` i rotmappen anger hur de hittar `models.py` och `analysis.py` (se Tester).
 
 Notebooken måste ligga i samma mapp som models.py och analysis.py för att importen ska fungera. Ändras något i en av .py-filerna medan notebooken är öppen måste kerneln startas om (Restart) innan ändringen syns, Python läser bara in en modul en gång per körning. Det är den praktiska konsekvensen av uppdelningen.
 
