@@ -39,7 +39,7 @@ Status är Klart, Delvis eller Ej byggt.
 | F5 | Daglig logg med datum, vikt, kalorier, protein, steg, träning (ja eller nej) och midjemått (valfritt). | Klart |
 | F6 | En ny logg för ett datum som redan finns ersätter den gamla, och användaren får veta det. | Klart |
 | F7 | Orimliga värden avvisas: vikten ska vara över 0 och högst 300 kg, kalorierna mellan 0 och 10 000. | Klart |
-| F8 | Loggar kan exporteras till och läsas in från CSV. En rad med ogiltiga värden hoppas över och resten läses in. | Klart |
+| F8 | Loggar kan exporteras till och läsas in från CSV. Exporten får ett eget filnamn per användare, `<namn>_loggar.csv`. En rad med ogiltiga värden hoppas över och resten läses in. | Delvis. Exporten och inläsningen med trasiga rader är klara. Det egna filnamnet per användare är byggt 2026-10-08 men inte genomgånget. |
 
 ### Beräkningar
 
@@ -55,7 +55,7 @@ Status är Klart, Delvis eller Ej byggt.
 | --- | --- | --- |
 | F12 | Analys för vald period (7, 14 eller 30 dagar) av viktens takt i procent per vecka, protein, träningsfrekvens och steg. | Klart |
 | F13 | Vikttakten bedöms mot användarens eget mål (undre gräns) och ett fast säkerhetstak på 1,0 procent per vecka (övre gräns). Ökande vikt flaggas alltid. | Klart, men takten räknas på ett sätt som ska bytas, se F24 |
-| F14 | Programmet väntar med bedömningen: en period för att visa ett snitt, två perioder för att bedöma takten. Under väntetiden visas hur många dagar som återstår. | Klart |
+| F14 | Programmet väntar med bedömningen: en period för att visa ett snitt, två perioder för att bedöma takten. Under väntetiden visas hur många dagar som återstår. | Klart, men dagräkningen blir fel när loggar är äldre än profilens startdatum: `days_since_start` ger då ett negativt antal dagar. Se statuslogg.md, Steg 1. |
 | F15 | Protein, steg och träning analyseras direkt, redan under väntetiden, eftersom de bara kräver ett snitt. | Ej byggt. `check_goals` skriver väntetexten och avbryter, så inget område analyseras förrän perioden är full. |
 | F16 | Sjudagarssnittet av vikten visas under dag 7 till 13. | Ej byggt. Väntetexten säger att snittet kan visas, men inget snitt skrivs ut. |
 | F17 | Statusöversikt för alla områden plus en sak att fokusera på, i ordningen vikt, protein, träning, steg. | Klart |
@@ -83,7 +83,7 @@ Status är Klart, Delvis eller Ej byggt.
 | D1 | Datum skrivs ÅÅÅÅ-MM-DD, så att de sorteras rätt som text och läses av `datetime`. | Klart |
 | D2 | Ett saknat värde är `None`, aldrig 0, och kontrolleras med `is not None`. | Klart |
 | D3 | Snitt och trender räknas på kalenderdagar bakåt från det senast loggade datumet, inte på antal loggar. | Klart |
-| D4 | Personlig data lämnar inte datorn. Profilfiler (`*.json`) och användarens egna CSV-exporter ignoreras av git. Exempeldata ligger i en egen incheckad fil. | Delvis. Det finns ingen incheckad exempelfil, och `.gitignore` har ett undantag för `cuttrack_loggar.csv`. Notebookens exempelcell och menyns export skriver båda till det filnamnet, så filen syns som ny i git när programmet körts och riktiga loggar kan committas av misstag. |
+| D4 | Personlig data lämnar inte datorn. Profilfiler (`*.json`) och användarens egna CSV-exporter ignoreras av git. Exempeldata ligger i en egen incheckad fil, `data/exempel_loggar.csv`. | Delvis. Byggt och provkört 2026-10-08: exempelfilen är den enda CSV-filen som checkas in, och exporten får ett eget filnamn per användare (`<namn>_loggar.csv`) som `.gitignore` ignorerar. Sätts till Klart när det är genomgånget, se statuslogg.md. Filnamnshjälparna saknar tester tills Steg 0 punkt 2 är gjord. |
 
 ## Säkerhets- och hälsokrav
 

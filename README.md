@@ -21,7 +21,7 @@ Projektet började som slutprojekt i kursen Utveckling med Python, grund, inom Y
 - Ett personligt kaloriförslag beräknat från profilen, med ett golv som programmet förklarar när det slår i.
 - Analys över 7, 14 eller 30 dagar: viktens takt i procent per vecka, protein, träningsfrekvens och steg, plus en sak att fokusera på.
 - Diagram för vikt (med rullande sjudagarssnitt och målvikt), protein och steg. Menyn visar än så länge bara viktdiagrammet.
-- Export och import av loggar som CSV. En trasig rad i en CSV-fil hoppas över i stället för att stoppa hela importen.
+- Export och import av loggar som CSV, med en egen exportfil per användare. En trasig rad i en CSV-fil hoppas över i stället för att stoppa hela importen.
 
 ## Så bedömer CutTrack din deff
 
@@ -39,7 +39,7 @@ Programmet väntar med bedömningen. En vald period (7, 14 eller 30 dagar) kräv
 
 ## Exempel
 
-Exemplet kommer från en testperiod på 20 dagar med profilen Testperson: man, 189 cm, 39 år, startvikt 101,5 kg, målvikt 98 kg, önskad takt 0,6 procent per vecka, proteinmål 2,1 gram per kilo målvikt, stegmål 10 000 och fem träningsdagar i veckan. Loggarna är simulerade, inte en logg förd dag för dag. Utskrifterna visar analysen över de senaste sju dagarna.
+Exemplet kommer från en testperiod på 20 dagar med profilen Testperson: man, 189 cm, 39 år, startvikt 101,5 kg, målvikt 98 kg, önskad takt 0,6 procent per vecka, proteinmål 2,1 gram per kilo målvikt, stegmål 10 000 och fem träningsdagar i veckan. Loggarna är simulerade, inte en logg förd dag för dag, och finns i [data/exempel_loggar.csv](data/exempel_loggar.csv). Utskrifterna visar analysen över de senaste sju dagarna.
 
 **Efter 14 dagar, första gången full analys är möjlig:**
 ```
@@ -100,7 +100,7 @@ Diagrammen från samma testperiod: viktdiagrammet står överst på sidan, prote
 
 Ändrar du något i `models.py` eller `analysis.py` medan notebooken är öppen måste kerneln startas om (Restart), eftersom Python bara läser in en modul en gång per körning.
 
-Profilen sparas som `<namn>.json` i mappen du kör från och ignoreras av git. Val 6 i menyn exporterar dessutom loggarna till `cuttrack_loggar.csv` i samma mapp, och notebookens exempelcell skriver samma fil med den simulerade exempeldatan. Filen finns inte i repot, men den är undantagen från `.gitignore`, så den syns som en ny fil i git så fort programmet har körts. En export med riktiga loggar kan därför committas av misstag: lägg till filer med namn (till exempel `git add README.md`) i stället för `git add .`, och committa aldrig filen om den innehåller riktig data. Att skilja exempeldata från användarens egna loggar står först i Roadmap.
+Profilen sparas som `<namn>.json` i mappen du kör från. Val 6 i menyn exporterar dessutom loggarna till `<namn>_loggar.csv` i samma mapp, med namnet byggt på samma sätt som för profilfilen: Anna Berg får `annaberg.json` och `annaberg_loggar.csv`. Git ignorerar alla `.json`- och `.csv`-filer, så dina egna profiler och loggar checkas inte in av misstag. Det enda undantaget är `data/exempel_loggar.csv`, den simulerade exempeldatan som exemplen i README bygger på. Den skrivs av notebookens exempelcell under Resultat och innehåller bara loggar, ingen profil och ingen riktig person.
 
 ## Projektstruktur
 
@@ -109,6 +109,7 @@ CutTrack/
   models.py             DailyLog, User och CutProfile (data och regler)
   analysis.py           filhantering (JSON, CSV) och diagram
   cuttrack.ipynb        menyn, förklaringar och exempelkörning
+  data/                 exempel_loggar.csv, simulerad exempeldata
   docs/                 produktvision, kravspec, teknisk plan, statuslogg
   README.md
   *.png                 bilder till README
@@ -126,7 +127,7 @@ CutTrack/
 
 **Felhantering.** `load_profile` har tre separata except-block (trasig JSON, saknat fält, ogiltigt värde) eftersom felen betyder olika saker för användaren. `import_logs_csv` har try/except inne i loopen så att en trasig rad hoppas över i stället för att stoppa importen. Skrivfel fångas med `OSError`.
 
-**Säkra filnamn.** Filnamnet byggs aldrig direkt av det användaren skriver. `make_filename` behåller bara a till z och siffror, så ett namn som `../../etc/passwd` inte kan styra var filen hamnar.
+**Säkra filnamn.** Filnamnen byggs aldrig direkt av det användaren skriver. `make_safe_name` behåller bara a till z och siffror, så ett namn som `../../etc/passwd` inte kan styra var filen hamnar. `make_filename` och `make_csv_filename` lägger sedan till `.json` respektive `_loggar.csv`, så varje användare får en egen profilfil och en egen exportfil.
 
 **Gränssnittet är separat från logiken.** All inmatning och utskrift ligger i egna funktioner, skilda från klasserna, så att menyn kan bytas mot ett annat gränssnitt utan att röra beräkningarna.
 
@@ -160,6 +161,7 @@ CutTrack/
 - Kaloriförslaget är en uppskattning. 7700-regeln överskattar viktnedgången över tid, så siffran ska justeras efter verkligt utfall efter ett par veckors loggning.
 - Proteinmålet räknas på målvikt eftersom programmet inte känner till kroppsfett.
 - Under väntetiden visar programmet bara en förklaring. Protein, steg och träning analyseras inte förrän perioden är full, och snittet visas inte under dag 7 till 13.
+- Antalet dagar sedan start räknas från profilens startdatum. En ny profil får dagens datum, så loggar som är äldre än så, till exempel `data/exempel_loggar.csv`, ger ett negativt antal dagar och en felaktig väntetext. Exempelfilen går därför inte att prova i menyn med en ny profil än.
 - Midjemåttet sparas men används inte i någon analys än.
 - Vald period styr väntetiden: med 30 dagar krävs 60 dagars data innan takten bedöms.
 - Menyn är en notebookcell, inte ett fristående program, och visar bara viktdiagrammet.
@@ -184,8 +186,8 @@ CutTrack ger allmänna riktvärden baserade på etablerade rekommendationer. Det
 
 Nästa steg, i den ordning jag tänker ta dem. Detaljer finns i [docs/produktvision.md](docs/produktvision.md) och [docs/statuslogg.md](docs/statuslogg.md).
 
-1. **Grund.** Automatiska tester för reglerna (golv, takt, fönster, väntetid) och för filhanteringen (profilfiler, CSV-inläsning), en körbar `main.py` så att programmet startar utan Jupyter, en `requirements.txt`, och en tydlig skillnad mellan exempeldata och användarens egna loggar.
-2. **Rätta vikttakten och bygg det visionen redan beskriver.** Takten räknas på snitt mot föregående snitt i stället för på första och sista vägningen. Därefter analys av protein, steg och träning redan under väntetiden, snittet under dag 7 till 13, friskrivningen även vid kaloriförslaget, protein- och stegdiagram i menyn och sist midjemått jämfört med vikt.
+1. **Grund.** Automatiska tester för reglerna (golv, takt, fönster, väntetid) och för filhanteringen (profilfiler, CSV-inläsning), en körbar `main.py` så att programmet startar utan Jupyter och en `requirements.txt`.
+2. **Rätta vikttakten och bygg det visionen redan beskriver.** Takten räknas på snitt mot föregående snitt i stället för på första och sista vägningen, och antalet dagar sedan start räknas rätt även när loggarna är äldre än profilen. Därefter analys av protein, steg och träning redan under väntetiden, snittet under dag 7 till 13, friskrivningen även vid kaloriförslaget, protein- och stegdiagram i menyn och sist midjemått jämfört med vikt.
 3. **Mer räkning på redan loggad data.** Dagar till målvikt (linjär projektion av aktuell takt), platådetektion (vikten har stått still trots rätt underskott), midjemått mot vikt över hela perioden, och korrelation mellan protein, steg, träning och viktförändring.
 4. **Fler lägen.** Viktbalans och muskelbygge som nya barnklasser till `User`, samt en coachroll som kan läsa en användares analys utan att kunna ändra loggarna.
 5. **Mer datainsamling och andra gränssnitt.** Automatisk inläsning av steg från telefon eller klocka, ett webbgränssnitt ovanpå samma klasser, veckorapporter och koppling till hälso- och träningsappar.

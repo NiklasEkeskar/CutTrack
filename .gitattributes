@@ -1,2 +1,6 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Exempelfilen checkas in exakt som programmet skriver den (CRLF), så att
+# git inte byter radslut och visar filen som ändrad varje gång notebooken körs om
+data/exempel_loggar.csv -text

@@ -2,6 +2,10 @@ __pycache__/
 *.pyc
 .ipynb_checkpoints/
 .DS_Store
+
+# Användarens egna data ska aldrig checkas in: profiler och CSV-exporter
 *.json
 *.csv
-!cuttrack_loggar.csv
+
+# Undantag: simulerad exempeldata
+!data/exempel_loggar.csv

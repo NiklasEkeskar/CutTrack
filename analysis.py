@@ -1,6 +1,7 @@
 """Filhantering (JSON, CSV) och diagram för CutTrack.
 Importeras i cuttrack.ipynb med:
-from analysis import (make_filename, save_profile, load_profile,
+from analysis import (make_filename, make_csv_filename,
+                       save_profile, load_profile,
                        export_logs_csv, import_logs_csv,
                        plot_weight, plot_protein, plot_steps)"""
 import json
@@ -14,8 +15,8 @@ from models import DailyLog, CutProfile
 ALLOWED_CHARACTERS = "abcdefghijklmnopqrstuvwxyz0123456789"
 
 
-def make_filename(name):
-    """Bygger ett säkert filnamn från användarens namn.
+def make_safe_name(name):
+    """Bygger den säkra delen av ett filnamn från användarens namn.
     Behåller bara a till z och siffror, allt annat tas bort."""
     safe_name = ""
     for character in name.lower():
@@ -26,7 +27,19 @@ def make_filename(name):
     if safe_name == "":
         safe_name = "anvandare"
 
-    return safe_name + ".json"
+    return safe_name
+
+
+def make_filename(name):
+    """Bygger filnamnet för användarens profil, till exempel annaberg.json."""
+    return make_safe_name(name) + ".json"
+
+
+def make_csv_filename(name):
+    """Bygger filnamnet för användarens CSV-export, till exempel annaberg_loggar.csv.
+    Varje användare får ett eget namn, så att exporter från olika användare
+    inte skriver över varandra."""
+    return make_safe_name(name) + "_loggar.csv"
 
 
 def save_profile(profile):
@@ -121,8 +134,14 @@ def load_profile(name):
         return None
 
 
-def export_logs_csv(profile, filename="cuttrack_loggar.csv"):
-    """Sparar alla loggar som CSV."""
+def export_logs_csv(profile, filename=None):
+    """Sparar alla loggar som CSV. Utan filnamn används användarens eget
+    standardnamn, till exempel annaberg_loggar.csv."""
+    # None betyder att inget filnamn angavs. Standardnamnet byggs här i stället
+    # för i parametern, eftersom det beror på vilken användare som exporteras
+    if filename is None:
+        filename = make_csv_filename(profile.name)
+
     if len(profile.logs) == 0:
         print("Det finns inga loggar att exportera.")
         return False
@@ -156,9 +175,13 @@ def export_logs_csv(profile, filename="cuttrack_loggar.csv"):
         return False
 
 
-def import_logs_csv(profile, filename="cuttrack_loggar.csv"):
+def import_logs_csv(profile, filename=None):
     """Läser in loggar från en CSV-fil och lägger till dem på profilen.
+    Utan filnamn läses användarens eget standardnamn, samma som exporten använder.
     Rader med ogiltiga värden hoppas över, resten läses in."""
+    if filename is None:
+        filename = make_csv_filename(profile.name)
+
     if not os.path.exists(filename):
         print(f"Filen {filename} hittades inte.")
         return 0

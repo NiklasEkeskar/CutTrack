@@ -125,7 +125,7 @@ Dag 1 till 6 och dag 7 till 13 visar programmet en kort förklaring av varför d
 
 Tiderna gäller sjudagarsperioden. Med vald period `days` krävs en period (`days` dagar) för att visa ett snitt och två perioder (2 × `days` dagar) för att bedöma takten, så med 14 dagars period börjar full analys på dag 28 och med 30 dagar på dag 60.
 
-Byggd som en egen metod, waiting_message, på CutProfile, inte inbakat i check_goals. Räknar dagar via days_since_start, som räknar från created_date till senast loggade dagen, inte till dagens riktiga datum, av samma skäl som get_logs: har du inte loggat på några dagar ska analysen ändå utgå från din senaste aktiva period.
+Byggd som en egen metod, waiting_message, på CutProfile, inte inbakat i check_goals. Räknar dagar via days_since_start, som räknar från created_date till senast loggade dagen, inte till dagens riktiga datum, av samma skäl som get_logs: har du inte loggat på några dagar ska analysen ändå utgå från din senaste aktiva period. Känd brist: ligger created_date efter första loggen, till exempel när äldre data läses in i en ny profil, blir antalet dagar negativt och väntetexten fel (statuslogg.md, Steg 1).
 
 check_goals anropar waiting_message först. Finns det text att visa, skrivs den och funktionen avbryter innan någon analys görs. Först när perioden är full (dag 14 för sjudagarsperioden) returnerar waiting_message None och full analys körs.
 
@@ -138,11 +138,13 @@ Avsikten, enligt produktvision.md, är att protein, träning och steg kräver ba
 
 ## Funktioner (utöver klassmetoder)
 Byggda:
-- make_filename(name): bygger säkert filnamn från användarnamnet, teckenvis i en loop
+- make_safe_name(name): bygger den säkra delen av ett filnamn från användarnamnet, teckenvis i en loop
+- make_filename(name): lägger till .json, filnamnet för användarens profil
+- make_csv_filename(name): lägger till _loggar.csv, filnamnet för användarens CSV-export
 - save_profile(profile): sparar profil och loggar till JSON
 - load_profile(name): läser profil och loggar från JSON, try/except för tre feltyper
-- export_logs_csv(profile, filename): loggarna som CSV
-- import_logs_csv(profile, filename): läser loggar från CSV, hoppar över trasiga rader
+- export_logs_csv(profile, filename=None): loggarna som CSV, utan filnamn används make_csv_filename(profile.name)
+- import_logs_csv(profile, filename=None): läser loggar från CSV och hoppar över trasiga rader, utan filnamn läses samma standardnamn som exporten skriver
 - plot_weight(profile, days): viktdiagram med matplotlib
 - plot_protein(profile, days) och plot_steps(profile, days): samma mönster för protein och steg
 - ask_number(question, is_integer): frågar tills svaret går att tolka som tal
@@ -181,10 +183,12 @@ Bygg aldrig filnamnet direkt från det användaren skriver in. Gör om till små
 
 Bygg strängen med en loop, tecken för tecken, som bara tar med tillåtna tecken. Det är enklare att läsa och granska än ett reguljärt uttryck.
 
-## Datalagring
-En JSON-fil per användare med profil och loggar. Vid avslut exporteras loggarna även som CSV, som går att öppna i Excel. CSV-kolumnerna namnges på engelska så de matchar attributnamnen.
+Samma säkra namn ligger bakom alla användarens filer: profilen blir niklase.json och CSV-exporten niklase_loggar.csv (make_safe_name, make_filename, make_csv_filename). Begränsning: två namn som blir lika efter rensningen, till exempel "Anna Berg" och "Anna-Berg", delar profilfil och exportfil.
 
-Profilen innehåller längd, ålder, kön och vikt, vilket är personuppgifter. Profilfiler (`*.json`) och egna CSV-filer ignoreras därför av git, och programmet skickar ingen data någonstans, allt ligger lokalt. Undantaget i .gitignore är `cuttrack_loggar.csv`, avsett för simulerad exempeldata, men filen har aldrig checkats in. Både notebookens exempelcell och exporten från menyn skriver till samma filnamn, så filen syns som ny i git när programmet körts, och riktiga loggar kan committas av misstag (kravspec.md D4, statuslogg.md steg 0).
+## Datalagring
+En JSON-fil per användare med profil och loggar (<namn>.json). Vid avslut exporteras loggarna även som CSV (<namn>_loggar.csv), som går att öppna i Excel. CSV-kolumnerna namnges på engelska så de matchar attributnamnen.
+
+Profilen innehåller längd, ålder, kön och vikt, vilket är personuppgifter. Profilfiler (`*.json`) och egna CSV-filer ignoreras därför av git, och programmet skickar ingen data någonstans, allt ligger lokalt. Det enda undantaget i .gitignore är `data/exempel_loggar.csv`, simulerad exempeldata som notebookens exempelcell skriver. Undantaget står längst ned i filen, eftersom den sista matchande raden i .gitignore avgör. Filen checkas in med programmets egna radslut (CRLF) genom raden `data/exempel_loggar.csv -text` i .gitattributes. Utan den byter git radslut vid `git add` och visar filen som ändrad varje gång notebooken körs om (kravspec.md D4).
 
 ## Externt API: Open Food Facts
 Gratis, ingen API-nyckel, base URL world.openfoodfacts.org. Slår upp protein och kalorier per 100 gram.
@@ -205,7 +209,7 @@ Inte använt: statistics (all snittberäkning görs med egna loopar, inte statis
 1. show_welcome() visar välkomsttext, riktlinjer och ansvarsfriskrivning.
 2. Fråga efter användarnamn. load_profile(name) laddar profilen om den finns. Finns den inte, create_profile(name) frågar efter längd, ålder, kön, aktivitetsnivå, startvikt, målvikt och önskad takt, och visar ett första kaloriförslag och proteinmål direkt.
 3. Meny i run_menu(), sex val: logga dagens data, visa analys, visa viktdiagram, visa kaloriförslag, läs in loggar från CSV, spara och avsluta.
-4. Vid avslut (val 6), save_profile sparar profilen som JSON och export_logs_csv exporterar loggarna som CSV, innan programmet avslutas.
+4. Vid avslut (val 6) sparar save_profile profilen som JSON och export_logs_csv exporterar loggarna som CSV till användarens eget filnamn (<namn>_loggar.csv), innan programmet avslutas.
 
 Uppslag av livsmedel (search_food) finns inte med i menyn, eftersom Open Food Facts-integrationen inte byggts, se Externt API nedan.
 
@@ -214,8 +218,10 @@ Håll input() och print() i egna funktioner, separat från klasserna och beräkn
 
 Koden är uppdelad i tre filer, i samma mapp:
 - `models.py`: DailyLog, User, CutProfile
-- `analysis.py`: make_filename, save_profile, load_profile, export_logs_csv, import_logs_csv, plot_weight, plot_protein, plot_steps. Importerar DailyLog och CutProfile från models.py.
+- `analysis.py`: make_safe_name, make_filename, make_csv_filename, save_profile, load_profile, export_logs_csv, import_logs_csv, plot_weight, plot_protein, plot_steps. Importerar DailyLog och CutProfile från models.py.
 - `cuttrack.ipynb`: importerar från de två andra filerna. Innehåller show_welcome, ask_number, ask_period, create_profile, log_today, run_menu (UI-lagret), samt alla test- och democeller.
+
+Exempeldata ligger i mappen `data/`: `exempel_loggar.csv` är simulerad data för 20 dagar och den enda CSV-filen som checkas in. Notebooken skriver den.
 
 Notebooken måste ligga i samma mapp som models.py och analysis.py för att importen ska fungera. Ändras något i en av .py-filerna medan notebooken är öppen måste kerneln startas om (Restart) innan ändringen syns, Python läser bara in en modul en gång per körning. Det är den praktiska konsekvensen av uppdelningen.
 
