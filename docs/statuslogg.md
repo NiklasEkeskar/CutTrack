@@ -23,32 +23,29 @@ Kontrollerade mot koden 2026-10-08. Status per krav finns i kravspec.md.
 - Det finns inga automatiska tester (N6).
 
 ### Kända småsaker
-- Väntetexten skriver "1 dagar kvar", ska vara "1 dag kvar".
-- Frågetexten i create_profile säger "0.5 till 1.0", medan CutProfile godtar allt över 0 till 1,0.
-- Med 30 dagars period krävs 60 dagars data innan takten bedöms. Avgör om två perioder verkligen ska krävas för långa perioder.
-- Notebookens exempelcell och menyns export skriver båda till cuttrack_loggar.csv, som är undantaget från .gitignore. Filen finns inte i repot (den har aldrig committats), men den syns som ny fil när programmet körts, och riktiga loggar kan committas av misstag (D4).
-- Välkomsttexten (show_welcome) säger att programmet väntar 14 dagar innan takten bedöms, men väntetiden är två perioder: 14, 28 eller 60 dagar beroende på vald period.
-- Notebookens förklaringstexter är inte genomgångna mot koden sedan kursfasen (N7).
-- Menyn frågar inte efter protein-, steg- och träningsmål. Standardvärdena kan bara ändras i profilens JSON-fil (F23).
-- CSV-importen skriver en rad per inläst logg ("Loggen för ... lades till."), vilket blir långt vid stora filer.
+Felaktiga texter och saknade menyval. De ligger som egna punkter i roadmappen nedan, där de hänger ihop med annat arbete, så de behöver inte följas i en separat lista.
 
 ## Roadmap, i ordning
 
 ### Steg 0, grund
 Görs först, så att varje senare ändring kan testas och inte behöver göras på två ställen.
-- [ ] Skilj exempeldata från användarens egna loggar: checka in en exempelfil i en egen mapp (till exempel data/exempel_loggar.csv), låt exporten få ett eget filnamn per användare och ta bort undantaget `!cuttrack_loggar.csv` ur .gitignore så att git ignorerar all export
-- [ ] Tester för models.py: validering, kalenderdagsfönstret i get_logs, kaloriförslag och golv, vikttakt, väntetid. Skriv först ett test som låser dagens beteende i check_goals, ändra sedan takten (steg 1). pytest är ett alternativ (senaste version 9.1.1, släppt 2026-06-19, kräver Python 3.10 eller senare enligt PyPI, kontrollerat 2026-10-08), vanliga assert-satser räcker
+- [ ] Skilj exempeldata från användarens egna loggar (D4). Idag skriver både notebookens exempelcell och menyns export till cuttrack_loggar.csv, som är undantaget från .gitignore. Filen har aldrig committats, men den syns som ny fil när programmet körts, och riktiga loggar kan committas av misstag. Åtgärd: checka in en exempelfil i data/exempel_loggar.csv, låt exporten få ett eget filnamn per användare och byt undantaget `!cuttrack_loggar.csv` i .gitignore mot raden `!data/exempel_loggar.csv`, längst ned. Utan den raden ignorerar `*.csv` även exempelfilen (kontrollerat med `git add --dry-run` i ett tillfälligt repo 2026-10-08)
+- [ ] Tester för models.py och analysis.py (N6): validering, kalenderdagsfönstret i get_logs, kaloriförslag och golv, vikttakt och väntetid, samt filhanteringen i analysis.py: make_filename (F4), save_profile och load_profile (F3) och import_logs_csv med trasiga rader (F8). Skriv först ett test som låser dagens beteende i check_goals, ändra sedan takten (steg 1). pytest är ett alternativ (senaste version 9.1.1, släppt 2026-06-19, kräver Python 3.10 eller senare enligt PyPI, kontrollerat 2026-10-08), vanliga assert-satser räcker
 - [ ] main.py: flytta menyn (show_welcome, ask_number, ask_period, create_profile, log_today, run_menu) från notebooken så att programmet startar med `python main.py`, och låt notebooken importera den i stället
 - [ ] requirements.txt
 - [ ] Välj licens. Utan licens gäller alla rättigheter förbehållna även om repot är publikt
 
 ### Steg 1, rätta takten och bygg det visionen redan beskriver
-- [ ] Rätta vikttakten (F24): jämför snittet för senaste perioden med snittet för perioden före, i stället för första och sista vägningen. Kräver att get_logs kan välja en period längre bak i tiden. Uppdatera README:s exempel efteråt, utskrifterna ändras
+- [ ] Rätta vikttakten (F24): jämför snittet för senaste perioden med snittet för perioden före, i stället för första och sista vägningen. Kräver att get_logs kan välja en period längre bak i tiden. Avgör samtidigt om två perioder verkligen ska krävas för långa perioder, idag krävs 60 dagars data innan takten bedöms på 30 dagars period. Uppdatera README:s exempel efteråt, utskrifterna ändras
 - [ ] Analysera protein, steg och träning redan under väntetiden (F15)
 - [ ] Visa sjudagarssnittet av vikten under dag 7 till 13 (F16)
+- [ ] Rätta väntetexterna efter F15 och F16, så att de beskriver de nya reglerna: "1 dagar kvar" ska vara "1 dag kvar", och show_welcome säger att programmet väntar 14 dagar innan takten bedöms, men väntetiden är två perioder: 14, 28 eller 60 dagar beroende på vald period
 - [ ] Friskrivning och en rad om att förslaget är en startpunkt vid kaloriförslaget, både vid profilskapande och i menyval 4 (F22)
+- [ ] Låt create_profile fråga efter protein-, steg- och träningsmål (F23), så att standardvärdena inte bara kan ändras i profilens JSON-fil, och rätta frågetexten "0.5 till 1.0" så att den stämmer med vad CutProfile godtar, allt över 0 till 1,0. Samma kod som F22, därför direkt efter
 - [ ] Protein- och stegdiagram i menyn (F20)
+- [ ] Låt CSV-importen skriva en sammanfattning i stället för en rad per inläst logg ("Loggen för ... lades till."), som blir långt vid stora filer
 - [ ] Midjejämförelse i check_goals (F18). Tröskeln för vad som räknas som oförändrad måste motiveras med källa, mätfelet på ett måttband kan vara större än den förändring man vill upptäcka
+- [ ] Gå igenom notebookens förklaringstexter mot koden (N7), de är inte genomgångna sedan kursfasen. Görs sist i steget, eftersom F24 och main.py ändrar vad texterna ska säga
 
 ### Steg 2, mer räkning på redan loggad data
 Visionens första block. Ordning:
@@ -79,6 +76,8 @@ Visionens första block. Ordning:
 - Kodstil: ren och underhållbar kod framför smart kod, befintliga mönster följs innan nya införs, och ny funktionalitet ska ha tester.
 - 2026-10-08: CutTrack går från kursuppgift till portfolioprojekt. Kursfasens kravspec och statuslogg ersätts, den inlämnade versionen bevaras i git-taggen.
 - 2026-10-08: Roadmapens ordning är grund, sedan det visionen redan beskriver, sedan visionens första block (mer räkning), arkitekturen och sist datainsamling och gränssnitt.
+- 2026-10-08: De kända småsakerna är egna punkter i roadmappen, placerade där de hänger ihop med annat arbete, och inte en separat lista.
+- 2026-10-08: Testerna omfattar även analysis.py (filnamn, profilfiler, CSV-inläsning), inte bara models.py, eftersom hanteringen av skadade filer och trasiga rader (N3) finns där.
 
 ## Källor, verifierade
 Alla står med direktlänkar i README under Källor och antaganden. Nyanser att komma ihåg:
@@ -91,5 +90,6 @@ Alla står med direktlänkar i README under Källor och antaganden. Nyanser att 
 ## Senaste uppdateringar
 (fylls på löpande, senaste överst)
 
+- 2026-10-08, senare: Roadmappen gicks igenom en gång till. De åtta kända småsakerna placerades som egna punkter i stegen och listan ersattes av en hänvisning. Steg 0 punkt 1 kompletterades: det räcker inte att ta bort undantaget `!cuttrack_loggar.csv`, eftersom `*.csv` då ignorerar även den incheckade exempelfilen (`git add` vägrade i ett tillfälligt testrepo), så raden `!data/exempel_loggar.csv` behövs. Testpunkten utökades till analysis.py, där filnamn, profilfiler och CSV-inläsning ligger (kravspec N6 följer med). README:s roadmap fick samma ordning som loggen, med midjemåttet sist i steg 1.
 - 2026-10-08: Projektet går från kursuppgift till portfolioprojekt. README skrevs om: kursspecifika avsnitt (Analys, Certifikat, kursreflektionen) togs bort, Begränsningar och Roadmap tillkom, och utskrifterna i Exempel kontrollerades mot koden. Två rader med föråldrad text rättades ("planerade dagar den senaste veckan" blev "förväntade dagar under perioden"). Kravspecen ersattes av en produktkravspec med statuskolumn, produktvision och teknisk_plan rensades från kursframing och den här loggen startades om. Kontrollen mot koden visade åtta luckor mot visionen, se Nuläge. Den allvarligaste är att vikttakten räknas från första och sista vägningen, vilket gör att README-exemplets utskrifter (1,31, 0,41 och 0,61 procent per vecka) mest speglar enskilda dagars svängningar. README beskriver nu det öppet under Exempel och Begränsningar. Källan till kalorigolvet lades till i README, och en felaktig formulering rättades: README sa att kalorigolvet bygger på 7700-regeln, men det är underskottet som gör det. Dokumenten kontrollerades därefter mot själva repot: cuttrack_loggar.csv har aldrig checkats in (den skapas när notebooken körs), så påståendena om en incheckad exempelfil togs bort och D4 beskriver nu hur det faktiskt är. Notebooken i repot har inga kodkopior som markdown (de fanns bara i en äldre referenskopia), så skuldpunkten om kod på två ställen togs bort ur teknisk_plan, kravspec N7 och den här loggen.
 - Kursfasen, 2026-09-15 till 2026-10-04: se git-taggen `v1.0-course-submission` och tidigare versioner av den här filen i git-historiken.

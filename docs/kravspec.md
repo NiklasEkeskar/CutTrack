@@ -103,7 +103,7 @@ Status är Klart, Delvis eller Ej byggt.
 | N3 | Dålig inmatning, en skadad fil eller en trasig CSV-rad får aldrig krascha programmet. Fel fångas specifikt (`ValueError`, `KeyError`, `JSONDecodeError`, `OSError`) och användaren får ett begripligt meddelande. | Klart |
 | N4 | Beroenden är standardbiblioteket plus matplotlib. Ett nytt externt bibliotek kräver att det underhålls, fungerar med aktuell Python och att det går att motivera varför det behövs. | Klart |
 | N5 | Programmet går att starta utan Jupyter, med ett kommando. | Ej byggt. Menyn ligger i notebooken. |
-| N6 | Reglerna (validering, kalenderdagsfönstret, kaloriförslag och golv, vikttakt, väntetid) täcks av automatiska tester. | Ej byggt. Koden är testad för hand. |
+| N6 | Reglerna (validering, kalenderdagsfönstret, kaloriförslag och golv, vikttakt, väntetid) och filhanteringen (filnamn, profilfiler, CSV-inläsning med trasiga rader) täcks av automatiska tester. | Ej byggt. Koden är testad för hand. |
 | N7 | Dokumentationen hålls i synk med koden, och kod finns på ett ställe. | Delvis. Klasser och funktioner finns bara i `models.py` och `analysis.py`, och notebooken importerar dem. Notebookens förklaringstexter är inte genomgångna mot koden sedan kursfasen. |
 
 ## Utanför omfattning

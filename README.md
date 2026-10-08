@@ -184,8 +184,8 @@ CutTrack ger allmänna riktvärden baserade på etablerade rekommendationer. Det
 
 Nästa steg, i den ordning jag tänker ta dem. Detaljer finns i [docs/produktvision.md](docs/produktvision.md) och [docs/statuslogg.md](docs/statuslogg.md).
 
-1. **Grund.** Automatiska tester för reglerna (golv, takt, fönster, väntetid), en körbar `main.py` så att programmet startar utan Jupyter, en `requirements.txt`, och en tydlig skillnad mellan exempeldata och användarens egna loggar.
-2. **Rätta vikttakten och bygg det visionen redan beskriver.** Takten räknas på snitt mot föregående snitt i stället för på första och sista vägningen. Därefter analys av protein, steg och träning redan under väntetiden, snittet under dag 7 till 13, midjemått jämfört med vikt, friskrivningen även vid kaloriförslaget, och protein- och stegdiagram i menyn.
+1. **Grund.** Automatiska tester för reglerna (golv, takt, fönster, väntetid) och för filhanteringen (profilfiler, CSV-inläsning), en körbar `main.py` så att programmet startar utan Jupyter, en `requirements.txt`, och en tydlig skillnad mellan exempeldata och användarens egna loggar.
+2. **Rätta vikttakten och bygg det visionen redan beskriver.** Takten räknas på snitt mot föregående snitt i stället för på första och sista vägningen. Därefter analys av protein, steg och träning redan under väntetiden, snittet under dag 7 till 13, friskrivningen även vid kaloriförslaget, protein- och stegdiagram i menyn och sist midjemått jämfört med vikt.
 3. **Mer räkning på redan loggad data.** Dagar till målvikt (linjär projektion av aktuell takt), platådetektion (vikten har stått still trots rätt underskott), midjemått mot vikt över hela perioden, och korrelation mellan protein, steg, träning och viktförändring.
 4. **Fler lägen.** Viktbalans och muskelbygge som nya barnklasser till `User`, samt en coachroll som kan läsa en användares analys utan att kunna ändra loggarna.
 5. **Mer datainsamling och andra gränssnitt.** Automatisk inläsning av steg från telefon eller klocka, ett webbgränssnitt ovanpå samma klasser, veckorapporter och koppling till hälso- och träningsappar.
