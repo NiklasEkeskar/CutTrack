@@ -129,6 +129,7 @@ CutTrack/
   requirements-dev.txt  beroenden för att köra testerna (pytest, tar med requirements.txt)
   data/                 exempel_loggar.csv, simulerad exempeldata
   docs/                 produktvision, kravspec, teknisk plan, statuslogg
+  LICENSE               MIT-licensen
   README.md
   *.png                 bilder till README
 ```
@@ -200,6 +201,12 @@ CutTrack/
 
 CutTrack ger allmänna riktvärden baserade på etablerade rekommendationer. Det är inte medicinsk rådgivning. Rådgör med läkare eller dietist vid sjukdom, graviditet eller medicinering.
 
+## Licens
+
+CutTrack är öppen källkod under MIT-licensen, se [LICENSE](LICENSE). Du får använda, ändra och sprida koden, även kommersiellt, så länge copyright- och licenstexten följer med. Koden levereras som den är, utan garanti.
+
+Licensen gäller programvaran och dokumentationen i det här repot. Den gäller inte matplotlib och pytest, som installeras separat och har egna licenser. Licensens ansvarsbegränsning ersätter inte ansvarsfriskrivningen ovan: CutTrack är inte medicinsk rådgivning.
+
 ## Vad jag lärde mig
 
 **Bygg en del i taget och testa innan nästa.** Jag planerade och skissade lösningen innan jag skrev kod, byggde en del i taget och testade varje funktion innan jag gick vidare. Det gjorde koden lättare att förstå och minskade risken att fel följde med till senare delar.
@@ -214,7 +221,7 @@ CutTrack ger allmänna riktvärden baserade på etablerade rekommendationer. Det
 
 Nästa steg, i den ordning jag tänker ta dem. Detaljer finns i [docs/produktvision.md](docs/produktvision.md) och [docs/statuslogg.md](docs/statuslogg.md).
 
-1. **Grund.** Automatiska tester för reglerna, filhanteringen och menyn är klara (se Hur det är byggt). Programmet startar med `python main.py` utan Jupyter, och beroendena installeras med `requirements.txt` och `requirements-dev.txt`. Kvar är att välja en licens.
+1. **Grund.** Automatiska tester för reglerna, filhanteringen och menyn är klara (se Hur det är byggt). Programmet startar med `python main.py` utan Jupyter, och beroendena installeras med `requirements.txt` och `requirements-dev.txt`. Licensen är MIT (se Licens).
 2. **Rätta vikttakten och bygg det visionen redan beskriver.** Takten räknas på snitt mot föregående snitt i stället för på första och sista vägningen, och antalet dagar sedan start räknas rätt även när loggarna är äldre än profilen. Trasig indata (en CSV-rad med för få kolumner, datum utan nollor, vissa profilfiler) ger ett meddelande i stället för ett Python-fel eller ett tyst fel. Därefter analys av protein, steg och träning redan under väntetiden, snittet under dag 7 till 13, friskrivningen även vid kaloriförslaget, protein- och stegdiagram i menyn och sist midjemått jämfört med vikt.
 3. **Mer räkning på redan loggad data.** Dagar till målvikt (linjär projektion av aktuell takt), platådetektion (vikten har stått still trots rätt underskott), midjemått mot vikt över hela perioden, och korrelation mellan protein, steg, träning och viktförändring.
 4. **Fler lägen.** Viktbalans och muskelbygge som nya barnklasser till `User`, samt en coachroll som kan läsa en användares analys utan att kunna ändra loggarna.

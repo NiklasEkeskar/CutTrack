@@ -239,6 +239,7 @@ Externt, faktiskt använt: matplotlib (diagram för vikt, protein och steg). Sta
 Externt, bara för utveckling: pytest (testerna). Version 9.1.1, släppt 2026-06-19, MIT-licens, kräver Python 3.10 eller senare och har Python 3.10 till 3.15 bland klassificeringarna på PyPI (kontrollerat 2026-10-09, fortfarande senaste versionen). Underhållet är aktivt: 9.0.3 kom 2026-04-07, 9.1.0 2026-06-13 och 9.1.1 2026-06-19. Behövs för `tmp_path`, `monkeypatch`, `capsys`, `pytest.raises` och `pytest.approx`, som testerna bygger på.
 Beroendefiler i rotmappen: `requirements.txt` (körning) har en rad, `matplotlib>=3.11,<4`. `requirements-dev.txt` (testerna) tar med den filen med `-r requirements.txt` och lägger till `pytest>=9.1,<10`. Den lägsta versionen är första utgåvan i den serie som programmet byggts med, och den är provad (matplotlib 3.11.0 och pytest 9.1.0 på Python 3.11 och 3.14). Den högsta utesluter nästa huvudversion, som får ändra hur biblioteket fungerar. Exakta versioner (`==`) valdes bort eftersom filen då måste ändras vid varje utgåva. En låsfil med alla underberoenden (numpy, pillow med flera) är nästa steg om det visar sig behövas. Lägsta Python är 3.11, eftersom matplotlib 3.11 kräver det. Filerna har inga kommentarer och bara ASCII-tecken, eftersom pip läser dem med systemets teckenkodning: med pip 24.0 och en ASCII-lokal utan UTF-8-läge kraschade installationen med `UnicodeDecodeError` på å, ä och ö i en kommentar (provat 2026-10-09).
 Inte i beroendefilerna: Jupyter-kärnan (`ipykernel`), som bara notebooken behöver. Den som kör notebooken installerar den själv.
+Licenser: matplotlib har en PSF-licens och pytest är MIT enligt PyPI (kontrollerat 2026-10-09). Inget av dem ligger i repot, de installeras med pip, och de begränsar inte valet av licens för CutTrack, som är MIT (se Filstruktur).
 Inte använt: statistics (all snittberäkning görs med egna loopar, inte statistics.mean), requests (Open Food Facts inte byggd).
 
 ## Programflöde
@@ -262,6 +263,8 @@ Koden är uppdelad i fyra filer, i samma mapp:
 Exempeldata ligger i mappen `data/`: `exempel_loggar.csv` är simulerad data för 20 dagar och den enda CSV-filen som checkas in. Notebooken skriver den.
 
 Beroendena ligger i `requirements.txt` (körning) och `requirements-dev.txt` (testerna) i rotmappen, se Bibliotek.
+
+Licensen ligger i `LICENSE` i rotmappen: MIT, `Copyright (c) 2026 Niklas Ekeskär`, standardtexten från choosealicense.com. GitHub känner igen en licens genom att jämföra filen mot kända licenstexter, så texten ändras inte annat än i copyright-raden. README har ett avsnitt Licens, och skälen till valet står i statuslogg.md under Beslut.
 
 Testerna ligger i mappen `tests/`, fyra filer, och `pytest.ini` i rotmappen anger hur de hittar `models.py`, `analysis.py` och `main.py` (se Tester).
 
