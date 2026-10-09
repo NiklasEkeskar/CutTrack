@@ -2,7 +2,7 @@
 
 Det här dokumentet beskriver vad CutTrack ska kunna och vilka krav koden ska uppfylla. `produktvision.md` beskriver varför, `teknisk_plan.md` beskriver hur. Statuskolumnen visar vad som är byggt och styr roadmapen i `statuslogg.md`.
 
-Status senast kontrollerad mot koden: 2026-10-08.
+Status senast kontrollerad mot koden: 2026-10-09.
 
 ## Användare
 
@@ -27,7 +27,7 @@ Status är Klart, Delvis eller Ej byggt.
 | ID | Krav | Status |
 | --- | --- | --- |
 | F1 | Användaren kan skapa en profil med längd, ålder, kön, aktivitetsnivå, startvikt, målvikt och önskad takt i procent per vecka. | Klart |
-| F2 | Orimliga profilvärden avvisas: målvikten ska vara lägre än startvikten och takten ligga mellan 0 och 1,0 procent per vecka. | Klart |
+| F2 | Orimliga profilvärden avvisas: målvikten ska vara lägre än startvikten och takten ligga mellan 0 och 1,0 procent per vecka. | Klart, men `nan` (not a number) godtas som vikt och takt, se statuslogg.md, Luckor |
 | F3 | Profilen sparas som en JSON-fil per användare och laddas vid nästa start. | Klart |
 | F4 | Filnamnet byggs säkert från användarnamnet, bara a till z och siffror. | Klart |
 | F23 | Användaren kan ställa in eget proteinmål (gram per kilo), stegmål och träningsmål när profilen skapas. | Delvis. Fälten finns i profilen och JSON-filen, men menyn frågar inte efter dem. Standardvärdena gäller. |
@@ -38,7 +38,7 @@ Status är Klart, Delvis eller Ej byggt.
 | --- | --- | --- |
 | F5 | Daglig logg med datum, vikt, kalorier, protein, steg, träning (ja eller nej) och midjemått (valfritt). | Klart |
 | F6 | En ny logg för ett datum som redan finns ersätter den gamla, och användaren får veta det. | Klart |
-| F7 | Orimliga värden avvisas: vikten ska vara över 0 och högst 300 kg, kalorierna mellan 0 och 10 000. | Klart |
+| F7 | Orimliga värden avvisas: vikten ska vara över 0 och högst 300 kg, kalorierna mellan 0 och 10 000. | Klart, men `nan` (not a number) godtas som vikt och kalorier, se statuslogg.md, Luckor |
 | F8 | Loggar kan exporteras till och läsas in från CSV. Exporten får ett eget filnamn per användare, `<namn>_loggar.csv`. En rad med ogiltiga värden hoppas över och resten läses in. | Klart |
 
 ### Beräkningar
@@ -73,7 +73,7 @@ Status är Klart, Delvis eller Ej byggt.
 
 | ID | Krav | Status |
 | --- | --- | --- |
-| F21 | Textmeny med val för att logga, visa analys, visa diagram, visa kaloriförslag, läsa in CSV samt spara och avsluta. | Klart, körs i notebooken |
+| F21 | Textmeny med val för att logga, visa analys, visa diagram, visa kaloriförslag, läsa in CSV samt spara och avsluta. | Klart, startas med `python main.py` |
 | F22 | Ansvarsfriskrivningen visas i README, vid start och i samband med kaloriberäkningen. Kaloriförslaget presenteras som en startpunkt som ska justeras efter ett par veckors utfall. | Delvis. Friskrivningen visas i README och vid start, inte vid kaloriförslaget, och ingen text säger att förslaget ska justeras. |
 
 ## Datakrav
@@ -83,7 +83,7 @@ Status är Klart, Delvis eller Ej byggt.
 | D1 | Datum skrivs ÅÅÅÅ-MM-DD, så att de sorteras rätt som text och läses av `datetime`. | Delvis. `log_today` kontrollerar datumet med `strptime`, som godtar `2026-10-8`, men sparar texten som den skrevs. `current_weight`, `days_since_start` och `weight_change` jämför datum som text, så ett datum utan nolla ger fel resultat utan felmeddelande. `DailyLog` validerar inte datumet alls, så ett ogiltigt datum i en CSV-fil läses in och kraschar först i `get_logs`. Se statuslogg.md, Luckor. |
 | D2 | Ett saknat värde är `None`, aldrig 0, och kontrolleras med `is not None`. | Klart |
 | D3 | Snitt och trender räknas på kalenderdagar bakåt från det senast loggade datumet, inte på antal loggar. | Klart |
-| D4 | Personlig data lämnar inte datorn. Profilfiler (`*.json`) och användarens egna CSV-exporter ignoreras av git. Exempeldata ligger i en egen incheckad fil, `data/exempel_loggar.csv`. | Klart, men det programmet skriver ut när menyn körs i notebooken (namn, vikter, kalorier) sparas i notebookens utdata och kan följa med i en commit. Se statuslogg.md, Luckor. Exempelfilen är den enda CSV-filen som checkas in, och exporten får ett eget filnamn per användare (`<namn>_loggar.csv`) som `.gitignore` ignorerar. |
+| D4 | Personlig data lämnar inte datorn. Profilfiler (`*.json`) och användarens egna CSV-exporter ignoreras av git. Exempeldata ligger i en egen incheckad fil, `data/exempel_loggar.csv`. | Klart. Menyn startas från terminalen med `python main.py` och notebooken kör den inte, så det programmet skriver ut (namn, vikter, kalorier) hamnar inte i notebookens utdata. Provas menyn i en notebookcell ändå ska cellens utdata rensas före commit, det står i notebooken under Kör programmet. Exempelfilen är den enda CSV-filen som checkas in, och exporten får ett eget filnamn per användare (`<namn>_loggar.csv`) som `.gitignore` ignorerar. |
 
 ## Säkerhets- och hälsokrav
 
@@ -98,13 +98,14 @@ Status är Klart, Delvis eller Ej byggt.
 
 | ID | Krav | Status |
 | --- | --- | --- |
-| N1 | All text som visas för användaren är på svenska. Klasser, funktioner och variabler namnges på engelska enligt PEP 8. Commit-meddelanden skrivs på engelska. | Klart |
+| N1 | All text som visas för användaren är på svenska. Klasser, funktioner och variabler namnges på engelska enligt PEP 8. Commit-meddelanden skrivs på engelska. | Delvis. Programmets egna texter är på svenska, men tre sorters meddelanden innehåller Pythons eller operativsystemets engelska text: felet efter "Loggen sparades inte" (`could not convert string to float: 'abc'`), felet när en CSV-rad med ogiltiga värden hoppas över och felet när sparning, export eller inläsning av en fil misslyckas (`[Errno 13] Permission denied`). Upptäckt 2026-10-09 när menyn testades. Se statuslogg.md, Luckor. |
 | N2 | Ren och underhållbar kod framför smart kod. Befintliga mönster följs innan nya införs. Kommentarer förklarar varför, inte vad. | Klart |
 | N3 | Dålig inmatning, en skadad fil eller en trasig CSV-rad får aldrig krascha programmet. Fel fångas specifikt (`ValueError`, `KeyError`, `JSONDecodeError`, `OSError`) och användaren får ett begripligt meddelande. | Delvis. Upptäckt när testerna skrevs 2026-10-08: fem fall ger fortfarande ett Python-fel i stället för ett meddelande. En CSV-rad med för få kolumner (`TypeError`), en CSV-fil som inte är UTF-8 (`UnicodeDecodeError`), ett ogiltigt datum i en CSV-fil (läses in, kraschar sedan i `get_logs`), en profilfil med fel struktur eller fel typer (`TypeError`) och en profilfil som inte går att läsa som fil (`OSError`). Se statuslogg.md, Luckor. |
 | N4 | Körberoenden är standardbiblioteket plus matplotlib. Utvecklingsberoenden (pytest, bara för att köra testerna) räknas separat. Ett nytt externt bibliotek kräver att det underhålls, fungerar med aktuell Python och att det går att motivera varför det behövs. | Klart. pytest 9.1.1 kontrollerat mot PyPI 2026-10-08, se teknisk_plan.md, Bibliotek. |
-| N5 | Programmet går att starta utan Jupyter, med ett kommando. | Ej byggt. Menyn ligger i notebooken. |
-| N6 | Reglerna (validering, kalenderdagsfönstret, kaloriförslag och golv, vikttakt, väntetid) och filhanteringen (filnamn, profilfiler, CSV-inläsning med trasiga rader) täcks av automatiska tester. | Klart. Byggt och provkört 2026-10-08, genomgånget 2026-10-09: 140 tester med pytest i `tests/` täcker reglerna i `models.py` och allt i `analysis.py` utom diagrammen. Menyn i notebooken och diagrammen är inte testade. |
-| N7 | Dokumentationen hålls i synk med koden, och kod finns på ett ställe. | Delvis. Klasser och funktioner finns bara i `models.py` och `analysis.py`, och notebooken importerar dem. Notebookens förklaringstexter är inte genomgångna mot koden sedan kursfasen. |
+| N5 | Programmet går att starta utan Jupyter, med ett kommando. | Delvis. Byggt och provkört 2026-10-09, inte genomgånget: `python main.py` startar menyn, skyddet `if __name__ == "__main__":` gör att menyn inte startar när `main.py` importeras, och tre tester i `tests/test_main.py` kör Python som eget program: två startar `python main.py` och ett provar att `import main` inte startar menyn. Bockas när punkten är genomgången. |
+| N6 | Reglerna (validering, kalenderdagsfönstret, kaloriförslag och golv, vikttakt, väntetid) och filhanteringen (filnamn, profilfiler, CSV-inläsning med trasiga rader) täcks av automatiska tester. | Klart. Byggt och provkört 2026-10-08, genomgånget 2026-10-09: 140 tester med pytest i `tests/` täcker reglerna i `models.py` och allt i `analysis.py` utom diagrammen. Diagrammen är inte testade. Menyn har egna tester, se N8. |
+| N7 | Dokumentationen hålls i synk med koden, och kod finns på ett ställe. | Delvis. Klasser och funktioner finns bara i `models.py`, `analysis.py` och `main.py`, och notebooken importerar dem. Notebookens förklaringstexter är inte genomgångna mot koden sedan kursfasen. Texterna om menyn och hur programmet startas skrevs om 2026-10-09 när koden flyttade till `main.py`. |
+| N8 | Menyn (frågor, profilskapande, loggning, menyval och avslut) och startpunkten `python main.py` täcks av automatiska tester som matar in svaren utan tangentbord. | Delvis. Byggt och provkört 2026-10-09, inte genomgånget: 91 tester i `tests/test_main.py`, och 120 avsiktliga fel i `main.py` upptäcks av dem. Analysen och diagrammet ersätts av stubbar i testerna, så deras utskrifter testas inte härifrån. Brister i menyn som inte är rättade än är inte låsta med tester (statuslogg.md, Luckor). Bockas när punkten är genomgången. |
 
 ## Utanför omfattning
 

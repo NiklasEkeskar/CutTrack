@@ -6,7 +6,7 @@ Klasser, attribut, metoder, funktioner och variabler namnges på engelska enligt
 Ingen dekorativ utskrift. Inga emojis, inga `print("=" * 60)`. Koden följer vanliga Python-mönster (klasser, `__init__`, `self`, try/except, filhantering) och håller sig till ren, läsbar kod framför smart kod.
 
 ## Byggordning och status
-Version 1 byggdes i den här ordningen: datamodellen först (DailyLog, User, CutProfile), sedan beräkningar och regler, därefter filhantering och diagram, och sist menyn. Profilens fält lades in från start, även de som bara används av kaloriberäkningen, eftersom en ändrad datamodell gör redan sparade JSON-filer oläsbara. Själva beräkningsfunktionerna skrevs efter att grundflödet fungerade.
+Version 1 byggdes i den här ordningen: datamodellen först (DailyLog, User, CutProfile), sedan beräkningar och regler, därefter filhantering och diagram, och sist menyn. Menyn låg först i notebooken och flyttades 2026-10-09 till main.py. Profilens fält lades in från start, även de som bara används av kaloriberäkningen, eftersom en ändrad datamodell gör redan sparade JSON-filer oläsbara. Själva beräkningsfunktionerna skrevs efter att grundflödet fungerade.
 
 Version 1 innehåller:
 - tre klasser med arv: DailyLog, User och CutProfile(User)
@@ -14,7 +14,7 @@ Version 1 innehåller:
 - analys över valbar period (7, 14 eller 30 dagar) med väntetid, eget mål och säkerhetstak
 - diagram för vikt, protein och steg
 - textmeny med sex val och kaloriförslag på begäran
-- kod uppdelad i models.py och analysis.py, med PEP 8-namngivning
+- kod uppdelad i models.py, analysis.py och main.py, med PEP 8-namngivning
 
 Vad som återstår, och var koden avviker från visionen, står i kravspec.md och statuslogg.md.
 
@@ -147,12 +147,13 @@ Byggda:
 - import_logs_csv(profile, filename=None): läser loggar från CSV och hoppar över trasiga rader, utan filnamn läses samma standardnamn som exporten skriver
 - plot_weight(profile, days): viktdiagram med matplotlib
 - plot_protein(profile, days) och plot_steps(profile, days): samma mönster för protein och steg
-- ask_number(question, is_integer): frågar tills svaret går att tolka som tal
-- ask_period(): frågar efter analysperiod, 7, 14 eller 30 dagar
-- create_profile(name): frågar efter uppgifterna som behövs och skapar en ny CutProfile
-- show_welcome(): välkomsttext, riktlinjer och ansvarsfriskrivning
-- run_menu(): CLI-loop med input(), separat från beräkningslogiken
-- log_today(user): frågar efter dagens värden och lägger till en DailyLog
+- ask_number(question, is_integer): frågar tills svaret går att tolka som tal (main.py)
+- ask_period(): frågar efter analysperiod, 7, 14 eller 30 dagar (main.py)
+- create_profile(name): frågar efter uppgifterna som behövs och skapar en ny CutProfile (main.py)
+- show_welcome(): välkomsttext, riktlinjer och ansvarsfriskrivning (main.py)
+- run_menu(): CLI-loop med input(), separat från beräkningslogiken (main.py)
+- log_today(user): frågar efter dagens värden och lägger till en DailyLog (main.py)
+- main(): startpunkten. Kör run_menu() och fångar KeyboardInterrupt och EOFError (Ctrl+C, och Ctrl+D eller stängd inmatning) med ett kort meddelande i stället för en Python-felutskrift. Anropas av `if __name__ == "__main__":` längst ned i main.py (main.py)
 
 Inte byggd:
 - search_food(name), Open Food Facts API, se avsnittet Externt API nedan.
@@ -163,28 +164,37 @@ calculate_trend är struken ur listan. average_weight och weight_change på User
 - load_profile, tre skilda except-block: json.JSONDecodeError (trasig fil), KeyError (saknat fält), ValueError (ogiltiga värden)
 - import_logs_csv, try/except inne i loopen så en trasig rad hoppas över utan att stoppa resten av importen
 - log_today och create_profile, ValueError vid ogiltig inmatning eller orimliga värden
+- main, KeyboardInterrupt och EOFError. Inget annat fångas, så ett riktigt fel syns som Python-fel och döljs inte av ett vänligt meddelande
 - save_profile och export_logs_csv, OSError vid skrivproblem
 - API-anrop (om Open Food Facts byggs), nätverksfel och timeout
 
 Fem fall fångas inte ännu och ger ett Python-fel i stället för ett meddelande: en CSV-rad med för få kolumner, en CSV-fil som inte är UTF-8, ett ogiltigt datum i en CSV-fil (läses in, kraschar sedan i `get_logs`), en profilfil med fel struktur eller fel typer och en profilfil som inte går att läsa som fil (kravspec.md N3, statuslogg.md Luckor och Steg 1).
 
-## Tester
-pytest, installerat som utvecklingsberoende med `python -m pip install pytest`. Programmet kräver det inte för att köras. Testerna körs från rotmappen med `python -m pytest`. `pytest.ini` anger att `models` och `analysis` hittas från rotmappen (`pythonpath = .`) och att testerna ligger i `tests/`.
+I menyn finns två brister till som inte kraschar men tappar data: inget sparas före menyval 6, så Ctrl+C eller en stängd terminal tappar allt sedan start, och menyval 6 avslutar även när `save_profile` eller `export_logs_csv` misslyckades, eftersom `run_menu` inte läser deras returvärde (statuslogg.md, Luckor och Steg 1).
 
-Tre filer, och vad var och en täcker:
+## Tester
+pytest, installerat som utvecklingsberoende med `python -m pip install pytest`. Programmet kräver det inte för att köras. Testerna körs från rotmappen med `python -m pytest`. `pytest.ini` anger att `models`, `analysis` och `main` hittas från rotmappen (`pythonpath = .`) och att testerna ligger i `tests/`.
+
+Fyra filer, och vad var och en täcker:
 - `tests/test_models.py`: validering (F2, F7), loggfönstret i kalenderdagar (D3), snitt, viktförändring och träningsdagar, kaloriförslag och golv (F9, F10), väntetid (F14) och vilken gren `check_goals` väljer (F13, F17)
 - `tests/test_analysis.py`: filnamn (F4, F8), profilfiler (F3), CSV-export och inläsning, inklusive trasiga rader (F8)
 - `tests/test_readme_example.py`: låser det `check_goals` skriver ut i README-exemplet, kontrollerar att README visar samma rader och låser den kända bristen F24
+- `tests/test_main.py`: textmenyn i `main.py` (F1, F2, F5, F6, F7, F21, F22, D2, N5): frågorna och deras omfrågning vid fel svar, profilskapandet, loggningen, de sex menyvalen, `main()` och att `python main.py` startar och avslutas
 
 Så är testerna skrivna:
 - Varje test i `test_analysis.py` körs i en egen tom mapp, med en fixtur (`autouse=True`) som byter arbetsmapp till `tmp_path`. Funktionerna skriver filer i den aktuella mappen, och utan fixturen hade testerna skrivit profiler och CSV-filer i repot.
 - Förväntade värden räknas ut för hand i kommentarerna och kopieras inte från programmets utskrift, så att testet kontrollerar koden i stället för att upprepa den. Undantaget är README-exemplet, som är programmets egen utskrift. Den är kontrollräknad utanför koden, och samma rader måste stå i README.
 - Allt som beror på hur takten räknas (F24) ligger i `test_readme_example.py`. De övriga testerna kontrollerar vilken gren som väljs, med data där alla rimliga taktmetoder ger samma gren.
-- Ett test som låser dagens beteende (på engelska characterization test) beskriver vad koden gör, inte vad den borde göra. Det används bara för F24. Övriga kända fel får sina tester först när de rättas (statuslogg.md, Luckor och Beslut).
+- Ett test som låser dagens beteende (på engelska characterization test) beskriver vad koden gör, inte vad den borde göra. Det används bara för F24. Övriga kända fel får sina tester först när de rättas (statuslogg.md, Luckor och Beslut). För menyn betyder det att `nan`, negativa steg, `ja` som träningssvar, decimalkomma och tomt namn inte finns i `test_main.py`.
+- Menyn läser med `input()`, och `input()` läser från `sys.stdin`. `test_main.py` byter `sys.stdin` mot en `io.StringIO` med färdiga svar (hjälpfunktionen `type_answers`), så att testet bestämmer vad användaren skriver. När svaren tar slut kastar `input()` `EOFError`, som vid Ctrl+D, så ett test som frågar efter mer än det gett stoppas i stället för att hänga. Svaren syns inte i utskriften, så en fråga och nästa utskrift hamnar på samma rad och testerna kontrollerar med `text in output`, aldrig rad för rad.
+- Analysen (`check_goals`) och diagrammet (`plot_weight`) ersätts med stubbar där menyn anropar dem (`monkeypatch.setattr`). Menyn ska bara skicka vidare rätt period, ingen figur får öppnas under en testkörning, och analysens regler testas på ett ställe, i `test_models.py` och `test_readme_example.py`.
+- Tre tester kör Python som eget program med `subprocess.run`, eftersom `if __name__ == "__main__":` aldrig körs när ett test importerar filen. Två startar `python main.py` och provar att programmet startar och avslutas och att det inte ger någon Python-felutskrift när inmatningen stängs. Det tredje kör `import main` med tom inmatning och provar att menyn inte startar.
 
-Inte täckt: diagramfunktionerna (`plot_weight`, `plot_protein`, `plot_steps`), menyn i notebooken (`ask_number`, `ask_period`, `create_profile`, `log_today`, `run_menu`) och de fem fallen under Felhantering.
+Inte täckt: diagramfunktionerna (`plot_weight`, `plot_protein`, `plot_steps`), vad analysen skriver ut när den anropas via menyn och de fem fallen under Felhantering.
 
 Hur testerna kontrollerades 2026-10-08: koden ändrades avsiktligt på 177 ställen, en ändring i taget, och testerna kördes mot varje. 173 ändringar gav ett misslyckat test, de fyra som inte gjorde det står i statuslogg.md. Täckning enligt coverage.py: `analysis.py` utom diagrammen täcks helt och `models.py` till 98 procent. Kontrollen gjordes för hand en gång och finns inte som skript i repot.
+
+Menytesterna kontrollerades 2026-10-09 på samma sätt, med `main.py` som mål. Första omgången gav 113 ändringar: 106 upptäcktes, fyra inte (en extra giltig analysperiod, aktivitetsvalet utan krav på heltal, och kalorier och protein lästes som heltal) och tre avbröt testkörningen. Testerna skärptes, och andra omgången gav 120 ändringar som alla upptäcktes. Täckning: `main.py` 99 procent, och raden som saknas är `main()` i skyddet, som bara körs av de två testerna som startar `python main.py` i en egen process. Flytten från notebooken kontrollerades dessutom genom att jämföra syntaxträd och källtext för de sex funktionerna med notebookens celler: de är identiska. Inte heller den här kontrollen finns som skript i repot.
 
 ## Datumformat och dubbletter
 
@@ -227,28 +237,32 @@ Externt, bara för utveckling: pytest (testerna). Version 9.1.1, släppt 2026-06
 Inte använt: statistics (all snittberäkning görs med egna loopar, inte statistics.mean), requests (Open Food Facts inte byggd).
 
 ## Programflöde
-1. show_welcome() visar välkomsttext, riktlinjer och ansvarsfriskrivning.
-2. Fråga efter användarnamn. load_profile(name) laddar profilen om den finns. Finns den inte, create_profile(name) frågar efter längd, ålder, kön, aktivitetsnivå, startvikt, målvikt och önskad takt, och visar ett första kaloriförslag och proteinmål direkt.
-3. Meny i run_menu(), sex val: logga dagens data, visa analys, visa viktdiagram, visa kaloriförslag, läs in loggar från CSV, spara och avsluta.
-4. Vid avslut (val 6) sparar save_profile profilen som JSON och export_logs_csv exporterar loggarna som CSV till användarens eget filnamn (<namn>_loggar.csv), innan programmet avslutas.
+1. `python main.py` kör main(), som anropar run_menu() och fångar Ctrl+C och Ctrl+D.
+2. show_welcome() visar välkomsttext, riktlinjer och ansvarsfriskrivning.
+3. Fråga efter användarnamn. load_profile(name) laddar profilen om den finns. Finns den inte, create_profile(name) frågar efter längd, ålder, kön, aktivitetsnivå, startvikt, målvikt och önskad takt, och visar ett första kaloriförslag och proteinmål direkt.
+4. Meny i run_menu(), sex val: logga dagens data, visa analys, visa viktdiagram, visa kaloriförslag, läs in loggar från CSV, spara och avsluta.
+5. Vid avslut (val 6) sparar save_profile profilen som JSON och export_logs_csv exporterar loggarna som CSV till användarens eget filnamn (<namn>_loggar.csv), innan programmet avslutas. Det är det enda tillfället då något sparas.
 
 Uppslag av livsmedel (search_food) finns inte med i menyn, eftersom Open Food Facts-integrationen inte byggts, se Externt API nedan.
 
 ## Filstruktur
 Håll input() och print() i egna funktioner, separat från klasserna och beräkningslogiken, så att CLI kan bytas mot en app senare utan att röra kärnlogiken.
 
-Koden är uppdelad i tre filer, i samma mapp:
+Koden är uppdelad i fyra filer, i samma mapp:
 - `models.py`: DailyLog, User, CutProfile
 - `analysis.py`: make_safe_name, make_filename, make_csv_filename, save_profile, load_profile, export_logs_csv, import_logs_csv, plot_weight, plot_protein, plot_steps. Importerar DailyLog och CutProfile från models.py.
-- `cuttrack.ipynb`: importerar från de två andra filerna. Innehåller show_welcome, ask_number, ask_period, create_profile, log_today, run_menu (UI-lagret), samt alla test- och democeller.
+- `main.py`: show_welcome, ask_number, ask_period, create_profile, log_today, run_menu (UI-lagret) och main, startpunkten. Importerar från models.py och analysis.py. Startas med `python main.py`.
+- `cuttrack.ipynb`: importerar från de tre andra filerna. Innehåller förklaringar samt alla test- och democeller, men kör inte menyn.
 
 Exempeldata ligger i mappen `data/`: `exempel_loggar.csv` är simulerad data för 20 dagar och den enda CSV-filen som checkas in. Notebooken skriver den.
 
-Testerna ligger i mappen `tests/`, tre filer, och `pytest.ini` i rotmappen anger hur de hittar `models.py` och `analysis.py` (se Tester).
+Testerna ligger i mappen `tests/`, fyra filer, och `pytest.ini` i rotmappen anger hur de hittar `models.py`, `analysis.py` och `main.py` (se Tester).
 
-Notebooken måste ligga i samma mapp som models.py och analysis.py för att importen ska fungera. Ändras något i en av .py-filerna medan notebooken är öppen måste kerneln startas om (Restart) innan ändringen syns, Python läser bara in en modul en gång per körning. Det är den praktiska konsekvensen av uppdelningen.
+Notebooken måste ligga i samma mapp som models.py, analysis.py och main.py för att importen ska fungera. Ändras något i en av .py-filerna medan notebooken är öppen måste kerneln startas om (Restart) innan ändringen syns, Python läser bara in en modul en gång per körning. Det är den praktiska konsekvensen av uppdelningen.
 
-**Menyn ligger i notebooken.** Klasser och funktioner finns bara i models.py och analysis.py, och notebooken importerar dem och förklarar dem i markdown. Menyn (show_welcome, ask_number, ask_period, create_profile, log_today, run_menu) är däremot kod i notebookceller, så programmet går inte att starta utan Jupyter. Planen är att flytta menyn till main.py, så att notebooken blir en genomgång och exempelkörning som importerar allt (statuslogg.md, steg 0).
+**Menyn ligger i main.py.** Klasser och funktioner finns bara i models.py, analysis.py och main.py, och notebooken importerar dem och förklarar dem i markdown. Programmet startas med `python main.py`. Notebooken kör inte menyn, eftersom allt en cell skriver ut sparas i `cuttrack.ipynb` och repot är publikt (kravspec.md D4). Raden `if __name__ == "__main__":` längst ned i main.py gör att menyn bara startar när filen körs som program och inte när notebooken importerar den: Python sätter `__name__` till `"__main__"` vid `python main.py` och till `"main"` vid `import main`.
+
+Profil- och CSV-filerna skrivs i den mapp programmet startas från, inte i mappen där main.py ligger (analysis.py använder relativa filnamn). Startas programmet från rotmappen hamnar filerna där och ignoreras av git. Startas det från en annan mapp skapar det nya, tomma profiler där.
 
 ## Källor
 Alla källor står med direktlänkar i README under Källor och antaganden. Vad varje källa ligger bakom:
