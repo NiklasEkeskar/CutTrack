@@ -90,19 +90,19 @@ Diagrammen från samma testperiod: viktdiagrammet står överst på sidan, prote
    python -m venv .venv
    source .venv/bin/activate
    ```
-   På Windows PowerShell aktiveras den med `.venv\Scripts\Activate.ps1`.
-3. Installera matplotlib:
+   Kommandot `source` gäller bash och zsh. I PowerShell aktiveras miljön med `.venv\Scripts\Activate.ps1` på Windows och `.venv/bin/Activate.ps1` på macOS och Linux.
+3. Installera det programmet behöver, som är matplotlib:
    ```
-   python -m pip install matplotlib
+   python -m pip install -r requirements.txt
    ```
-   Senaste matplotlib (3.11) kräver Python 3.11 eller senare, äldre Python får en äldre version via pip.
+   `requirements.txt` godtar matplotlib 3.11 och senare, men inte version 4. matplotlib 3.11 kräver Python 3.11 eller senare, så det gäller även CutTrack. Installationen är provad på Python 3.11, 3.12, 3.13 och 3.14.
 4. Starta programmet från projektets rotmapp:
    ```
    python main.py
    ```
    Menyn frågar efter ditt namn och skapar en profil åt dig första gången. Avsluta med val 6, Spara och avsluta. Inget sparas före val 6, så det du loggat sedan start är borta om du avbryter med Ctrl+C eller Ctrl+D eller stänger terminalen.
 
-Notebooken `cuttrack.ipynb` går igenom koden steg för steg och provar den med exempeldata. Öppna den i VS Code (med tillägget Jupyter) eller i Jupyter, välj den virtuella miljön som kernel och kör cellerna uppifrån och ner. Den kör inte menyn, eftersom allt en cell skriver ut sparas i filen och repot är publikt.
+Notebooken `cuttrack.ipynb` går igenom koden steg för steg och provar den med exempeldata. Öppna den i VS Code (med tillägget Jupyter) eller i Jupyter, välj den virtuella miljön som kernel och kör cellerna uppifrån och ner. Miljön behöver en Jupyter-kärna för det (`python -m pip install ipykernel`), som inte ingår i requirements-filerna eftersom programmet och testerna inte behöver den. Notebooken kör inte menyn, eftersom allt en cell skriver ut sparas i filen och repot är publikt.
 
 Ändrar du något i `models.py`, `analysis.py` eller `main.py` medan notebooken är öppen måste kerneln startas om (Restart), eftersom Python bara läser in en modul en gång per körning.
 
@@ -110,10 +110,10 @@ Profilen sparas som `<namn>.json` i mappen du kör från. Val 6 i menyn exporter
 
 **Köra testerna.** Testerna använder pytest, som bara behövs för att utveckla, inte för att köra programmet. Installera det i samma virtuella miljö och kör från projektets rotmapp:
 ```
-python -m pip install pytest
+python -m pip install -r requirements-dev.txt
 python -m pytest
 ```
-Senaste pytest (9.1) kräver Python 3.10 eller senare. Varje test som rör filer körs i en egen tillfällig mapp, så testerna skriver inga profiler eller CSV-filer i projektet.
+`requirements-dev.txt` tar med `requirements.txt` och lägger till pytest 9.1 eller senare, men inte version 10. Varje test som rör filer körs i en egen tillfällig mapp, så testerna skriver inga profiler eller CSV-filer i projektet.
 
 ## Projektstruktur
 
@@ -125,6 +125,8 @@ CutTrack/
   cuttrack.ipynb        förklaringar och exempelkörning (kör inte menyn)
   tests/                automatiska tester (pytest)
   pytest.ini            inställning för pytest
+  requirements.txt      beroenden för att köra programmet (matplotlib)
+  requirements-dev.txt  beroenden för att köra testerna (pytest, tar med requirements.txt)
   data/                 exempel_loggar.csv, simulerad exempeldata
   docs/                 produktvision, kravspec, teknisk plan, statuslogg
   README.md
@@ -146,6 +148,8 @@ CutTrack/
 **Säkra filnamn.** Filnamnen byggs aldrig direkt av det användaren skriver. `make_safe_name` behåller bara a till z och siffror, så ett namn som `../../etc/passwd` inte kan styra var filen hamnar. `make_filename` och `make_csv_filename` lägger sedan till `.json` respektive `_loggar.csv`, så varje användare får en egen profilfil och en egen exportfil.
 
 **Tester.** `tests/` innehåller automatiska tester med pytest. `test_models.py` täcker reglerna: validering, kalenderdagsfönstret, snitt, kaloriförslag och golv, väntetid och vilken gren `check_goals` väljer. `test_analysis.py` täcker filhanteringen: filnamn, profilfiler, CSV-export och inläsning med trasiga rader. `test_readme_example.py` låser vad `check_goals` skriver ut i exemplet ovan och kontrollerar att README visar samma rader som koden. `test_main.py` täcker menyn: testet skriver in svaren åt programmet i stället för tangentbordet, och tre tester kör Python som ett eget program, för att se att `python main.py` startar och att menyn inte startar vid import. Förväntade värden är uträknade för hand i kommentarerna, inte kopierade från programmets utskrift. Diagrammen testas inte.
+
+**Beroenden.** Det programmet behöver står i `requirements.txt` och det som bara behövs för att utveckla i `requirements-dev.txt`, så att den som bara vill köra programmet slipper installera pytest. Varje rad anger en lägsta och en högsta version, till exempel `matplotlib>=3.11,<4`. Den lägsta är den första utgåvan som är provad, och den högsta utesluter nästa huvudversion, som kan ändra hur biblioteket fungerar.
 
 **Gränssnittet är separat från logiken.** All inmatning och utskrift ligger i `main.py`, skilda från klasserna i `models.py` och filhanteringen i `analysis.py`, så att menyn kan bytas mot ett annat gränssnitt utan att röra beräkningarna.
 
@@ -189,6 +193,7 @@ CutTrack/
 - Vissa trasiga filer stoppar fortfarande programmet med ett Python-fel i stället för ett begripligt meddelande: en CSV-rad med för få kolumner, en CSV-fil som inte är UTF-8, ett ogiltigt datum i en CSV-fil (loggen läses in men analysen kraschar efteråt) och en profilfil med fel struktur eller som inte går att läsa som fil. Listan och planen finns i [docs/statuslogg.md](docs/statuslogg.md).
 - Datum ska skrivas med nollor, 2026-10-08 och inte 2026-10-8. Menyn godtar det senare men sorterar det fel, så aktuell vikt, antal dagar sedan start och viktförändring blir fel utan något felmeddelande.
 - CSV-filer från kalkylprogram läses inte alltid rätt: TRUE och FALSE i kolumnen för träning läses som att ingen träning skett, och filer med semikolon som avgränsare eller med BOM (en dold markering först i filen) ger noll inlästa rader.
+- CutTrack kräver Python 3.11 eller senare, eftersom matplotlib 3.11 gör det. Äldre Python är inte provat.
 - Exempeldatan är simulerad.
 
 ## Ansvarsfriskrivning
@@ -209,7 +214,7 @@ CutTrack ger allmänna riktvärden baserade på etablerade rekommendationer. Det
 
 Nästa steg, i den ordning jag tänker ta dem. Detaljer finns i [docs/produktvision.md](docs/produktvision.md) och [docs/statuslogg.md](docs/statuslogg.md).
 
-1. **Grund.** Automatiska tester för reglerna och filhanteringen är klara (se Hur det är byggt). `main.py` är skriven, så att programmet startar utan Jupyter. Kvar är en `requirements.txt`.
+1. **Grund.** Automatiska tester för reglerna och filhanteringen är klara (se Hur det är byggt). `main.py` är skriven, så att programmet startar utan Jupyter, och `requirements.txt` och `requirements-dev.txt` är skrivna. Kvar är att välja en licens.
 2. **Rätta vikttakten och bygg det visionen redan beskriver.** Takten räknas på snitt mot föregående snitt i stället för på första och sista vägningen, och antalet dagar sedan start räknas rätt även när loggarna är äldre än profilen. Trasig indata (en CSV-rad med för få kolumner, datum utan nollor, vissa profilfiler) ger ett meddelande i stället för ett Python-fel eller ett tyst fel. Därefter analys av protein, steg och träning redan under väntetiden, snittet under dag 7 till 13, friskrivningen även vid kaloriförslaget, protein- och stegdiagram i menyn och sist midjemått jämfört med vikt.
 3. **Mer räkning på redan loggad data.** Dagar till målvikt (linjär projektion av aktuell takt), platådetektion (vikten har stått still trots rätt underskott), midjemått mot vikt över hela perioden, och korrelation mellan protein, steg, träning och viktförändring.
 4. **Fler lägen.** Viktbalans och muskelbygge som nya barnklasser till `User`, samt en coachroll som kan läsa en användares analys utan att kunna ändra loggarna.
@@ -217,4 +222,4 @@ Nästa steg, i den ordning jag tänker ta dem. Detaljer finns i [docs/produktvis
 
 ## AI-användning
 
-Jag har använt Claude (Anthropic) som bollplank och kodassistent genom hela projektet. Idén, produktvisionen och de bärande besluten är mina. Stora delar av koden har skrivits av Claude utifrån mina beslut och krav, och jag har gått igenom, testat och lagt in den själv. Testerna i `tests/` är skrivna av Claude utifrån kraven i `docs/kravspec.md`, med förväntade värden som är uträknade för hand i kommentarerna. Claude har också förklarat koncept som var nya för mig och ifrågasatt mina val när de haft brister. Jag har gått igenom koden i `models.py` och `analysis.py` och testerna `test_models.py`, `test_analysis.py` och `test_readme_example.py` funktion för funktion och kan förklara vad varje del gör och varför den är skriven som den är. `main.py` och `test_main.py` är nyare och inte genomgångna än.
+Jag har använt Claude (Anthropic) som bollplank och kodassistent genom hela projektet. Idén, produktvisionen och de bärande besluten är mina. Stora delar av koden har skrivits av Claude utifrån mina beslut och krav, och jag har gått igenom, testat och lagt in den själv. Testerna i `tests/` är skrivna av Claude utifrån kraven i `docs/kravspec.md`, med förväntade värden som är uträknade för hand i kommentarerna. Claude har också förklarat koncept som var nya för mig och ifrågasatt mina val när de haft brister. Jag har gått igenom koden i `models.py` och `analysis.py` och testerna `test_models.py`, `test_analysis.py` och `test_readme_example.py` funktion för funktion och kan förklara vad varje del gör och varför den är skriven som den är. `main.py`, `test_main.py` och beroendefilerna `requirements.txt` och `requirements-dev.txt` är nyare och inte genomgångna än.

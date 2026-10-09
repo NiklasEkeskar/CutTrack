@@ -173,7 +173,7 @@ Fem fall fångas inte ännu och ger ett Python-fel i stället för ett meddeland
 I menyn finns två brister till som inte kraschar men tappar data: inget sparas före menyval 6, så Ctrl+C eller en stängd terminal tappar allt sedan start, och menyval 6 avslutar även när `save_profile` eller `export_logs_csv` misslyckades, eftersom `run_menu` inte läser deras returvärde (statuslogg.md, Luckor och Steg 1).
 
 ## Tester
-pytest, installerat som utvecklingsberoende med `python -m pip install pytest`. Programmet kräver det inte för att köras. Testerna körs från rotmappen med `python -m pytest`. `pytest.ini` anger att `models`, `analysis` och `main` hittas från rotmappen (`pythonpath = .`) och att testerna ligger i `tests/`.
+pytest, installerat som utvecklingsberoende med `python -m pip install -r requirements-dev.txt`. Programmet kräver det inte för att köras. Testerna körs från rotmappen med `python -m pytest`. `pytest.ini` anger att `models`, `analysis` och `main` hittas från rotmappen (`pythonpath = .`) och att testerna ligger i `tests/`.
 
 Fyra filer, och vad var och en täcker:
 - `tests/test_models.py`: validering (F2, F7), loggfönstret i kalenderdagar (D3), snitt, viktförändring och träningsdagar, kaloriförslag och golv (F9, F10), väntetid (F14) och vilken gren `check_goals` väljer (F13, F17)
@@ -230,10 +230,15 @@ Fallgropar att hantera med try/except:
 
 Tilläggsfunktion, inte byggd. Uppgifterna ovan kontrolleras mot aktuell dokumentation innan den byggs.
 
+## Utvecklingsmiljö
+macOS med VS Code och Python 3.14 i `.venv`. Terminalen är PowerShell (pwsh), så kommandon som ska klistras in skrivs så att de fungerar där: miljön aktiveras med `.venv/bin/Activate.ps1` och inte med `source`, och en körbar fil i en annan miljö anropas med `&` före sökvägen. Git-kommandona fungerar likadant, men ett commit-meddelande i citattecken får inte innehålla `$` eller backtick, eftersom PowerShell tolkar dem. Upptäckt 2026-10-09 när installationsprovet kördes.
+
 ## Bibliotek
 Standard, faktiskt använda: json (spara/läsa profil), csv (export/import loggar), datetime (datum och kalenderdagar), os (kolla om fil finns).
-Externt, faktiskt använt: matplotlib (diagram för vikt, protein och steg).
-Externt, bara för utveckling: pytest (testerna). Version 9.1.1, släppt 2026-06-19, MIT-licens, kräver Python 3.10 eller senare och har Python 3.14 bland klassificeringarna på PyPI (kontrollerat 2026-10-08). Behövs för `tmp_path`, `monkeypatch`, `capsys`, `pytest.raises` och `pytest.approx`, som testerna bygger på.
+Externt, faktiskt använt: matplotlib (diagram för vikt, protein och steg). Standardbiblioteket kan inte rita diagram. Version 3.11.2, släppt 2026-09-11, kräver Python 3.11 eller senare och har Python 3.11 till 3.14 bland klassificeringarna på PyPI (kontrollerat 2026-10-09). Underhållet är aktivt: 3.10.9 kom 2026-04-24, 3.11.0 2026-06-12, 3.11.1 2026-07-18 och 3.11.2 2026-09-11.
+Externt, bara för utveckling: pytest (testerna). Version 9.1.1, släppt 2026-06-19, MIT-licens, kräver Python 3.10 eller senare och har Python 3.10 till 3.15 bland klassificeringarna på PyPI (kontrollerat 2026-10-09, fortfarande senaste versionen). Underhållet är aktivt: 9.0.3 kom 2026-04-07, 9.1.0 2026-06-13 och 9.1.1 2026-06-19. Behövs för `tmp_path`, `monkeypatch`, `capsys`, `pytest.raises` och `pytest.approx`, som testerna bygger på.
+Beroendefiler i rotmappen: `requirements.txt` (körning) har en rad, `matplotlib>=3.11,<4`. `requirements-dev.txt` (testerna) tar med den filen med `-r requirements.txt` och lägger till `pytest>=9.1,<10`. Den lägsta versionen är första utgåvan i den serie som programmet byggts med, och den är provad (matplotlib 3.11.0 och pytest 9.1.0 på Python 3.11 och 3.14). Den högsta utesluter nästa huvudversion, som får ändra hur biblioteket fungerar. Exakta versioner (`==`) valdes bort eftersom filen då måste ändras vid varje utgåva. En låsfil med alla underberoenden (numpy, pillow med flera) är nästa steg om det visar sig behövas. Lägsta Python är 3.11, eftersom matplotlib 3.11 kräver det. Filerna har inga kommentarer och bara ASCII-tecken, eftersom pip läser dem med systemets teckenkodning: med pip 24.0 och en ASCII-lokal utan UTF-8-läge kraschade installationen med `UnicodeDecodeError` på å, ä och ö i en kommentar (provat 2026-10-09).
+Inte i beroendefilerna: Jupyter-kärnan (`ipykernel`), som bara notebooken behöver. Den som kör notebooken installerar den själv.
 Inte använt: statistics (all snittberäkning görs med egna loopar, inte statistics.mean), requests (Open Food Facts inte byggd).
 
 ## Programflöde
@@ -255,6 +260,8 @@ Koden är uppdelad i fyra filer, i samma mapp:
 - `cuttrack.ipynb`: importerar från de tre andra filerna. Innehåller förklaringar samt alla test- och democeller, men kör inte menyn.
 
 Exempeldata ligger i mappen `data/`: `exempel_loggar.csv` är simulerad data för 20 dagar och den enda CSV-filen som checkas in. Notebooken skriver den.
+
+Beroendena ligger i `requirements.txt` (körning) och `requirements-dev.txt` (testerna) i rotmappen, se Bibliotek.
 
 Testerna ligger i mappen `tests/`, fyra filer, och `pytest.ini` i rotmappen anger hur de hittar `models.py`, `analysis.py` och `main.py` (se Tester).
 
