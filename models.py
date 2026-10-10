@@ -1,20 +1,70 @@
-"""Klasserna som utgör CutTracks datamodell: DailyLog, User och CutProfile, och funktionen
-normalize_date som kontrollerar och skriver om datum.
+"""Klasserna som utgör CutTracks datamodell: DailyLog, User och CutProfile, funktionen
+normalize_date som kontrollerar och skriver om datum, och gränserna för vad som räknas som
+rimliga värden.
 Importeras i cuttrack.ipynb med: from models import DailyLog, User, CutProfile"""
+import math
 from datetime import datetime
+
+# Gränser för vad som räknas som rimliga värden. De fångar tangentfel (825 i stället för 82.5,
+# en nolla för mycket i stegen) och är inga hälsoråd: ett värde inom gränsen är inte därmed
+# bra för kroppen. Klasserna kontrollerar dem, så de gäller lika för menyn, för CSV-filer och
+# för profilfiler. Menyn använder gränserna för längd, ålder och namn för att fråga om direkt.
+MAX_WEIGHT_KG = 300
+MAX_CALORIES = 10000
+MAX_PROTEIN_G = 1000
+MAX_STEPS = 100000
+MIN_WAIST_CM = 30
+MAX_WAIST_CM = 250
+MIN_HEIGHT_CM = 100
+MAX_HEIGHT_CM = 250
+# 18 år är undre gräns eftersom riktlinjerna som kaloriförslaget bygger på gäller vuxna (se README)
+MIN_AGE = 18
+MAX_AGE = 100
+MIN_ACTIVITY_LEVEL = 1.0
+MAX_ACTIVITY_LEVEL = 2.5
+MAX_PROTEIN_PER_KG = 5
+MAX_TRAINING_DAYS = 7
+MAX_NAME_LENGTH = 50
+
+DATE_MESSAGE = "Datumet måste skrivas som ÅÅÅÅ-MM-DD, till exempel 2026-10-08."
+
+
+def is_number(value):
+    """True om value är ett vanligt tal, int eller float, men inte nan. True och False räknas
+    inte som tal: bool är en sorts int i Python, så True skulle annars vara talet 1."""
+    if isinstance(value, bool):
+        return False
+    if isinstance(value, int):
+        return True
+    # nan kontrolleras bara för decimaltal. math.isnan kastar OverflowError för ett heltal som
+    # är för stort för att bli ett decimaltal, och det kan stå i en JSON-fil.
+    if isinstance(value, float):
+        return not math.isnan(value)
+    return False
+
+
+def is_whole_number(value):
+    """True om value är ett heltal (int). Ett decimaltal som 8000.0 räknas inte, och inte
+    heller True och False."""
+    return isinstance(value, int) and not isinstance(value, bool)
 
 
 def normalize_date(date_text):
     """Kontrollerar att texten är ett riktigt datum och skriver det som ÅÅÅÅ-MM-DD med
-    nollor, till exempel 2026-10-8 som 2026-10-08. Kastar ValueError om det inte är ett
-    datum i det formatet."""
+    nollor, till exempel 2026-10-8 som 2026-10-08. Mellanslag före och efter datumet tas
+    bort. Kastar ValueError om det inte är ett datum i det formatet."""
+    # Ett värde som inte är text alls, till exempel None från en JSON-fil, ger samma ValueError
+    # som en text som inte är ett datum, så den som anropar fångar bara en typ
+    if not isinstance(date_text, str):
+        raise ValueError(DATE_MESSAGE)
+
+    # strip() tar bort mellanslag, tabbar och radslut runt datumet, som strptime inte godtar.
     # strptime kastar ValueError för text som inte passar formatet eller för ett datum som
-    # inte finns (2026-02-30), och TypeError när värdet inte är text alls, till exempel None
-    # från en JSON-fil. Båda blir samma ValueError, så den som anropar fångar bara en typ.
+    # inte finns (2026-02-30).
     try:
-        parsed_date = datetime.strptime(date_text, "%Y-%m-%d")
-    except (ValueError, TypeError):
-        raise ValueError("Datumet måste skrivas som ÅÅÅÅ-MM-DD, till exempel 2026-10-08.")
+        parsed_date = datetime.strptime(date_text.strip(), "%Y-%m-%d")
+    except ValueError:
+        raise ValueError(DATE_MESSAGE)
 
     # isoformat() ger alltid ÅÅÅÅ-MM-DD med nollor, på alla datorer
     return parsed_date.date().isoformat()
@@ -29,10 +79,29 @@ class DailyLog:
         # Datumet skrivs om till ÅÅÅÅ-MM-DD med nollor, så att texterna sorteras rätt och
         # 2026-10-8 inte hamnar efter 2026-10-10 (D1)
         normalized_date = normalize_date(date)
-        if weight <= 0 or weight > 300:
+
+        # Villkoren säger vad som är giltigt, "är ett tal och ligger inom gränserna", och
+        # avvisar allt annat. Skrivna som "under eller över gränsen" skulle de släppa igenom
+        # nan, eftersom varje jämförelse med nan är falsk och ingen av dem då slår till (N1).
+        if not (is_number(weight) and 0 < weight <= MAX_WEIGHT_KG):
             raise ValueError("Vikten måste vara ett rimligt tal i kilogram, till exempel 82.5.")
-        if calories < 0 or calories > 10000:
+        if not (is_number(calories) and 0 <= calories <= MAX_CALORIES):
             raise ValueError("Kalorierna måste vara ett rimligt tal, till exempel 2200.")
+        if not (is_number(protein) and 0 <= protein <= MAX_PROTEIN_G):
+            raise ValueError("Proteinet måste vara ett rimligt tal i gram, till exempel 150.")
+        if not (is_whole_number(steps) and 0 <= steps <= MAX_STEPS):
+            raise ValueError(
+                f"Stegen måste vara ett heltal mellan 0 och {MAX_STEPS}, till exempel 8000."
+            )
+        # En text som "nej" är sann i Python, så träning som text skulle räknas som ja
+        if not isinstance(trained, bool):
+            raise ValueError("Träning måste vara True eller False.")
+        # Midjemåttet är valfritt, None betyder att det inte är mätt (D2)
+        if waist is not None and not (is_number(waist)
+                                      and MIN_WAIST_CM <= waist <= MAX_WAIST_CM):
+            raise ValueError(
+                "Midjemåttet måste vara ett rimligt tal i centimeter, till exempel 92.5."
+            )
 
         self.date = normalized_date
         self.weight = weight
@@ -47,7 +116,38 @@ class User:
     """Basklass för en användare av CutTrack."""
 
     def __init__(self, name, height_cm, age, sex, activity_level, start_weight, created_date):
-        self.name = name
+        # Samma slags kontroll som i DailyLog: klassen avgör vad som är rimligt, så det gäller
+        # både för menyn och för en profilfil som har redigerats för hand (N1)
+        if not isinstance(name, str) or name.strip() == "":
+            raise ValueError("Namnet måste vara en text med minst ett tecken.")
+        if len(name.strip()) > MAX_NAME_LENGTH:
+            raise ValueError(f"Namnet får vara högst {MAX_NAME_LENGTH} tecken.")
+        if not (is_number(height_cm) and MIN_HEIGHT_CM <= height_cm <= MAX_HEIGHT_CM):
+            raise ValueError(
+                f"Längden måste vara ett tal mellan {MIN_HEIGHT_CM} och {MAX_HEIGHT_CM} cm."
+            )
+        if not (is_whole_number(age) and MIN_AGE <= age <= MAX_AGE):
+            raise ValueError(
+                f"Åldern måste vara ett heltal mellan {MIN_AGE} och {MAX_AGE} år. "
+                "CutTrack bygger på riktlinjer för vuxna."
+            )
+        # Exakt man eller kvinna. Före den här kontrollen räknades allt utom "man" som
+        # kvinna i calculate_bmr, så ett fel i en profilfil gav fel formel utan meddelande.
+        if sex != "man" and sex != "kvinna":
+            raise ValueError("Kön måste vara man eller kvinna.")
+        if not (is_number(activity_level)
+                and MIN_ACTIVITY_LEVEL <= activity_level <= MAX_ACTIVITY_LEVEL):
+            raise ValueError(
+                f"Aktivitetsnivån måste vara ett tal mellan {MIN_ACTIVITY_LEVEL} "
+                f"och {MAX_ACTIVITY_LEVEL}."
+            )
+        if not (is_number(start_weight) and 0 < start_weight <= MAX_WEIGHT_KG):
+            raise ValueError(
+                "Startvikten måste vara ett rimligt tal i kilogram, till exempel 90.0."
+            )
+
+        # Mellanslag runt namnet sparas inte
+        self.name = name.strip()
         self.height_cm = height_cm
         self.age = age
         self.sex = sex
@@ -185,12 +285,34 @@ class CutProfile(User):
         super().__init__(name, height_cm, age, sex, activity_level, start_weight, created_date)
 
         # Valideras här, i klassen, av samma skäl som i DailyLog: gäller oavsett
-        # hur objektet skapas, inte bara vid inmatning via input()
+        # hur objektet skapas, inte bara vid inmatning via input(). Först kontrolleras att
+        # värdet är ett tal, sedan jämförs det: start_weight är redan kontrollerad av User,
+        # så jämförelsen med målvikten kan inte bli falsk av ett nan.
+        if not is_number(goal_weight):
+            raise ValueError("Målvikten måste vara ett tal i kilogram, till exempel 80.0.")
         if goal_weight <= 0 or goal_weight >= start_weight:
             raise ValueError("Målvikten måste vara lägre än startvikten.")
+        if not is_number(target_rate_percent):
+            raise ValueError("Takten måste vara ett tal, till exempel 0.7.")
         if target_rate_percent <= 0 or target_rate_percent > 1.0:
             raise ValueError(
                 "Takten måste ligga mellan 0 och 1,0 procent av kroppsvikten per vecka."
+            )
+        if not (is_number(protein_goal_per_kg)
+                and 0 < protein_goal_per_kg <= MAX_PROTEIN_PER_KG):
+            raise ValueError(
+                f"Proteinmålet per kilo måste vara ett tal över 0 och högst "
+                f"{MAX_PROTEIN_PER_KG}, till exempel 1.9."
+            )
+        if not (is_whole_number(step_goal) and 0 < step_goal <= MAX_STEPS):
+            raise ValueError(
+                f"Stegmålet måste vara ett heltal mellan 1 och {MAX_STEPS}, till exempel 8000."
+            )
+        if not (is_whole_number(training_goal_days)
+                and 0 <= training_goal_days <= MAX_TRAINING_DAYS):
+            raise ValueError(
+                f"Träningsmålet måste vara ett heltal mellan 0 och {MAX_TRAINING_DAYS} "
+                "dagar per vecka."
             )
 
         self.goal_weight = goal_weight

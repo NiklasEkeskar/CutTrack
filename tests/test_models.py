@@ -130,6 +130,86 @@ def test_calories_outside_limits_are_rejected(calories):
 
 
 # ---------------------------------------------------------------------------
+# DailyLog: nan, inf, protein, steg, träning och midjemått (F2, F7, N1)
+# ---------------------------------------------------------------------------
+
+# nan ("inte ett tal") är ett decimaltal där varje jämförelse är falsk. Ett villkor som
+# "weight <= 0 or weight > 300" släppte därför igenom nan: ingen av jämförelserna slår till.
+# inf och -inf klarar inte någon övre gräns, men testas här tillsammans med nan.
+NOT_FINITE = [float("nan"), float("inf"), float("-inf")]
+
+# Värden som aldrig är ett tal i ett fält som ska innehålla ett tal. De kan komma från en
+# profilfil som redigerats för hand, där text och true/false kan stå var som helst. True och
+# False är int i Python, så True skulle annars räknas som talet 1.
+NOT_A_NUMBER = ["82.5", [82.5], True, False]
+
+
+@pytest.mark.parametrize("weight", NOT_FINITE + NOT_A_NUMBER + [None])
+def test_weight_that_is_not_a_usable_number_is_rejected(weight):
+    with pytest.raises(ValueError, match="Vikten"):
+        make_log(0, weight=weight)
+
+
+@pytest.mark.parametrize("calories", NOT_FINITE + NOT_A_NUMBER + [None])
+def test_calories_that_are_not_a_usable_number_are_rejected(calories):
+    with pytest.raises(ValueError, match="Kalorierna"):
+        make_log(0, calories=calories)
+
+
+@pytest.mark.parametrize("protein", [0, 150, 150.5, 1000])
+def test_protein_inside_limits_is_accepted(protein):
+    # Gränserna är 0 till 1 000 gram, och 0 är giltigt
+    assert make_log(0, protein=protein).protein == protein
+
+
+@pytest.mark.parametrize("protein", [-1, -0.1, 1000.1] + NOT_FINITE + NOT_A_NUMBER + [None])
+def test_protein_outside_limits_or_not_a_number_is_rejected(protein):
+    with pytest.raises(ValueError, match="Proteinet"):
+        make_log(0, protein=protein)
+
+
+@pytest.mark.parametrize("steps", [0, 8000, 100000])
+def test_steps_inside_limits_are_accepted(steps):
+    # Gränserna är 0 till 100 000 steg
+    assert make_log(0, steps=steps).steps == steps
+
+
+@pytest.mark.parametrize("steps", [
+    -1, 100001,
+    8000.5,                   # steg är hela steg
+    8000.0,                   # ett decimaltal är inte ett heltal, även om det är jämnt
+    "8000", None, [8000], True, False,
+] + NOT_FINITE)
+def test_steps_outside_limits_or_not_a_whole_number_are_rejected(steps):
+    with pytest.raises(ValueError, match="Stegen"):
+        make_log(0, steps=steps)
+
+
+@pytest.mark.parametrize("trained", [True, False])
+def test_trained_accepts_true_and_false(trained):
+    assert make_log(0, trained=trained).trained is trained
+
+
+@pytest.mark.parametrize("trained", ["j", "ja", "nej", "True", "false", 1, 0, None])
+def test_trained_must_be_true_or_false(trained):
+    # Förut räknades "nej" i en profilfil som ja, eftersom en text som inte är tom är sann
+    with pytest.raises(ValueError, match="Träning måste vara True eller False"):
+        make_log(0, trained=trained)
+
+
+@pytest.mark.parametrize("waist", [30, 88.5, 250])
+def test_waist_inside_limits_is_accepted(waist):
+    # Gränserna är 30 till 250 cm. Utan midjemått är värdet None, inte 0 (D2)
+    assert make_log(0, waist=waist).waist == waist
+
+
+@pytest.mark.parametrize("waist", [0, -5, 29.9, 250.1] + NOT_FINITE + NOT_A_NUMBER)
+def test_waist_outside_limits_or_not_a_number_is_rejected(waist):
+    with pytest.raises(ValueError, match="Midjemåttet"):
+        make_log(0, waist=waist)
+
+
+# ---------------------------------------------------------------------------
 # Datum: normalize_date, DailyLog och startdatumet (D1)
 # ---------------------------------------------------------------------------
 
@@ -181,6 +261,32 @@ def test_normalize_date_rejects_a_value_that_is_not_text(not_text):
     # ValueError med samma meddelande, inte ett TypeError som ingen fångar.
     with pytest.raises(ValueError, match="ÅÅÅÅ-MM-DD"):
         normalize_date(not_text)
+
+
+@pytest.mark.parametrize("typed, expected", [
+    (" 2026-10-08", "2026-10-08"),
+    ("2026-10-08 ", "2026-10-08"),
+    ("  2026-10-8  ", "2026-10-08"),    # mellanslag runt datumet och dagen utan nolla
+    ("\t2026-10-08\n", "2026-10-08"),   # tabb och radslut räknas också som mellanslag
+])
+def test_normalize_date_ignores_spaces_around_the_date(typed, expected):
+    # N1: ett mellanslag efter ett inklistrat datum är lätt att råka skriva. Förut avvisades
+    # det i menyn, och CSV-inläsningen fick ta bort det själv.
+    assert normalize_date(typed) == expected
+
+
+@pytest.mark.parametrize("typed", ["   ", "\t", "2026- 10-08", "2026-10 -08", "2026 -10-08"])
+def test_normalize_date_does_not_ignore_spaces_inside_the_date(typed):
+    # Bara mellanslag runt datumet tas bort. Inuti datumet, eller när texten inte består av
+    # något annat än mellanslag, är det fortfarande inget datum.
+    with pytest.raises(ValueError, match="ÅÅÅÅ-MM-DD"):
+        normalize_date(typed)
+
+
+def test_daily_log_and_start_date_ignore_spaces_around_the_date():
+    assert DailyLog(" 2026-09-01 ", 82.5, 2200, 160, 9000, True).date == "2026-09-01"
+    user = User("Testperson", 180, 30, "man", 1.5, 90.0, " 2026-9-1 ")
+    assert user.created_date == "2026-09-01"
 
 
 @pytest.mark.parametrize("typed, expected", [
@@ -258,6 +364,197 @@ def test_rate_must_be_above_zero_and_at_most_one_percent(rate):
 @pytest.mark.parametrize("rate", [0.1, 1.0])
 def test_rate_at_the_limits_is_accepted(rate):
     assert make_profile(target_rate_percent=rate).target_rate_percent == rate
+
+
+# ---------------------------------------------------------------------------
+# User och CutProfile: kontroll av uppgifterna i profilen (F2, N1)
+# ---------------------------------------------------------------------------
+# Förut kontrollerades bara målvikten och takten. Längd 0, ålder -5 och ett namn som inte var
+# text gav en profil, och nan släpptes igenom (se NOT_FINITE ovan). Kontrollen ligger i
+# klasserna, så den gäller för menyn, för CSV-inläsningen och för profilfilerna.
+
+def make_user_with(**changes):
+    """En User där fälten i changes fått andra värden än standardvärdena. Ett fält som inte
+    finns ger KeyError, så att ett felstavat fältnamn i ett test inte passerar tyst."""
+    values = {"name": "Testperson", "height_cm": 180, "age": 30, "sex": "man",
+              "activity_level": 1.5, "start_weight": 90.0, "created_date": day_text(0)}
+    for field, value in changes.items():
+        if field not in values:
+            raise KeyError(f"Okänt fält: {field}")
+        values[field] = value
+    return User(**values)
+
+
+@pytest.mark.parametrize("name", ["Anna Berg", "A", "x" * 50, "Åsa Öberg", "123"])
+def test_a_name_that_is_text_with_content_is_accepted(name):
+    # Gränsen är 1 till 50 tecken
+    assert make_user_with(name=name).name == name
+
+
+def test_a_name_is_stored_without_spaces_around_it():
+    assert make_user_with(name="  Anna Berg  ").name == "Anna Berg"
+    # Mellanslagen räknas inte mot längdgränsen
+    assert make_user_with(name="  " + "x" * 50 + "  ").name == "x" * 50
+
+
+@pytest.mark.parametrize("name", ["", "   ", "\t", "x" * 51, None, 5, ["Anna"], True])
+def test_a_name_that_is_not_text_with_content_is_rejected(name):
+    # En profilfil med "name": 5 lästes förut in utan fel och kraschade först vid sparningen
+    with pytest.raises(ValueError, match="Namnet"):
+        make_user_with(name=name)
+
+
+def test_a_cut_profile_follows_the_same_rule_for_the_name():
+    with pytest.raises(ValueError, match="Namnet"):
+        CutProfile("", 180, 30, "man", 1.5, 90.0, day_text(0), 80.0, 0.6)
+
+
+@pytest.mark.parametrize("height_cm", [100, 175.5, 180, 250])
+def test_height_inside_limits_is_accepted(height_cm):
+    # Gränserna är 100 till 250 cm
+    assert make_user_with(height_cm=height_cm).height_cm == height_cm
+
+
+@pytest.mark.parametrize("height_cm", [0, -180, 99.9, 250.1] + NOT_FINITE + NOT_A_NUMBER + [None])
+def test_height_outside_limits_or_not_a_number_is_rejected(height_cm):
+    with pytest.raises(ValueError, match="Längden"):
+        make_user_with(height_cm=height_cm)
+
+
+def test_the_height_message_tells_the_limits():
+    # Menyn visar de här gränserna när den frågar om längden igen
+    with pytest.raises(ValueError, match="mellan 100 och 250 cm"):
+        make_user_with(height_cm=99)
+
+
+@pytest.mark.parametrize("age", [18, 30, 100])
+def test_age_inside_limits_is_accepted(age):
+    # Gränserna är 18 till 100 år. Riktlinjerna som kaloriförslaget bygger på gäller vuxna
+    # (se README), därför är 18 den undre gränsen.
+    assert make_user_with(age=age).age == age
+
+
+@pytest.mark.parametrize("age", [17, 101, 0, -5, 30.5, 30.0, "30", None, [30], True, False]
+                         + NOT_FINITE)
+def test_age_outside_limits_or_not_a_whole_number_is_rejected(age):
+    with pytest.raises(ValueError, match="Åldern"):
+        make_user_with(age=age)
+
+
+def test_the_age_message_tells_the_limits_and_why():
+    with pytest.raises(ValueError, match="mellan 18 och 100 år") as caught:
+        make_user_with(age=17)
+    assert "vuxna" in str(caught.value)
+
+
+@pytest.mark.parametrize("sex", ["man", "kvinna"])
+def test_man_and_kvinna_are_accepted_as_sex(sex):
+    assert make_user_with(sex=sex).sex == sex
+
+
+@pytest.mark.parametrize("sex", ["", "Man", "MAN", "male", "annat", " man", 3, None, True])
+def test_a_sex_that_is_not_exactly_man_or_kvinna_is_rejected(sex):
+    # Förut räknades allt utom "man" som kvinna, så "sex": 3 i en profilfil gav kvinnans formel
+    # utan något meddelande. Menyn gör svaret till gemener innan det kommer hit.
+    with pytest.raises(ValueError, match="Kön måste vara man eller kvinna"):
+        make_user_with(sex=sex)
+
+
+@pytest.mark.parametrize("activity_level", [1.0, 1.2, 1.55, 1.9, 2.5, 2])
+def test_activity_level_inside_limits_is_accepted(activity_level):
+    # Menyn ger faktorerna 1.2 till 1.9. Klassen godtar 1.0 till 2.5, för en profilfil där
+    # någon har ändrat faktorn för hand.
+    assert make_user_with(activity_level=activity_level).activity_level == activity_level
+
+
+@pytest.mark.parametrize("activity_level",
+                         [0, 0.99, 2.51, -1.5] + NOT_FINITE + NOT_A_NUMBER + [None])
+def test_activity_level_outside_limits_or_not_a_number_is_rejected(activity_level):
+    with pytest.raises(ValueError, match="Aktivitetsnivån"):
+        make_user_with(activity_level=activity_level)
+
+
+@pytest.mark.parametrize("start_weight", [0.1, 90.0, 300])
+def test_start_weight_inside_limits_is_accepted(start_weight):
+    # Samma gränser som för vikten i en logg: över 0 och högst 300 kg
+    assert make_user_with(start_weight=start_weight).start_weight == start_weight
+
+
+@pytest.mark.parametrize("start_weight", [0, -1, 300.1] + NOT_FINITE + NOT_A_NUMBER + [None])
+def test_start_weight_outside_limits_or_not_a_number_is_rejected(start_weight):
+    with pytest.raises(ValueError, match="Startvikten"):
+        make_user_with(start_weight=start_weight)
+
+
+def test_an_invalid_start_weight_is_reported_before_the_goal_weight_is_compared():
+    # Med startvikten nan är varje jämförelse med målvikten falsk. Startvikten ska stoppas
+    # först, annars skulle profilen godtas med en målvikt som inte går att jämföra.
+    with pytest.raises(ValueError, match="Startvikten"):
+        make_profile(start_weight=float("nan"), goal_weight=80.0)
+
+
+@pytest.mark.parametrize("goal_weight", NOT_FINITE + NOT_A_NUMBER + [None])
+def test_goal_weight_that_is_not_a_usable_number_is_rejected(goal_weight):
+    with pytest.raises(ValueError, match="Målvikten"):
+        make_profile(goal_weight=goal_weight)
+
+
+@pytest.mark.parametrize("rate", NOT_FINITE + NOT_A_NUMBER + [None])
+def test_rate_that_is_not_a_usable_number_is_rejected(rate):
+    with pytest.raises(ValueError, match="Takten"):
+        make_profile(target_rate_percent=rate)
+
+
+@pytest.mark.parametrize("grams_per_kg", [0.5, 1.9, 2.2, 5])
+def test_protein_goal_per_kg_inside_limits_is_accepted(grams_per_kg):
+    # Över 0 och högst 5 gram per kilo. Gränsen fångar ett tangentfel som 19 i stället för 1.9
+    # och är inget råd om hur mycket protein som är lagom.
+    assert make_profile(protein_goal_per_kg=grams_per_kg).protein_goal_per_kg == grams_per_kg
+
+
+@pytest.mark.parametrize("grams_per_kg", [0, -1.9, 5.1, 19] + NOT_FINITE + NOT_A_NUMBER + [None])
+def test_protein_goal_per_kg_outside_limits_or_not_a_number_is_rejected(grams_per_kg):
+    with pytest.raises(ValueError, match="Proteinmålet"):
+        make_profile(protein_goal_per_kg=grams_per_kg)
+
+
+@pytest.mark.parametrize("step_goal", [1, 8000, 100000])
+def test_step_goal_inside_limits_is_accepted(step_goal):
+    assert make_profile(step_goal=step_goal).step_goal == step_goal
+
+
+@pytest.mark.parametrize("step_goal", [0, -8000, 100001, 8000.5, 8000.0, "8000", None, True, False]
+                         + NOT_FINITE)
+def test_step_goal_outside_limits_or_not_a_whole_number_is_rejected(step_goal):
+    with pytest.raises(ValueError, match="Stegmålet"):
+        make_profile(step_goal=step_goal)
+
+
+@pytest.mark.parametrize("training_goal_days", [0, 3, 7])
+def test_training_goal_days_inside_limits_are_accepted(training_goal_days):
+    # Dagar per vecka, så 0 till 7
+    assert make_profile(training_goal_days=training_goal_days).training_goal_days \
+        == training_goal_days
+
+
+@pytest.mark.parametrize("training_goal_days", [-1, 8, 3.5, 3.0, "3", None, True, False]
+                         + NOT_FINITE)
+def test_training_goal_days_outside_limits_or_not_a_whole_number_are_rejected(
+        training_goal_days):
+    with pytest.raises(ValueError, match="Träningsmålet"):
+        make_profile(training_goal_days=training_goal_days)
+
+
+def test_a_profile_with_every_value_at_its_lower_limit_is_accepted():
+    profile = CutProfile("A", 100, 18, "kvinna", 1.0, 0.2, day_text(0), 0.1, 0.1,
+                         protein_goal_per_kg=0.1, step_goal=1, training_goal_days=0)
+    assert profile.name == "A"
+
+
+def test_a_profile_with_every_value_at_its_upper_limit_is_accepted():
+    profile = CutProfile("x" * 50, 250, 100, "man", 2.5, 300, day_text(0), 299.9, 1.0,
+                         protein_goal_per_kg=5, step_goal=100000, training_goal_days=7)
+    assert profile.age == 100
 
 
 # ---------------------------------------------------------------------------

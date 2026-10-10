@@ -8,14 +8,16 @@ egen tom tillfällig mapp (se work_in_temp_folder), så inga testfiler hamnar i 
 Alla namn och värden är påhittade.
 """
 import csv
+import errno
 import json
 import os
 
 import pytest
 
 import analysis
-from analysis import (make_safe_name, make_filename, make_csv_filename, save_profile,
-                      load_profile, profile_file_exists, export_logs_csv, import_logs_csv)
+from analysis import (make_safe_name, is_usable_name, make_filename, make_csv_filename,
+                      describe_os_error, save_profile, load_profile, profile_file_exists,
+                      export_logs_csv, import_logs_csv)
 from models import DailyLog, CutProfile
 
 
@@ -147,6 +149,73 @@ def test_filenames_use_the_fallback_name_when_nothing_is_left():
     assert make_csv_filename("!!!") == "anvandare_loggar.csv"
 
 
+@pytest.mark.parametrize("name, expected", [
+    ("Anna Berg", True),
+    ("ANNA", True),             # versaler räknas, make_safe_name gör dem till gemener
+    ("a", True),
+    ("7", True),                # en siffra räcker
+    ("Åsa", True),              # s och a finns kvar
+    ("Anna!!!", True),
+    ("anvandare", True),        # samma text som reservnamnet, men ett riktigt namn
+    ("", False),
+    ("   ", False),
+    ("!!!", False),
+    ("Åäö", False),             # inget av tecknen finns i a till z
+    ("---", False),
+])
+def test_is_usable_name_needs_a_letter_a_to_z_or_a_digit(name, expected):
+    # N1: ett namn där inget finns kvar får reservnamnet anvandare, och blir därmed samma
+    # profilfil som alla andra sådana namn. Menyn frågar om namnet i stället.
+    assert is_usable_name(name) is expected
+
+
+@pytest.mark.parametrize("name", ["", "!!!", "Åäö"])
+def test_a_name_that_is_not_usable_is_the_one_that_gets_the_fallback_filename(name):
+    assert is_usable_name(name) is False
+    assert make_filename(name) == "anvandare.json"
+
+
+# ---------------------------------------------------------------------------
+# describe_os_error: filfel på svenska (N1)
+# ---------------------------------------------------------------------------
+# Förut visades operativsystemets egen text, till exempel "[Errno 13] Permission denied:
+# 'annaberg.json'". Koden bakom felet (errno) är densamma på alla datorer, men texten är det
+# inte, så testerna bygger felen själva med en påhittad engelsk text och kontrollerar att
+# den inte följer med.
+
+# Samma text för EACCES och EPERM. På Windows ger en fil som är öppen i ett annat program, till
+# exempel en CSV-fil i Excel, också ett fel med den koden.
+PERMISSION_TEXT = ("Programmet har inte tillåtelse att använda filen eller mappen, "
+                   "eller så används filen av ett annat program.")
+
+
+@pytest.mark.parametrize("code, expected_text", [
+    (errno.EACCES, PERMISSION_TEXT),
+    (errno.EPERM, PERMISSION_TEXT),
+    (errno.EISDIR, "Det finns en mapp med samma namn som filen."),
+    (errno.ENOTDIR, "En del av sökvägen är en fil, inte en mapp."),
+    (errno.ENOENT, "Filen eller mappen finns inte."),
+    (errno.ENOSPC, "Disken är full."),
+    (errno.EROFS, "Disken eller mappen är skrivskyddad."),
+    (errno.ENAMETOOLONG, "Filnamnet är för långt."),
+])
+def test_describe_os_error_gives_swedish_text_for_the_common_errors(code, expected_text):
+    error = OSError(code, "Some English text from the system")
+
+    assert describe_os_error(error) == expected_text
+
+
+def test_describe_os_error_keeps_the_original_text_for_an_error_it_does_not_know():
+    # Okända fel visas som de är i stället för att gömmas bakom ett påhittat meddelande
+    error = OSError(errno.EIO, "Input/output error")
+
+    assert "Input/output error" in describe_os_error(error)
+
+
+def test_describe_os_error_handles_an_error_without_an_error_code():
+    assert describe_os_error(OSError("Disken är full")) == "Disken är full"
+
+
 # ---------------------------------------------------------------------------
 # save_profile och load_profile (F3)
 # ---------------------------------------------------------------------------
@@ -192,6 +261,41 @@ def test_save_profile_reports_when_the_file_cannot_be_written(capsys):
     assert save_profile(make_profile()) is False
     assert "Profilen kunde inte sparas:" in capsys.readouterr().out
     assert os.listdir(".") == ["annaberg.json"]  # ingen temporär fil blev kvar
+
+
+def test_save_profile_explains_a_full_disk_in_swedish(monkeypatch, capsys):
+    def failing_dump(data, file, **options):
+        raise OSError(errno.ENOSPC, "No space left on device")
+
+    monkeypatch.setattr(analysis.json, "dump", failing_dump)
+
+    assert save_profile(make_profile()) is False
+
+    out = capsys.readouterr().out
+    assert "Profilen kunde inte sparas: Disken är full." in out
+    assert "No space left" not in out
+
+
+def test_save_profile_explains_a_refused_rename_in_swedish(monkeypatch, capsys):
+    def failing_replace(source, destination):
+        raise OSError(errno.EACCES, "Permission denied")
+
+    monkeypatch.setattr(analysis.os, "replace", failing_replace)
+
+    assert save_profile(make_profile()) is False
+
+    out = capsys.readouterr().out
+    assert f"Profilen kunde inte sparas: {PERMISSION_TEXT}" in out
+    assert "Permission denied" not in out
+
+
+def test_save_profile_shows_no_python_error_text_when_a_folder_takes_the_name(capsys):
+    os.mkdir("annaberg.json")
+
+    assert save_profile(make_profile()) is False
+
+    # "[Errno 21] Is a directory" och liknande är Pythons text, inte programmets
+    assert "Errno" not in capsys.readouterr().out
 
 
 # N3: sparningen skriver först till annaberg.tmp.json och byter namn när allt är skrivet,
@@ -374,11 +478,6 @@ def test_load_profile_reads_dates_written_without_zeros_and_fixes_them():
 # utom filen i fel teckenkodning, som gav en engelsk text. Nu ger alla ett svenskt
 # meddelande och None.
 
-# En loggpost där vikten är text i stället för tal: giltig JSON men fel typ
-LOG_WITH_TEXT_WEIGHT = {"date": "2026-09-01", "weight": "70", "calories": 2000,
-                        "protein": 120, "steps": 7000, "trained": True, "waist": None}
-
-
 @pytest.mark.parametrize("content", ["[]", '"text"', "null", "5"])
 def test_load_profile_reports_a_file_that_is_not_a_profile_object(capsys, content):
     # Giltig JSON, men en lista, text, null eller ett tal i stället för ett objekt med fält
@@ -388,8 +487,10 @@ def test_load_profile_reports_a_file_that_is_not_a_profile_object(capsys, conten
             in capsys.readouterr().out)
 
 
-@pytest.mark.parametrize("bad_logs", [None, "abc", [5], [[1, 2]], [LOG_WITH_TEXT_WEIGHT]])
+@pytest.mark.parametrize("bad_logs", [None, "abc", [5], [[1, 2]]])
 def test_load_profile_reports_logs_with_the_wrong_structure(capsys, bad_logs):
+    # En loggpost med rätt uppbyggnad men fel värden, till exempel vikten som text, hör inte
+    # hit. Den får ett eget meddelande som nämner värdet, se testerna av fälten längre ned.
     save_profile(make_profile())
     data = read_json("annaberg.json")
     data["logs"] = bad_logs
@@ -415,6 +516,130 @@ def test_load_profile_reports_a_file_that_cannot_be_opened(capsys):
     os.mkdir("annaberg.json")  # en mapp med profilfilens namn går inte att läsa som en fil
     assert load_profile("Anna Berg") is None
     assert "Filen annaberg.json kunde inte läsas:" in capsys.readouterr().out
+
+
+def test_load_profile_shows_no_python_error_text_when_the_file_cannot_be_opened(capsys):
+    os.mkdir("annaberg.json")
+
+    assert load_profile("Anna Berg") is None
+
+    assert "Errno" not in capsys.readouterr().out
+
+
+# N1: fält med fel typ eller orimliga värden i profilfilen. Förut lästes de flesta in utan
+# ett ord, och felet kom först där värdet användes, eller aldrig ("sex": 3 räknades som
+# kvinna, "trained": "nej" som ja). Nu kontrollerar klasserna dem, och load_profile säger
+# att filen innehåller ogiltiga värden och vilket värde det gäller.
+
+PROFILE_FIELD_CASES = [
+    pytest.param("name", 5, "Namnet", id="name_is_a_number"),
+    pytest.param("name", "", "Namnet", id="name_is_empty"),
+    pytest.param("name", None, "Namnet", id="name_is_null"),
+    pytest.param("height_cm", "170", "Längden", id="height_as_text"),
+    pytest.param("height_cm", 0, "Längden", id="height_is_zero"),
+    pytest.param("age", -5, "Åldern", id="age_is_negative"),
+    pytest.param("age", 17, "Åldern", id="age_is_under_18"),
+    pytest.param("age", 35.5, "Åldern", id="age_has_decimals"),
+    pytest.param("sex", 3, "Kön", id="sex_is_a_number"),
+    pytest.param("sex", "Kvinna", "Kön", id="sex_has_a_capital"),
+    pytest.param("activity_level", "hög", "Aktivitetsnivån", id="activity_as_text"),
+    pytest.param("activity_level", 0, "Aktivitetsnivån", id="activity_is_zero"),
+    pytest.param("start_weight", "70", "Startvikten", id="start_weight_as_text"),
+    pytest.param("goal_weight", "62", "Målvikten", id="goal_weight_as_text"),
+    pytest.param("target_rate_percent", "0.8", "Takten", id="rate_as_text"),
+    pytest.param("protein_goal_per_kg", "2.0", "Proteinmålet", id="protein_goal_as_text"),
+    pytest.param("protein_goal_per_kg", 19, "Proteinmålet", id="protein_goal_too_high"),
+    pytest.param("step_goal", "9000", "Stegmålet", id="step_goal_as_text"),
+    pytest.param("step_goal", 9000.5, "Stegmålet", id="step_goal_has_decimals"),
+    pytest.param("training_goal_days", 9, "Träningsmålet", id="training_goal_too_high"),
+]
+
+
+@pytest.mark.parametrize("field, bad_value, expected_start", PROFILE_FIELD_CASES)
+def test_load_profile_reports_a_profile_value_of_the_wrong_type_or_out_of_range(
+        capsys, field, bad_value, expected_start):
+    save_profile(make_profile())
+    data = read_json("annaberg.json")
+    data[field] = bad_value
+    write_json("annaberg.json", data)
+
+    assert load_profile("Anna Berg") is None
+
+    assert ("Filen annaberg.json innehåller ogiltiga värden: "
+            + expected_start) in capsys.readouterr().out
+
+
+LOG_FIELD_CASES = [
+    pytest.param("weight", "70", "Vikten", id="weight_as_text"),
+    pytest.param("weight", None, "Vikten", id="weight_is_null"),
+    pytest.param("calories", "2000", "Kalorierna", id="calories_as_text"),
+    pytest.param("protein", -5, "Proteinet", id="protein_is_negative"),
+    pytest.param("protein", "120", "Proteinet", id="protein_as_text"),
+    pytest.param("steps", -100, "Stegen", id="steps_are_negative"),
+    pytest.param("steps", 7000.5, "Stegen", id="steps_have_decimals"),
+    pytest.param("steps", "7000", "Stegen", id="steps_as_text"),
+    pytest.param("trained", "nej", "Träning", id="trained_as_text"),
+    pytest.param("trained", 1, "Träning", id="trained_as_a_number"),
+    pytest.param("trained", None, "Träning", id="trained_is_null"),
+    pytest.param("waist", "abc", "Midjemåttet", id="waist_as_text"),
+    pytest.param("waist", 5, "Midjemåttet", id="waist_is_5"),
+    pytest.param("waist", 0, "Midjemåttet", id="waist_is_zero"),
+]
+
+
+@pytest.mark.parametrize("field, bad_value, expected_start", LOG_FIELD_CASES)
+def test_load_profile_reports_a_log_value_of_the_wrong_type_or_out_of_range(
+        capsys, field, bad_value, expected_start):
+    save_profile(make_profile())
+    data = read_json("annaberg.json")
+    data["logs"][1][field] = bad_value
+    write_json("annaberg.json", data)
+
+    assert load_profile("Anna Berg") is None
+
+    assert ("Filen annaberg.json innehåller ogiltiga värden: "
+            + expected_start) in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("bad_number", [float("nan"), float("inf"), float("-inf")])
+def test_load_profile_rejects_nan_and_infinity_in_a_file(capsys, bad_number):
+    # Pythons json-modul skriver och läser NaN och Infinity, fast de inte är giltig JSON. En
+    # profil som sparats med ett sådant värde ska inte laddas.
+    save_profile(make_profile())
+    data = read_json("annaberg.json")
+    data["logs"][0]["weight"] = bad_number
+    write_json("annaberg.json", data)
+
+    assert load_profile("Anna Berg") is None
+
+    assert ("Filen annaberg.json innehåller ogiltiga värden: Vikten"
+            in capsys.readouterr().out)
+
+
+def test_load_profile_rejects_nan_as_the_start_weight(capsys):
+    save_profile(make_profile())
+    data = read_json("annaberg.json")
+    data["start_weight"] = float("nan")
+    write_json("annaberg.json", data)
+
+    assert load_profile("Anna Berg") is None
+
+    assert ("Filen annaberg.json innehåller ogiltiga värden: Startvikten"
+            in capsys.readouterr().out)
+
+
+def test_load_profile_reads_a_date_with_spaces_around_it():
+    # Ett mellanslag som kommit med när någon redigerade filen för hand ska inte göra
+    # profilen oläsbar
+    save_profile(make_profile())
+    data = read_json("annaberg.json")
+    data["logs"][0]["date"] = " 2026-09-01 "
+    write_json("annaberg.json", data)
+
+    loaded = load_profile("Anna Berg")
+
+    assert loaded is not None
+    assert loaded.logs[0].date == "2026-09-01"
 
 
 # ---------------------------------------------------------------------------
@@ -466,6 +691,14 @@ def test_export_reports_when_the_file_cannot_be_written(capsys):
     os.mkdir("annaberg_loggar.csv")
     assert export_logs_csv(make_profile()) is False
     assert "Loggarna kunde inte exporteras:" in capsys.readouterr().out
+
+
+def test_export_shows_no_python_error_text_when_the_file_cannot_be_written(capsys):
+    os.mkdir("annaberg_loggar.csv")
+
+    assert export_logs_csv(make_profile()) is False
+
+    assert "Errno" not in capsys.readouterr().out
 
 
 # ---------------------------------------------------------------------------
@@ -799,6 +1032,36 @@ def test_import_says_which_value_is_not_a_number(bad_row, expected_message, caps
     assert f"Hoppade över en rad med ogiltiga värden: {expected_message}" in capsys.readouterr().out
 
 
+@pytest.mark.parametrize("bad_row, expected_message", [
+    pytest.param("2026-09-02,nan,2200,150,8000,True,\n",
+                 "Vikten måste vara ett rimligt tal i kilogram", id="weight_nan"),
+    pytest.param("2026-09-02,inf,2200,150,8000,True,\n",
+                 "Vikten måste vara ett rimligt tal i kilogram", id="weight_inf"),
+    pytest.param("2026-09-02,89.5,nan,150,8000,True,\n",
+                 "Kalorierna måste vara ett rimligt tal", id="calories_nan"),
+    pytest.param("2026-09-02,89.5,2200,-5,8000,True,\n",
+                 "Proteinet måste vara ett rimligt tal i gram", id="protein_negative"),
+    pytest.param("2026-09-02,89.5,2200,5000,8000,True,\n",
+                 "Proteinet måste vara ett rimligt tal i gram", id="protein_too_high"),
+    pytest.param("2026-09-02,89.5,2200,150,-100,True,\n",
+                 "Stegen måste vara ett heltal", id="steps_negative"),
+    pytest.param("2026-09-02,89.5,2200,150,800000,True,\n",
+                 "Stegen måste vara ett heltal", id="steps_too_high"),
+    pytest.param("2026-09-02,89.5,2200,150,8000,True,5\n",
+                 "Midjemåttet måste vara ett rimligt tal i centimeter", id="waist_is_5"),
+    pytest.param("2026-09-02,89.5,2200,150,8000,True,nan\n",
+                 "Midjemåttet måste vara ett rimligt tal i centimeter", id="waist_nan"),
+])
+def test_import_skips_rows_with_values_outside_the_limits(bad_row, expected_message, capsys):
+    # Gränserna i DailyLog gäller för CSV-filer också. Förut släpptes nan, negativt protein
+    # och negativa steg igenom.
+    profile, imported_count = import_text(CSV_HEADER + FIRST_ROW + bad_row + THIRD_ROW)
+
+    assert imported_count == 2
+    assert [log.date for log in profile.logs] == ["2026-09-01", "2026-09-03"]
+    assert f"Hoppade över en rad med ogiltiga värden: {expected_message}" in capsys.readouterr().out
+
+
 def test_import_trims_spaces_around_the_values():
     profile, imported_count = import_text(
         CSV_HEADER
@@ -816,3 +1079,11 @@ def test_import_reports_when_the_file_cannot_be_read(capsys):
     os.mkdir("annaberg_loggar.csv")  # en mapp med filens namn kan inte läsas som en fil
     assert import_logs_csv(make_profile(with_logs=False)) == 0
     assert "Filen kunde inte läsas:" in capsys.readouterr().out
+
+
+def test_import_shows_no_python_error_text_when_the_file_cannot_be_read(capsys):
+    os.mkdir("annaberg_loggar.csv")
+
+    assert import_logs_csv(make_profile(with_logs=False)) == 0
+
+    assert "Errno" not in capsys.readouterr().out

@@ -170,6 +170,155 @@ def test_ask_number_does_not_swallow_end_of_input(monkeypatch):
         main.ask_number("Vikt: ")
 
 
+# N1: decimalkomma, nan och inf, gränser, och ett meddelande som passar frågan
+
+def test_ask_number_accepts_a_decimal_comma(monkeypatch):
+    type_answers(monkeypatch, ["82,5"])
+    assert main.ask_number("Vikt: ") == 82.5
+
+
+@pytest.mark.parametrize("bad_answer", ["nan", "NaN", "inf", "-inf", "infinity"])
+def test_ask_number_asks_again_after_nan_or_infinity(monkeypatch, capsys, bad_answer):
+    # float() läser de här som tal, och nan släpper igenom varje jämförelse
+    type_answers(monkeypatch, [bad_answer, "82.5"])
+    assert main.ask_number("Vikt: ") == 82.5
+    assert capsys.readouterr().out.count("Skriv ett tal") == 1
+
+
+def test_ask_number_tells_the_kind_of_number_that_is_wanted(monkeypatch, capsys):
+    # En fråga om ett heltal ska inte be om ett tal som 82.5
+    type_answers(monkeypatch, ["abc", "175"])
+    main.ask_number("Längd: ", True)
+    output = capsys.readouterr().out
+    assert "Skriv ett tal utan decimaler." in output
+    assert "82.5" not in output
+
+    type_answers(monkeypatch, ["abc", "82.5"])
+    main.ask_number("Vikt: ")
+    assert "Skriv ett tal, till exempel 82.5." in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("answer", ["100", "175", "250"])
+def test_ask_number_accepts_a_number_inside_the_bounds(monkeypatch, answer):
+    # Gränserna räknas med: både 100 och 250 är giltiga
+    type_answers(monkeypatch, [answer])
+    assert main.ask_number("Längd: ", True, 100, 250) == int(answer)
+
+
+@pytest.mark.parametrize("bad_answer", ["99", "251", "0", "-175", "2500"])
+def test_ask_number_asks_again_after_a_number_outside_the_bounds(
+        monkeypatch, capsys, bad_answer):
+    type_answers(monkeypatch, [bad_answer, "175"])
+    assert main.ask_number("Längd: ", True, 100, 250) == 175
+    assert capsys.readouterr().out.count("Skriv ett tal mellan 100 och 250.") == 1
+
+
+def test_ask_number_can_have_decimal_bounds(monkeypatch, capsys):
+    type_answers(monkeypatch, ["1,5", "0,8"])
+    assert main.ask_number("Takt: ", False, 0.5, 1.0) == 0.8
+    assert "Skriv ett tal mellan 0.5 och 1.0." in capsys.readouterr().out
+
+
+def test_ask_number_without_bounds_accepts_any_whole_number(monkeypatch):
+    type_answers(monkeypatch, ["-5000"])
+    assert main.ask_number("Tal: ", True) == -5000
+
+
+# ---------------------------------------------------------------------------
+# to_number: det användaren skriver görs om till ett tal (N1)
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("answer, expected", [
+    ("82.5", 82.5),
+    ("82,5", 82.5),         # komma som decimaltecken, som det skrivs på svenska
+    (" 82,5 ", 82.5),
+    ("82", 82.0),
+    ("0,5", 0.5),
+    ("-3", -3.0),
+])
+def test_to_number_reads_point_and_comma_as_the_decimal_separator(answer, expected):
+    result = main.to_number(answer, "Vikt")
+    assert result == expected
+    assert isinstance(result, float)
+
+
+@pytest.mark.parametrize("answer, expected", [("175", 175), (" 175 ", 175), ("-5", -5)])
+def test_to_number_reads_a_whole_number_as_an_int(answer, expected):
+    result = main.to_number(answer, "Längd", True)
+    assert result == expected
+    assert isinstance(result, int)
+
+
+@pytest.mark.parametrize("answer", [
+    "", "   ", "abc", "8 2", "82kg", "1,2,3", "1.2.3", "--5",
+    "nan", "NaN", "inf", "-inf", "infinity",
+    "1.234,5",          # tusentalsavgränsare stöds inte
+])
+def test_to_number_rejects_what_is_not_a_finite_number(answer):
+    with pytest.raises(ValueError):
+        main.to_number(answer, "Vikt")
+
+
+@pytest.mark.parametrize("answer", ["175.5", "175,5", "1e3", "abc", "", "nan"])
+def test_to_number_with_is_integer_rejects_what_is_not_a_whole_number(answer):
+    with pytest.raises(ValueError):
+        main.to_number(answer, "Längd", True)
+
+
+@pytest.mark.parametrize("answer, is_integer, expected_message", [
+    ("abc", False, "Vikt måste vara ett tal, men du skrev 'abc'."),
+    ("nan", False, "Vikt måste vara ett tal, men du skrev 'nan'."),
+    ("", False, "Vikt måste vara ett tal, men du skrev ''."),
+    ("9000.5", True, "Vikt måste vara ett heltal, men du skrev '9000.5'."),
+    # Meddelandet visar svaret som det skrevs, med komma och mellanslag kvar
+    ("9000,5", True, "Vikt måste vara ett heltal, men du skrev '9000,5'."),
+    (" abc ", False, "Vikt måste vara ett tal, men du skrev ' abc '."),
+])
+def test_to_number_explains_in_swedish_what_was_wrong(answer, is_integer, expected_message):
+    # Förut visades Pythons egen text, till exempel "could not convert string to float: 'abc'"
+    with pytest.raises(ValueError) as caught:
+        main.to_number(answer, "Vikt", is_integer)
+    assert str(caught.value) == expected_message
+
+
+# ---------------------------------------------------------------------------
+# ask_name: namnet som profilfilen döps efter (N1)
+# ---------------------------------------------------------------------------
+
+def test_ask_name_returns_the_name_without_spaces_around_it(monkeypatch):
+    type_answers(monkeypatch, ["  Anna Berg  "])
+    assert main.ask_name() == "Anna Berg"
+
+
+def test_ask_name_shows_the_question(monkeypatch, capsys):
+    type_answers(monkeypatch, ["Anna Berg"])
+    main.ask_name()
+    assert "Vad heter du? " in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("bad_name", ["", "   ", "!!!", "Åäö", "---"])
+def test_ask_name_asks_again_when_no_filename_can_be_built_from_the_name(
+        monkeypatch, capsys, bad_name):
+    # Ett namn där inget tecken a till z eller siffra finns kvar får reservnamnet anvandare,
+    # och skulle dela profilfil med alla andra sådana namn
+    type_answers(monkeypatch, [bad_name, "Anna Berg"])
+    assert main.ask_name() == "Anna Berg"
+    assert capsys.readouterr().out.count(
+        "Namnet måste innehålla minst en bokstav mellan a och z eller en siffra") == 1
+
+
+def test_ask_name_asks_again_when_the_name_is_too_long(monkeypatch, capsys):
+    type_answers(monkeypatch, ["x" * 51, "x" * 50])
+    assert main.ask_name() == "x" * 50
+    assert capsys.readouterr().out.count("Namnet får vara högst 50 tecken.") == 1
+
+
+def test_ask_name_does_not_swallow_end_of_input(monkeypatch):
+    type_answers(monkeypatch, [])
+    with pytest.raises(EOFError):
+        main.ask_name()
+
+
 @pytest.mark.parametrize("answer, expected", [("7", 7), ("14", 14), ("30", 30)])
 def test_ask_period_returns_each_valid_period(monkeypatch, answer, expected):
     type_answers(monkeypatch, [answer])
@@ -334,6 +483,95 @@ def test_create_profile_asks_again_when_the_rate_is_outside_0_to_1(
         capsys.readouterr().out
 
 
+# N1: längd och ålder frågas om direkt, decimalkomma, nan och mellanslag
+
+@pytest.mark.parametrize("bad_height", ["99", "251", "0", "-170", "17000"])
+def test_create_profile_asks_again_when_the_height_is_outside_100_to_250(
+        monkeypatch, capsys, bad_height):
+    # Längd och ålder kontrolleras direkt när de frågas. Först i CutProfile, efter alla
+    # frågor, vore det för sent: bara vikterna och takten frågas om då, så ett fel längd
+    # skulle få programmet att fråga om samma sak i evighet.
+    type_answers(monkeypatch, [bad_height] + list(PROFILE_ANSWERS.values()))
+
+    profile = main.create_profile("Anna Berg")
+
+    assert profile.height_cm == 170
+    assert capsys.readouterr().out.count("Skriv ett tal mellan 100 och 250.") == 1
+
+
+@pytest.mark.parametrize("bad_age", ["17", "101", "0", "-35", "3500"])
+def test_create_profile_asks_again_when_the_age_is_outside_18_to_100(
+        monkeypatch, capsys, bad_age):
+    answers = list(PROFILE_ANSWERS.values())
+    type_answers(monkeypatch, answers[:1] + [bad_age] + answers[1:])
+
+    profile = main.create_profile("Anna Berg")
+
+    assert profile.age == 35
+    assert capsys.readouterr().out.count("Skriv ett tal mellan 18 och 100.") == 1
+
+
+@pytest.mark.parametrize("changes", [
+    {"height": "100", "age": "18"},
+    {"height": "250", "age": "100"},
+])
+def test_create_profile_accepts_height_and_age_exactly_at_the_limits(monkeypatch, changes):
+    # Godtar menyn något som CutProfile avvisar fastnar programmet, se testet ovan. Det här
+    # testet går igenom hela flödet med värdena på gränserna.
+    type_answers(monkeypatch, answers_with(PROFILE_ANSWERS, changes))
+
+    profile = main.create_profile("Anna Berg")
+
+    assert profile.height_cm == int(changes["height"])
+    assert profile.age == int(changes["age"])
+
+
+def test_create_profile_accepts_a_decimal_comma(monkeypatch):
+    type_answers(monkeypatch, answers_with(
+        PROFILE_ANSWERS, {"start_weight": "70,5", "goal_weight": "62,5", "rate": "0,8"}))
+
+    profile = main.create_profile("Anna Berg")
+
+    assert profile.start_weight == 70.5
+    assert profile.goal_weight == 62.5
+    assert profile.target_rate_percent == 0.8
+
+
+@pytest.mark.parametrize("field", ["start_weight", "goal_weight", "rate"])
+@pytest.mark.parametrize("bad_answer", ["nan", "inf"])
+def test_create_profile_asks_again_after_nan_or_infinity(
+        monkeypatch, capsys, field, bad_answer):
+    # nan släpptes förut igenom hela vägen, eftersom varje jämförelse med nan är falsk
+    answers = list(PROFILE_ANSWERS.values())
+    answers.insert(list(PROFILE_ANSWERS).index(field), bad_answer)
+    type_answers(monkeypatch, answers)
+
+    profile = main.create_profile("Anna Berg")
+
+    assert profile.start_weight == 70.0
+    assert profile.goal_weight == 62.0
+    assert profile.target_rate_percent == 0.8
+    assert capsys.readouterr().out.count("Skriv ett tal") == 1
+
+
+def test_create_profile_asks_for_weights_and_rate_again_when_the_start_weight_is_unreasonable(
+        monkeypatch, capsys):
+    answers = answers_with(PROFILE_ANSWERS, {"start_weight": "500"}) + ["70", "62", "0.8"]
+    type_answers(monkeypatch, answers)
+
+    profile = main.create_profile("Anna Berg")
+
+    assert profile.start_weight == 70.0
+    output = capsys.readouterr().out
+    assert "Det gick inte: Startvikten måste vara ett rimligt tal i kilogram" in output
+    assert "Försök igen." in output
+
+
+def test_create_profile_ignores_spaces_around_the_sex(monkeypatch):
+    type_answers(monkeypatch, answers_with(PROFILE_ANSWERS, {"sex": " Man "}))
+    assert main.create_profile("Anna Berg").sex == "man"
+
+
 # ---------------------------------------------------------------------------
 # log_today (F5, F6, F7, D2)
 # ---------------------------------------------------------------------------
@@ -380,6 +618,80 @@ def test_log_today_accepts_decimals_for_weight_calories_and_protein(monkeypatch)
     assert log.protein == 110.5
 
 
+def test_log_today_accepts_a_decimal_comma(monkeypatch):
+    # N1: det vanliga sättet att skriva ett decimaltal på svenska
+    profile = make_profile()
+    answers = answers_with(LOG_ANSWERS, {"weight": "69,6", "calories": "1900,5",
+                                         "protein": "110,5", "waist": "71,5"})
+    type_answers(monkeypatch, answers)
+
+    main.log_today(profile)
+
+    log = profile.logs[0]
+    assert (log.weight, log.calories, log.protein, log.waist) == (69.6, 1900.5, 110.5, 71.5)
+
+
+@pytest.mark.parametrize("typed, expected", [
+    ("ja", True), ("Ja", True), ("JA", True), (" ja ", True), (" j ", True),
+    ("nej", False), ("Nej", False), ("NEJ", False), (" nej ", False), (" n ", False),
+])
+def test_log_today_reads_ja_and_nej_for_training(monkeypatch, typed, expected):
+    # N1: förut räknades bara exakt j som ja, så ja sparades som att ingen träning skett
+    profile = make_profile()
+    type_answers(monkeypatch, answers_with(LOG_ANSWERS, {"trained": typed}))
+
+    assert main.log_today(profile) is True
+
+    assert profile.logs[0].trained is expected
+
+
+@pytest.mark.parametrize("bad_answer", [
+    "", "   ", "y", "yes", "no", "kanske", "1", "0", "true", "jaa", "j n",
+])
+def test_log_today_rejects_a_training_answer_that_is_not_j_or_n(
+        monkeypatch, capsys, bad_answer):
+    # Ett svar som inte går att tolka blir ett meddelande, inte ett tyst nej
+    profile = make_profile()
+    type_answers(monkeypatch, answers_with(LOG_ANSWERS, {"trained": bad_answer}))
+
+    assert main.log_today(profile) is False
+
+    output = capsys.readouterr().out
+    assert "Loggen sparades inte." in output
+    assert "Träning måste besvaras med j eller n" in output
+    assert profile.logs == []
+
+
+def test_log_today_shows_what_was_typed_for_training(monkeypatch, capsys):
+    # Svaret visas som det skrevs, med versaler och mellanslag kvar
+    type_answers(monkeypatch, answers_with(LOG_ANSWERS, {"trained": "Kanske "}))
+
+    main.log_today(make_profile())
+
+    assert ("Träning måste besvaras med j eller n, men du skrev 'Kanske '."
+            in capsys.readouterr().out)
+
+
+@pytest.mark.parametrize("blank", ["", " ", "   "])
+def test_log_today_treats_a_blank_waist_answer_as_a_missing_waist(monkeypatch, blank):
+    profile = make_profile()
+    type_answers(monkeypatch, answers_with(LOG_ANSWERS, {"waist": blank}))
+
+    assert main.log_today(profile) is True
+
+    assert profile.logs[0].waist is None
+
+
+def test_log_today_ignores_spaces_around_the_date(monkeypatch, capsys):
+    profile = make_profile()
+    type_answers(monkeypatch, answers_with(LOG_ANSWERS, {"date": " 2026-09-01 "}))
+
+    assert main.log_today(profile) is True
+
+    assert profile.logs[0].date == "2026-09-01"
+    assert "Loggen för 2026-09-01 lades till." in capsys.readouterr().out
+
+
 @pytest.mark.parametrize("typed, expected", [
     ("j", True),
     ("J", True),
@@ -421,6 +733,13 @@ def test_log_today_saves_nothing_when_a_value_is_not_valid(
     ("weight", "301", "Vikten måste vara ett rimligt tal"),
     ("calories", "-1", "Kalorierna måste vara ett rimligt tal"),
     ("calories", "10001", "Kalorierna måste vara ett rimligt tal"),
+    ("protein", "-1", "Proteinet måste vara ett rimligt tal"),
+    ("protein", "1001", "Proteinet måste vara ett rimligt tal"),
+    ("steps", "-1", "Stegen måste vara ett heltal mellan 0 och 100000"),
+    ("steps", "100001", "Stegen måste vara ett heltal mellan 0 och 100000"),
+    ("waist", "0", "Midjemåttet måste vara ett rimligt tal"),
+    ("waist", "29", "Midjemåttet måste vara ett rimligt tal"),
+    ("waist", "251", "Midjemåttet måste vara ett rimligt tal"),
 ])
 def test_log_today_shows_why_a_value_out_of_range_was_rejected(
         monkeypatch, capsys, field, bad_answer, expected_message):
@@ -433,6 +752,42 @@ def test_log_today_shows_why_a_value_out_of_range_was_rejected(
     output = capsys.readouterr().out
     assert "Loggen sparades inte." in output
     assert expected_message in output
+
+
+@pytest.mark.parametrize("field, bad_answer, expected_message", [
+    ("weight", "abc", "Vikt måste vara ett tal, men du skrev 'abc'."),
+    ("weight", "nan", "Vikt måste vara ett tal, men du skrev 'nan'."),
+    ("weight", "inf", "Vikt måste vara ett tal, men du skrev 'inf'."),
+    ("calories", "abc", "Kalorier måste vara ett tal, men du skrev 'abc'."),
+    ("protein", "abc", "Protein måste vara ett tal, men du skrev 'abc'."),
+    ("steps", "abc", "Steg måste vara ett heltal, men du skrev 'abc'."),
+    ("steps", "9000.5", "Steg måste vara ett heltal, men du skrev '9000.5'."),
+    ("waist", "abc", "Midjemått måste vara ett tal, men du skrev 'abc'."),
+])
+def test_log_today_explains_in_swedish_which_answer_is_not_a_number(
+        monkeypatch, capsys, field, bad_answer, expected_message):
+    # N1: förut visades Pythons engelska text, till exempel
+    # "could not convert string to float: 'abc'", utan att säga vilken fråga det gällde
+    profile = make_profile()
+    type_answers(monkeypatch, answers_with(LOG_ANSWERS, {field: bad_answer}))
+
+    assert main.log_today(profile) is False
+
+    output = capsys.readouterr().out
+    assert f"Loggen sparades inte. Något var fel i inmatningen: {expected_message}" in output
+    assert "could not convert" not in output
+    assert "invalid literal" not in output
+    assert profile.logs == []
+
+
+def test_log_today_stops_at_the_first_answer_that_is_not_a_number(monkeypatch):
+    # Svaren på frågorna efter den felaktiga ska inte läsas
+    profile = make_profile()
+    type_answers(monkeypatch, answers_with(LOG_ANSWERS, {"weight": "abc"}))
+
+    main.log_today(profile)
+
+    assert sys.stdin.read() != ""
 
 
 def test_log_today_replaces_a_log_for_the_same_date(monkeypatch, capsys):
@@ -591,6 +946,28 @@ def test_run_menu_creates_a_profile_for_a_new_user_and_saves_it_on_exit(
     assert len(saved.logs) == 1
     assert saved.logs[0].date == "2026-09-01"
     assert saved.logs[0].weight == 69.6
+
+
+def test_run_menu_asks_for_the_name_again_when_no_filename_can_be_built(
+        monkeypatch, capsys, tmp_path):
+    # N1: ett tomt namn, eller ett namn utan tecken a till z och siffror, gav profilfilen
+    # anvandare.json, samma fil som alla andra sådana namn
+    type_answers(monkeypatch, ["", "!!!"] + NEW_USER + ["6"])
+
+    main.run_menu()
+
+    output = capsys.readouterr().out
+    assert output.count("Namnet måste innehålla minst en bokstav") == 2
+    assert (tmp_path / "annaberg.json").exists()
+    assert not (tmp_path / "anvandare.json").exists()
+
+
+def test_run_menu_ignores_spaces_around_the_name(monkeypatch):
+    type_answers(monkeypatch, ["  Anna Berg  "] + list(PROFILE_ANSWERS.values()) + ["6"])
+
+    main.run_menu()
+
+    assert load_profile("Anna Berg").name == "Anna Berg"
 
 
 def test_run_menu_loads_a_saved_profile_instead_of_asking_the_profile_questions(

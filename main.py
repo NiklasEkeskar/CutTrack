@@ -4,11 +4,13 @@ Startas från terminalen med: python main.py
 Importeras i cuttrack.ipynb med:
 from main import (show_welcome, ask_number, ask_period,
                   create_profile, log_today, run_menu)"""
+import math
 from datetime import datetime
 
-from models import DailyLog, CutProfile, normalize_date
-from analysis import (make_csv_filename, save_profile, load_profile, profile_file_exists,
-                      export_logs_csv, import_logs_csv, plot_weight)
+from models import (DailyLog, CutProfile, normalize_date, MIN_HEIGHT_CM, MAX_HEIGHT_CM,
+                    MIN_AGE, MAX_AGE, MAX_NAME_LENGTH)
+from analysis import (make_csv_filename, is_usable_name, save_profile, load_profile,
+                      profile_file_exists, export_logs_csv, import_logs_csv, plot_weight)
 
 
 def show_welcome():
@@ -41,18 +43,66 @@ def show_welcome():
     print()
 
 
-def ask_number(question, is_integer=False):
-    """Frågar tills användaren skriver ett giltigt tal."""
-    # while True med return inuti try: loopen upprepas bara vid fel,
-    # ett giltigt svar returneras direkt och avslutar funktionen
+def to_number(answer, label, is_integer=False):
+    """Gör om svaret på en fråga till ett tal. Både punkt och komma godtas som decimaltecken,
+    så 82,5 blir 82.5. Kastar ValueError med svensk text som nämner label (till exempel
+    "Vikt") om svaret inte är ett tal."""
+    # Mellanslag runt svaret behöver inte tas bort, float() och int() godtar dem redan
+    cleaned_answer = answer.replace(",", ".")
+    try:
+        if is_integer:
+            number = int(cleaned_answer)
+        else:
+            number = float(cleaned_answer)
+            # float() läser nan och inf som tal, men det går inte att räkna med dem. De får
+            # samma fel och samma meddelande som text som inte är ett tal.
+            if not math.isfinite(number):
+                raise ValueError("nan eller inf")
+    except ValueError:
+        if is_integer:
+            number_kind = "ett heltal"
+        else:
+            number_kind = "ett tal"
+        raise ValueError(f"{label} måste vara {number_kind}, men du skrev '{answer}'.")
+
+    return number
+
+
+def ask_number(question, is_integer=False, low=None, high=None):
+    """Frågar tills användaren skriver ett giltigt tal. Med low och high måste talet ligga
+    mellan dem, båda inkluderade. Ange båda eller ingen av dem."""
+    # while True: loopen upprepas bara vid fel (continue), ett giltigt svar returneras
+    # direkt och avslutar funktionen
     while True:
         answer = input(question)
         try:
-            if is_integer:
-                return int(answer)
-            return float(answer)
+            number = to_number(answer, "Svaret", is_integer)
         except ValueError:
-            print("Skriv ett tal, till exempel 82.5.")
+            if is_integer:
+                print("Skriv ett tal utan decimaler.")
+            else:
+                print("Skriv ett tal, till exempel 82.5.")
+            continue
+
+        if low is not None and not (low <= number <= high):
+            print(f"Skriv ett tal mellan {low} och {high}.")
+            continue
+
+        return number
+
+
+def ask_name():
+    """Frågar efter namnet tills det går att bygga ett filnamn av det. Mellanslag runt namnet
+    tas bort."""
+    while True:
+        name = input("Vad heter du? ").strip()
+        if not is_usable_name(name):
+            print("Namnet måste innehålla minst en bokstav mellan a och z eller en siffra, "
+                  "eftersom profilfilen döps efter det.")
+        elif len(name) > MAX_NAME_LENGTH:
+            print(f"Namnet får vara högst {MAX_NAME_LENGTH} tecken.")
+        else:
+            return name
 
 
 def ask_period():
@@ -74,12 +124,15 @@ def create_profile(name):
     print("Ny profil. Svara på några frågor så räknar programmet ut ditt kaloriförslag.")
     print()
 
-    height_cm = ask_number("Längd i cm: ", True)
-    age = ask_number("Ålder: ", True)
+    # Längd och ålder kontrolleras redan här. Vikterna och takten kontrolleras tillsammans i
+    # CutProfile längre ned, och bara de frågas om då, så ett fel längd eller ålder som
+    # först upptäcktes där skulle få programmet att fråga om samma sak i evighet.
+    height_cm = ask_number("Längd i cm: ", True, MIN_HEIGHT_CM, MAX_HEIGHT_CM)
+    age = ask_number("Ålder: ", True, MIN_AGE, MAX_AGE)
 
     sex = ""
     while sex != "man" and sex != "kvinna":
-        sex = input("Kön (man/kvinna): ").lower()
+        sex = input("Kön (man/kvinna): ").strip().lower()
         if sex != "man" and sex != "kvinna":
             print("Skriv man eller kvinna.")
 
@@ -130,25 +183,36 @@ def log_today(user):
     date_text = input("Datum (ÅÅÅÅ-MM-DD): ")
 
     # Allt inuti try-blocket delar samma feltyp (ValueError), från fel datumformat,
-    # text där tal förväntas, eller orimliga värden i DailyLog. Ett gemensamt except
-    # räcker därför. Går något fel sparas ingen logg, hela blocket hoppas över.
+    # text där tal förväntas, ett träningssvar som inte är j eller n, eller orimliga värden
+    # i DailyLog. Ett gemensamt except räcker därför. Går något fel sparas ingen logg,
+    # hela blocket hoppas över.
     try:
         # Datumet kontrolleras först, så att ett fel datum stoppar innan användaren har
         # skrivit in resten, och skrivs om till ÅÅÅÅ-MM-DD med nollor
         date_text = normalize_date(date_text)
-        weight = float(input("Vikt i kg: "))
-        calories = float(input("Kalorier: "))
-        protein = float(input("Protein i gram: "))
-        steps = int(input("Steg: "))
+        weight = to_number(input("Vikt i kg: "), "Vikt")
+        calories = to_number(input("Kalorier: "), "Kalorier")
+        protein = to_number(input("Protein i gram: "), "Protein")
+        steps = to_number(input("Steg: "), "Steg", True)
 
-        trained_text = input("Tränade du idag? (j/n): ")
-        trained = trained_text.lower() == "j"
+        # Bara j, ja, n och nej godtas. Ett annat svar, som y eller ett tomt svar, ska inte
+        # tyst bli ett nej.
+        trained_answer = input("Tränade du idag? (j/n): ")
+        cleaned_answer = trained_answer.strip().lower()
+        if cleaned_answer == "j" or cleaned_answer == "ja":
+            trained = True
+        elif cleaned_answer == "n" or cleaned_answer == "nej":
+            trained = False
+        else:
+            raise ValueError(
+                f"Träning måste besvaras med j eller n, men du skrev '{trained_answer}'."
+            )
 
         waist_text = input("Midjemått i cm (lämna tomt om du inte mätt): ")
-        if waist_text == "":
+        if waist_text.strip() == "":
             waist = None
         else:
-            waist = float(waist_text)
+            waist = to_number(waist_text, "Midjemått")
 
         new_log = DailyLog(date_text, weight, calories, protein, steps, trained, waist)
         user.add_log(new_log)
@@ -163,7 +227,7 @@ def run_menu():
     """Programmets huvudloop."""
     show_welcome()
 
-    name = input("Vad heter du? ")
+    name = ask_name()
     profile = load_profile(name)
 
     if profile is None:

@@ -4,6 +4,7 @@ from analysis import (make_filename, make_csv_filename,
                        save_profile, load_profile, profile_file_exists,
                        export_logs_csv, import_logs_csv,
                        plot_weight, plot_protein, plot_steps)"""
+import errno
 import json
 import csv
 import os
@@ -17,6 +18,21 @@ ALLOWED_CHARACTERS = "abcdefghijklmnopqrstuvwxyz0123456789"
 # Kolumnerna i CSV-filen, i den ordning exporten skriver dem. Importen kräver att alla
 # finns i rubrikraden men bryr sig inte om i vilken ordning de står.
 CSV_COLUMNS = ["date", "weight", "calories", "protein", "steps", "trained", "waist"]
+
+# Svensk text för de vanligaste filfelen, per felkod (errno). Koden är densamma på alla
+# datorer, men texten som operativsystemet ger är engelsk och skiljer sig mellan datorer.
+OS_ERROR_TEXTS = {
+    errno.EACCES: "Programmet har inte tillåtelse att använda filen eller mappen, "
+                  "eller så används filen av ett annat program.",
+    errno.EPERM: "Programmet har inte tillåtelse att använda filen eller mappen, "
+                 "eller så används filen av ett annat program.",
+    errno.EISDIR: "Det finns en mapp med samma namn som filen.",
+    errno.ENOTDIR: "En del av sökvägen är en fil, inte en mapp.",
+    errno.ENOENT: "Filen eller mappen finns inte.",
+    errno.ENOSPC: "Disken är full.",
+    errno.EROFS: "Disken eller mappen är skrivskyddad.",
+    errno.ENAMETOOLONG: "Filnamnet är för långt.",
+}
 
 
 def make_safe_name(name):
@@ -34,6 +50,16 @@ def make_safe_name(name):
     return safe_name
 
 
+def is_usable_name(name):
+    """True om det går att bygga ett eget filnamn av namnet, det vill säga om minst ett tecken
+    a till z eller en siffra finns kvar. Ett namn där inget finns kvar får reservnamnet
+    anvandare i make_safe_name, och skulle dela profilfil med alla andra sådana namn."""
+    for character in name.lower():
+        if character in ALLOWED_CHARACTERS:
+            return True
+    return False
+
+
 def make_filename(name):
     """Bygger filnamnet för användarens profil, till exempel annaberg.json."""
     return make_safe_name(name) + ".json"
@@ -44,6 +70,15 @@ def make_csv_filename(name):
     Varje användare får ett eget namn, så att exporter från olika användare
     inte skriver över varandra."""
     return make_safe_name(name) + "_loggar.csv"
+
+
+def describe_os_error(error):
+    """Svensk text för ett OSError, i stället för operativsystemets engelska text. Ett fel som
+    inte finns i OS_ERROR_TEXTS, eller som saknar felkod, visas med sin ursprungliga text."""
+    text = OS_ERROR_TEXTS.get(error.errno)
+    if text is None:
+        return str(error)
+    return text
 
 
 def save_profile(profile):
@@ -96,7 +131,7 @@ def save_profile(profile):
         print(f"Profilen sparades i {filename}.")
         return True
     except OSError as error:
-        print(f"Profilen kunde inte sparas: {error}")
+        print(f"Profilen kunde inte sparas: {describe_os_error(error)}")
         # Den halvskrivna temporära filen tas bort. Går inte det heller blir den kvar och
         # skrivs över vid nästa sparning.
         try:
@@ -172,7 +207,7 @@ def load_profile(name):
     except OSError as error:
         # Filen finns men går inte att öppna eller läsa, till exempel en mapp med profilfilens
         # namn eller en fil utan läsrättigheter
-        print(f"Filen {filename} kunde inte läsas: {error}")
+        print(f"Filen {filename} kunde inte läsas: {describe_os_error(error)}")
         return None
 
 
@@ -211,7 +246,7 @@ def export_logs_csv(profile, filename=None):
         return True
 
     except OSError as error:
-        print(f"Loggarna kunde inte exporteras: {error}")
+        print(f"Loggarna kunde inte exporteras: {describe_os_error(error)}")
         return False
 
 
@@ -280,9 +315,8 @@ def make_log_from_row(row):
     else:
         waist = parse_number(waist_text, "Midjemått")
 
-    # Mellanslag runt datumet tas bort här, vid gränsen mot filen. normalize_date godtar
-    # inga mellanslag.
-    return DailyLog(row["date"].strip(), weight, calories, protein, steps, trained, waist)
+    # Mellanslag runt datumet tas bort av normalize_date
+    return DailyLog(row["date"], weight, calories, protein, steps, trained, waist)
 
 
 def import_logs_csv(profile, filename=None):
@@ -315,7 +349,7 @@ def import_logs_csv(profile, filename=None):
         print(f"Filen {filename} kunde inte tolkas som en CSV-fil.")
         return 0
     except OSError as error:
-        print(f"Filen kunde inte läsas: {error}")
+        print(f"Filen kunde inte läsas: {describe_os_error(error)}")
         return 0
 
     # En tom fil ger None som kolumnnamn, och en fil som börjar med en tom rad ger en tom lista
