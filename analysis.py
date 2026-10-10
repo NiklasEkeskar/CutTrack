@@ -60,6 +60,15 @@ def is_usable_name(name):
     return False
 
 
+def names_match(first, second):
+    """True om två namn är samma namn, oavsett versaler och mellanslag. "Anna Berg" och
+    "anna  berg" är samma, men "Anna Berg" och "Annab Erg" är det inte, fast de ger samma
+    filnamn."""
+    # split() utan argument delar på alla mellanslag och tar bort dem runt orden, och
+    # casefold() gör om till gemener, även för bokstäver utanför a till z
+    return " ".join(first.split()).casefold() == " ".join(second.split()).casefold()
+
+
 def make_filename(name):
     """Bygger filnamnet för användarens profil, till exempel annaberg.json."""
     return make_safe_name(name) + ".json"
@@ -176,6 +185,14 @@ def load_profile(name):
                 log_data["waist"]
             )
             profile.logs.append(log)
+
+        # Två namn kan ge samma filnamn, till exempel Åke och Äke som båda blir ke.json. Profilen
+        # laddas bara om namnet i filen är samma som det som skrevs, annars kunde den ena läsa
+        # och skriva över den andras profil. Namnet i filen visas inte, det är en annan persons.
+        if not names_match(profile.name, name):
+            print(f"Filen {filename} hör till en annan profil, vars namn ger samma filnamn. "
+                  "Skriv namnet som när profilen skapades, eller välj ett annat namn.")
+            return None
 
         print(f"Profilen för {profile.name} laddades, {len(profile.logs)} loggar.")
         return profile

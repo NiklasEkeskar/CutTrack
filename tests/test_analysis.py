@@ -16,8 +16,8 @@ import pytest
 
 import analysis
 from analysis import (make_safe_name, is_usable_name, make_filename, make_csv_filename,
-                      describe_os_error, save_profile, load_profile, profile_file_exists,
-                      export_logs_csv, import_logs_csv)
+                      names_match, describe_os_error, save_profile, load_profile,
+                      profile_file_exists, export_logs_csv, import_logs_csv)
 from models import DailyLog, CutProfile
 
 
@@ -378,6 +378,61 @@ def test_save_profile_reports_it_when_the_temp_file_can_neither_be_written_nor_r
     assert read_bytes("annaberg.json") == old_content
     assert os.path.isdir("annaberg.tmp.json")
     assert "Profilen kunde inte sparas:" in capsys.readouterr().out
+
+
+# Två namn kan ge samma filnamn, eftersom bara a till z och siffror blir kvar: Åke och Äke
+# blir båda ke.json. Profilen i filen laddas bara när namnet i den är samma som det som
+# skrevs, annars kunde den ena läsa och skriva över den andras profil.
+
+@pytest.mark.parametrize("first, second", [
+    ("Anna Berg", "Anna Berg"),
+    ("Anna Berg", "anna berg"),         # versaler spelar ingen roll
+    ("Anna Berg", "ANNA BERG"),
+    ("Anna Berg", "  Anna   Berg "),    # inte heller mellanslag runt eller mellan orden
+    ("Åsa Öberg", "åsa öberg"),
+])
+def test_names_match_ignores_case_and_spaces(first, second):
+    assert names_match(first, second) is True
+
+
+@pytest.mark.parametrize("first, second", [
+    ("Åke", "Äke"),                     # samma fil, ke.json
+    ("Anna Berg", "Annab Erg"),         # samma fil, annaberg.json
+    ("Anna Berg", "Anna-Berg"),         # samma fil, annaberg.json
+    ("Anna Berg", "AnnaBerg"),
+    ("Anna Berg", "Anna Bergström"),
+])
+def test_names_match_tells_different_names_apart(first, second):
+    assert names_match(first, second) is False
+
+
+@pytest.mark.parametrize("saved_name, typed_name", [
+    ("Åke", "Äke"),
+    ("Anna Berg", "Annab Erg"),
+    ("Anna Berg", "Anna-Berg"),
+])
+def test_load_profile_does_not_load_a_profile_saved_under_another_name(
+        capsys, saved_name, typed_name):
+    save_profile(make_profile(saved_name))
+    filename = make_filename(saved_name)
+    old_content = read_bytes(filename)
+    capsys.readouterr()
+
+    assert make_filename(typed_name) == filename  # namnen ger samma fil
+    assert load_profile(typed_name) is None
+
+    output = capsys.readouterr().out
+    assert (f"Filen {filename} hör till en annan profil, vars namn ger samma filnamn."
+            in output)
+    assert saved_name not in output  # den andra profilens namn visas inte
+    assert read_bytes(filename) == old_content
+
+
+def test_load_profile_loads_a_profile_when_only_case_and_spaces_differ():
+    save_profile(make_profile("Anna Berg"))
+    loaded = load_profile("  anna   BERG ")
+    assert loaded is not None
+    assert loaded.name == "Anna Berg"  # namnet i filen behålls
 
 
 def test_load_profile_returns_none_when_there_is_no_file(capsys):

@@ -231,13 +231,14 @@ def run_menu():
     profile = load_profile(name)
 
     if profile is None:
-        # load_profile ger None både när filen saknas och när den inte går att läsa. Finns
-        # filen men går inte att läsa får ingen ny profil skapas: menyval 6 skulle skriva
-        # över filen med den tomma profilen, och loggarna som låg i filen vore borta.
+        # load_profile ger None både när filen saknas, när den inte går att läsa och när den
+        # hör till ett annat namn som ger samma filnamn. Finns filen får ingen ny profil
+        # skapas: menyval 6 skulle skriva över filen med den tomma profilen, och loggarna som
+        # låg i filen vore borta.
         if profile_file_exists(name):
             print()
-            print("Programmet avslutas utan att ändra filen. Rätta filen eller flytta den "
-                  "till en annan mapp och starta om.")
+            print("Programmet avslutas utan att ändra filen. Rätta det som står ovan, eller "
+                  "flytta filen till en annan mapp, och starta om.")
             print("En ny profil skapas inte, eftersom den skulle skriva över filen.")
             return
 

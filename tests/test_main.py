@@ -1258,6 +1258,37 @@ def test_run_menu_stops_and_leaves_a_profile_file_it_cannot_read_untouched(
     assert os.listdir(tmp_path) == ["annaberg.json"]
 
 
+def test_run_menu_stops_when_the_profile_file_belongs_to_another_name(
+        monkeypatch, capsys, tmp_path):
+    # Åke och Äke får samma fil, ke.json. Förut laddade Äke Åkes profil, och nästa sparning
+    # skrev Åkes loggar med Äkes namn. Nu stannar programmet utan att ändra filen.
+    original = CutProfile("Åke", 180, 40, "man", 1.55, 90.0, "2026-09-01",
+                          goal_weight=82.0, target_rate_percent=0.6)
+    save_profile(original)
+    old_content = (tmp_path / "ke.json").read_bytes()
+    capsys.readouterr()
+    type_answers(monkeypatch, ["Äke"])
+
+    main.run_menu()
+
+    output = capsys.readouterr().out
+    assert "hör till en annan profil, vars namn ger samma filnamn." in output
+    assert "Programmet avslutas utan att ändra filen." in output
+    assert "Längd i cm" not in output
+    assert (tmp_path / "ke.json").read_bytes() == old_content
+
+
+def test_run_menu_loads_the_profile_when_the_name_is_typed_with_other_case(
+        monkeypatch, capsys):
+    save_profile(make_profile(with_logs=True))
+    capsys.readouterr()
+    type_answers(monkeypatch, ["anna berg", "6"])
+
+    main.run_menu()
+
+    assert "Profilen för Anna Berg laddades, 2 loggar." in capsys.readouterr().out
+
+
 def test_run_menu_stops_when_the_profile_file_is_a_folder(monkeypatch, capsys, tmp_path):
     (tmp_path / "annaberg.json").mkdir()
     type_answers(monkeypatch, ["Anna Berg"])

@@ -146,6 +146,7 @@ Avsikten, enligt produktvision.md, är att protein, träning och steg kräver ba
 Byggda:
 - normalize_date(date_text): kontrollerar att texten är ett riktigt datum i formatet ÅÅÅÅ-MM-DD och returnerar det skrivet med nollor, annars ValueError med svensk text. Mellanslag runt datumet tas bort. Anropas av `DailyLog`, `User` och `log_today` (models.py)
 - is_number(value) och is_whole_number(value): sant för ett tal som inte är `nan`, respektive ett heltal, men aldrig för `True` och `False` (models.py)
+- names_match(first, second): sant om två namn är samma, utan hänsyn till versaler och mellanslag. `load_profile` laddar bara en profil vars namn stämmer med det som skrevs (analysis.py)
 - is_usable_name(name): sant om minst ett tecken a till z eller en siffra finns i namnet, så att filnamnet inte blir reservnamnet anvandare (analysis.py)
 - describe_os_error(error): svensk text för de åtta vanligaste filfelen, efter felkoden `errno`, och operativsystemets text för andra (analysis.py)
 - make_safe_name(name): bygger den säkra delen av ett filnamn från användarnamnet, teckenvis i en loop
@@ -246,7 +247,7 @@ Bygg aldrig filnamnet direkt från det användaren skriver in. Gör om till små
 
 Bygg strängen med en loop, tecken för tecken, som bara tar med tillåtna tecken. Det är enklare att läsa och granska än ett reguljärt uttryck.
 
-Samma säkra namn ligger bakom alla användarens filer: profilen blir niklase.json och CSV-exporten niklase_loggar.csv (make_safe_name, make_filename, make_csv_filename). Begränsning: två namn som blir lika efter rensningen, till exempel "Anna Berg" och "Anna-Berg", delar profilfil och exportfil. Det gäller också namn som bara skiljer sig i å, ä och ö (Åke och Äke blir `ke.json`), och det finns en punkt för det i roadmappen. Namn där inget tecken finns kvar, som gav reservnamnet `anvandare.json` för alla, avvisas sedan 2026-10-10 av `ask_name` med hjälp av `is_usable_name`.
+Samma säkra namn ligger bakom alla användarens filer: profilen blir niklase.json och CSV-exporten niklase_loggar.csv (make_safe_name, make_filename, make_csv_filename). Begränsning: två namn som blir lika efter rensningen, till exempel "Anna Berg" och "Anna-Berg", delar profilfil och exportfil. Det gäller också namn som bara skiljer sig i å, ä och ö (Åke och Äke blir `ke.json`), och sedan 2026-10-10 laddar `load_profile` bara en profil när namnet i filen är samma som det som skrevs, med valfria versaler och mellanslag (`names_match`). Annars ger den `None` och ett meddelande, och `run_menu` stannar utan att ändra filen. Namn där inget tecken finns kvar, som gav reservnamnet `anvandare.json` för alla, avvisas sedan 2026-10-10 av `ask_name` med hjälp av `is_usable_name`.
 
 ## Datalagring
 En JSON-fil per användare med profil och loggar (<namn>.json). Profilen sparas efter varje ny logg och vid avslut (se Spara och läsa profilen). Vid avslut exporteras loggarna även som CSV (<namn>_loggar.csv), som går att öppna i Excel. CSV-kolumnerna namnges på engelska så de matchar attributnamnen.
