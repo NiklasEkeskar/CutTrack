@@ -1,6 +1,23 @@
-"""Klasserna som utgör CutTracks datamodell: DailyLog, User och CutProfile.
+"""Klasserna som utgör CutTracks datamodell: DailyLog, User och CutProfile, och funktionen
+normalize_date som kontrollerar och skriver om datum.
 Importeras i cuttrack.ipynb med: from models import DailyLog, User, CutProfile"""
 from datetime import datetime
+
+
+def normalize_date(date_text):
+    """Kontrollerar att texten är ett riktigt datum och skriver det som ÅÅÅÅ-MM-DD med
+    nollor, till exempel 2026-10-8 som 2026-10-08. Kastar ValueError om det inte är ett
+    datum i det formatet."""
+    # strptime kastar ValueError för text som inte passar formatet eller för ett datum som
+    # inte finns (2026-02-30), och TypeError när värdet inte är text alls, till exempel None
+    # från en JSON-fil. Båda blir samma ValueError, så den som anropar fångar bara en typ.
+    try:
+        parsed_date = datetime.strptime(date_text, "%Y-%m-%d")
+    except (ValueError, TypeError):
+        raise ValueError("Datumet måste skrivas som ÅÅÅÅ-MM-DD, till exempel 2026-10-08.")
+
+    # isoformat() ger alltid ÅÅÅÅ-MM-DD med nollor, på alla datorer
+    return parsed_date.date().isoformat()
 
 
 class DailyLog:
@@ -9,12 +26,15 @@ class DailyLog:
     def __init__(self, date, weight, calories, protein, steps, trained, waist=None):
         # Validering sker här, i klassen, så den gäller oavsett varifrån ett
         # DailyLog-objekt skapas, inte bara när det matas in via input()
+        # Datumet skrivs om till ÅÅÅÅ-MM-DD med nollor, så att texterna sorteras rätt och
+        # 2026-10-8 inte hamnar efter 2026-10-10 (D1)
+        normalized_date = normalize_date(date)
         if weight <= 0 or weight > 300:
             raise ValueError("Vikten måste vara ett rimligt tal i kilogram, till exempel 82.5.")
         if calories < 0 or calories > 10000:
             raise ValueError("Kalorierna måste vara ett rimligt tal, till exempel 2200.")
 
-        self.date = date
+        self.date = normalized_date
         self.weight = weight
         self.calories = calories
         self.protein = protein
@@ -33,7 +53,9 @@ class User:
         self.sex = sex
         self.activity_level = activity_level
         self.start_weight = start_weight
-        self.created_date = created_date
+        # Samma regel som för loggarnas datum, så att days_since_start och profilfilen
+        # alltid får ett riktigt datum
+        self.created_date = normalize_date(created_date)
         # Tom lista, en ny användare har per definition inga loggar än
         self.logs = []
 
@@ -126,8 +148,8 @@ class User:
             return None
 
         # Hittar tidigaste och senaste loggen genom att jämföra datumsträngarna
-        # direkt, utan att sortera listan. Fungerar eftersom formatet ÅÅÅÅ-MM-DD
-        # sorteras rätt även som text.
+        # direkt, utan att sortera listan. Fungerar eftersom DailyLog skriver alla datum som
+        # ÅÅÅÅ-MM-DD med nollor, och det formatet sorteras rätt även som text.
         first_log = selected_logs[0]
         last_log = selected_logs[0]
         for log in selected_logs:
@@ -184,6 +206,8 @@ class CutProfile(User):
         if len(self.logs) == 0:
             return self.start_weight
 
+        # Datumen jämförs som text, vilket fungerar eftersom DailyLog skriver dem som
+        # ÅÅÅÅ-MM-DD med nollor
         latest_log = self.logs[0]
         for log in self.logs:
             if log.date > latest_log.date:
@@ -263,20 +287,26 @@ class CutProfile(User):
         return self.calorie_goal
 
     def days_since_start(self):
-        """Antal dagar sedan profilen skapades, räknat till senaste loggade dagen."""
+        """Antal dagar från start till senaste loggade dagen, båda dagarna medräknade.
+        Starten är profilens startdatum, eller den tidigaste loggen om den ligger före
+        startdatumet, till exempel när äldre data har lästs in i en ny profil."""
         if len(self.logs) == 0:
             return 0
 
-        latest_log = self.logs[0]
+        # Datumen jämförs som datum och inte som text, som i get_logs. Som text är
+        # 2026-10-8 senare än 2026-10-10
+        start_date = datetime.strptime(self.created_date, "%Y-%m-%d")
+        latest_date = None
         for log in self.logs:
-            if log.date > latest_log.date:
-                latest_log = log
+            log_date = datetime.strptime(log.date, "%Y-%m-%d")
+            if log_date < start_date:
+                start_date = log_date
+            if latest_date is None or log_date > latest_date:
+                latest_date = log_date
 
         # Räknar till senaste loggade dagen, inte till dagens riktiga datum,
         # av samma skäl som get_logs: har du inte loggat på några dagar ska
         # analysen ändå utgå från din senaste aktiva period
-        start_date = datetime.strptime(self.created_date, "%Y-%m-%d")
-        latest_date = datetime.strptime(latest_log.date, "%Y-%m-%d")
         return (latest_date - start_date).days + 1
 
     def waiting_message(self, days=7):

@@ -23,7 +23,7 @@ from datetime import date, timedelta
 
 import pytest
 
-from models import DailyLog, User, CutProfile
+from models import DailyLog, User, CutProfile, normalize_date
 
 # Dag 0 i testerna. Ett fast datum långt före idag, så att inget test av misstag
 # beror på dagens datum.
@@ -130,6 +130,97 @@ def test_calories_outside_limits_are_rejected(calories):
 
 
 # ---------------------------------------------------------------------------
+# Datum: normalize_date, DailyLog och startdatumet (D1)
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("typed, expected", [
+    ("2026-10-08", "2026-10-08"),   # redan rätt, ändras inte
+    ("2026-10-8", "2026-10-08"),    # dagen utan nolla
+    ("2026-9-1", "2026-09-01"),     # månad och dag utan nolla
+    ("2026-1-10", "2026-01-10"),    # månaden utan nolla
+    ("2024-02-29", "2024-02-29"),   # skottdag i ett skottår
+])
+def test_normalize_date_writes_the_date_as_year_month_day_with_zeros(typed, expected):
+    assert normalize_date(typed) == expected
+
+
+@pytest.mark.parametrize("typed", [
+    "2026-02-30",   # februari har inte 30 dagar
+    "2025-02-29",   # 2025 är inte ett skottår
+    "2026-04-31",   # april har 30 dagar
+    "2026-13-01",   # det finns ingen trettonde månad
+    "2026-00-10",   # månad noll finns inte
+    "2026-10-00",   # dag noll finns inte
+    "2026-10-32",   # ingen månad har 32 dagar
+])
+def test_normalize_date_rejects_a_date_that_does_not_exist(typed):
+    with pytest.raises(ValueError, match="ÅÅÅÅ-MM-DD"):
+        normalize_date(typed)
+
+
+@pytest.mark.parametrize("typed", [
+    "",
+    "abc",
+    "inte ett datum",
+    "08/10/2026",             # fel ordning och fel skiljetecken
+    "2026/10/08",             # snedstreck i stället för streck
+    "8 oktober 2026",
+    "20261008",               # inga skiljetecken
+    "26-10-08",               # tvåsiffrigt år
+    "2026-10",                # dagen saknas
+    "2026-10-08T12:30:00",    # klockslag efter datumet
+])
+def test_normalize_date_rejects_text_that_is_not_a_date_in_this_format(typed):
+    with pytest.raises(ValueError, match="ÅÅÅÅ-MM-DD"):
+        normalize_date(typed)
+
+
+@pytest.mark.parametrize("not_text", [None, 20261008, 2026.10, ["2026-10-08"]])
+def test_normalize_date_rejects_a_value_that_is_not_text(not_text):
+    # En JSON-fil kan ha null eller ett tal där datumet ska stå. Det ska ge samma
+    # ValueError med samma meddelande, inte ett TypeError som ingen fångar.
+    with pytest.raises(ValueError, match="ÅÅÅÅ-MM-DD"):
+        normalize_date(not_text)
+
+
+@pytest.mark.parametrize("typed, expected", [
+    ("2026-09-01", "2026-09-01"),
+    ("2026-9-1", "2026-09-01"),
+    ("2026-10-8", "2026-10-08"),
+])
+def test_daily_log_stores_the_date_with_zeros(typed, expected):
+    # Datumet sparas alltid som ÅÅÅÅ-MM-DD med nollor, så att texten sorteras rätt
+    assert DailyLog(typed, 82.5, 2200, 160, 9000, True).date == expected
+
+
+@pytest.mark.parametrize("typed", ["2026-13-45", "abc", "", None, 20261008])
+def test_daily_log_rejects_a_date_that_is_not_a_real_date(typed):
+    with pytest.raises(ValueError, match="ÅÅÅÅ-MM-DD"):
+        DailyLog(typed, 82.5, 2200, 160, 9000, True)
+
+
+@pytest.mark.parametrize("typed, expected", [
+    ("2026-10-01", "2026-10-01"),
+    ("2026-10-1", "2026-10-01"),
+])
+def test_a_start_date_is_stored_with_zeros(typed, expected):
+    user = User("Testperson", 180, 30, "man", 1.5, 90.0, typed)
+    assert user.created_date == expected
+
+
+@pytest.mark.parametrize("typed", ["2026-13-01", "abc", "", None])
+def test_a_start_date_that_is_not_a_real_date_is_rejected(typed):
+    with pytest.raises(ValueError, match="ÅÅÅÅ-MM-DD"):
+        User("Testperson", 180, 30, "man", 1.5, 90.0, typed)
+
+
+def test_a_profile_follows_the_same_rule_for_the_start_date():
+    assert make_profile(created_date="2026-9-1").created_date == "2026-09-01"
+    with pytest.raises(ValueError, match="ÅÅÅÅ-MM-DD"):
+        make_profile(created_date="2026-13-01")
+
+
+# ---------------------------------------------------------------------------
 # CutProfile: validering och standardvärden (F2, F11, F23)
 # ---------------------------------------------------------------------------
 
@@ -188,6 +279,17 @@ def test_add_log_replaces_a_log_with_the_same_date_and_says_so(capsys):
     assert len(user.logs) == 1
     assert user.logs[0].weight == 89.0
     assert "Loggen för 2024-01-01 uppdaterades." in capsys.readouterr().out
+
+
+def test_add_log_treats_the_same_day_written_with_and_without_a_zero_as_one_log(capsys):
+    # D1: 2026-10-8 och 2026-10-08 är samma dag. Utan omskrivningen hade det blivit två loggar.
+    user = make_user()
+    user.add_log(DailyLog("2026-10-8", 90.0, 2200, 150, 8000, True))
+    capsys.readouterr()
+    user.add_log(DailyLog("2026-10-08", 89.0, 2200, 150, 8000, True))
+    assert len(user.logs) == 1
+    assert user.logs[0].weight == 89.0
+    assert "Loggen för 2026-10-08 uppdaterades." in capsys.readouterr().out
 
 
 # ---------------------------------------------------------------------------
@@ -339,6 +441,15 @@ def test_weight_change_picks_first_and_last_by_date_not_by_position():
     assert user.weight_change(7) == pytest.approx(-1.5)
 
 
+def test_weight_change_is_right_when_a_date_was_typed_without_a_zero():
+    # D1: 2026-10-8 är före 2026-10-10, men som text kommer den efter. Vikten gick upp 5 kg
+    # från den 8:e till den 10:e. Jämförd som text hade förändringen blivit -5.0.
+    user = make_user()
+    user.logs.extend([DailyLog("2026-10-10", 90.0, 2200, 150, 8000, True),
+                      DailyLog("2026-10-8", 85.0, 2200, 150, 8000, True)])
+    assert user.weight_change(7) == pytest.approx(5.0)
+
+
 def test_weight_change_needs_two_logs():
     user = make_user()
     assert user.weight_change(7) is None
@@ -370,6 +481,15 @@ def test_current_weight_is_the_weight_of_the_latest_log_by_date():
     profile = make_profile()
     profile.logs.extend([make_log(5, weight=79.0), make_log(2, weight=81.0)])
     assert profile.current_weight() == 79.0
+
+
+def test_current_weight_is_right_when_a_date_was_typed_without_a_zero():
+    # D1: som text är 2026-10-8 senare än 2026-10-10, så vikten från den 8:e hade blivit
+    # den aktuella
+    profile = make_profile(created_date="2026-10-01")
+    profile.logs.extend([DailyLog("2026-10-10", 90.0, 2200, 150, 8000, True),
+                         DailyLog("2026-10-8", 85.0, 2200, 150, 8000, True)])
+    assert profile.current_weight() == 90.0
 
 
 def test_bmr_for_a_man_follows_mifflin_st_jeor():
@@ -539,6 +659,56 @@ def test_days_since_start_counts_to_the_latest_log_by_date():
     assert profile.days_since_start() == 10
 
 
+def test_days_since_start_counts_from_the_start_date_when_the_first_log_comes_later():
+    # Profilen skapades dag 0 och första vägningen kom dag 7. Dagarna räknas från startdatumet,
+    # så veckan utan loggar räknas med: dag 0 till 13 är 14 dagar.
+    profile = make_profile()
+    profile.logs.extend([make_log(7), make_log(13)])
+    assert profile.days_since_start() == 14
+
+
+@pytest.mark.parametrize("created_day, log_days, expected", [
+    (20, range(0, 14), 14),
+    (1, [0], 1),
+    (10, range(5, 15), 10),
+], ids=["alla-loggar-fore-start", "en-logg-en-dag-fore-start", "loggar-pa-bada-sidor-om-start"])
+def test_days_since_start_counts_from_the_earliest_log_when_logs_are_older_than_the_profile(
+        created_day, log_days, expected):
+    # Så ser det ut när äldre data läses in i en ny profil: menyn ger en ny profil dagens datum
+    # som startdatum. Räknat från startdatumet vore svaren -6, 0 och 5. Räknat från den
+    # tidigaste loggen till den senaste, med båda dagarna:
+    #   dag 0 till 13:   13 - 0 + 1 = 14
+    #   dag 0 till 0:     0 - 0 + 1 = 1
+    #   dag 5 till 14:   14 - 5 + 1 = 10
+    profile = make_profile(created_date=day_text(created_day))
+    for day in log_days:
+        profile.logs.append(make_log(day))
+    assert profile.days_since_start() == expected
+
+
+def test_days_since_start_finds_the_earliest_log_whatever_the_order_of_the_list():
+    # Den tidigaste loggen ligger i mitten av listan. Räknat från startdatumet (dag 12) vore
+    # svaret -2, räknat från den första loggen i listan (dag 9) vore det 1. Rätt är dag 0 till
+    # 9, alltså 10 dagar.
+    profile = make_profile(created_date=day_text(12))
+    profile.logs.extend([make_log(9), make_log(0), make_log(5)])
+    assert profile.days_since_start() == 10
+
+
+def test_days_since_start_compares_dates_as_dates_not_as_text():
+    # Som text är "2024-01-8" senare än "2024-01-10", eftersom 8 är större än 1. Som datum är
+    # den tidigare, så senaste loggen är den 10 januari och 1 till 10 januari är 10 dagar.
+    # DailyLog skriver sedan D1 om 2024-01-8 till 2024-01-08, så texten kan inte längre se ut
+    # så när loggen skapas. Datumet sätts därför efter att loggen har skapats, för att pröva
+    # att days_since_start själv räknar med datum och inte litar på hur texten ser ut.
+    profile = make_profile()
+    profile.logs.append(DailyLog("2024-01-10", 90.0, 2200, 150, 8000, True))
+    eighth = DailyLog("2024-01-08", 90.0, 2200, 150, 8000, True)
+    eighth.date = "2024-01-8"
+    profile.logs.append(eighth)
+    assert profile.days_since_start() == 10
+
+
 def test_waiting_message_before_one_period_shows_the_days_left():
     message = profile_with_days_since_start(3).waiting_message(7)
     assert "3 dagars data" in message
@@ -569,6 +739,28 @@ def test_full_analysis_starts_after_two_periods(days, first_full_day):
     # README: full analys från dag 14, 28 respektive 60
     assert profile_with_days_since_start(first_full_day - 1).waiting_message(days) is not None
     assert profile_with_days_since_start(first_full_day).waiting_message(days) is None
+
+
+def test_logs_older_than_the_profile_count_towards_the_waiting_time():
+    # Fjorton dagars loggar (dag 0 till 13), men profilen skapades först dag 30. Dagarna
+    # räknas från den tidigaste loggen, så två perioder finns och väntetexten uteblir.
+    # Räknat från startdatumet vore dagarna 13 - 30 + 1 = -16.
+    profile = make_profile(created_date=day_text(30))
+    for day in range(14):
+        profile.logs.append(make_log(day))
+    assert profile.waiting_message(7) is None
+
+
+def test_waiting_message_for_logs_older_than_the_profile_shows_no_negative_days():
+    # Tre dagars loggar (dag 0 till 2) i en profil skapad dag 30. Dagarna är 3 och det är
+    # 7 - 3 = 4 kvar. Räknat från startdatumet vore de -27 och 34 kvar. Texten före siffran
+    # ingår, så att ett minustecken framför fångas.
+    profile = make_profile(created_date=day_text(30))
+    for day in range(3):
+        profile.logs.append(make_log(day))
+    message = profile.waiting_message(7)
+    assert "på 3 dagars data" in message
+    assert message.endswith("vore bara brus. 4 dagar kvar tills ett 7-dagarssnitt visas.")
 
 
 # ---------------------------------------------------------------------------

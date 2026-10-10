@@ -443,6 +443,63 @@ def test_log_today_replaces_a_log_for_the_same_date(monkeypatch, capsys):
     assert "uppdaterades" in output
 
 
+@pytest.mark.parametrize("typed, expected", [
+    ("2026-9-1", "2026-09-01"),
+    ("2026-09-1", "2026-09-01"),
+    ("2026-10-8", "2026-10-08"),
+])
+def test_log_today_saves_the_date_with_zeros(monkeypatch, capsys, typed, expected):
+    # D1: programmet skriver om datumet och visar det omskrivna datumet i meddelandet
+    profile = make_profile()
+    type_answers(monkeypatch, answers_with(LOG_ANSWERS, {"date": typed}))
+
+    main.log_today(profile)
+
+    assert profile.logs[0].date == expected
+    assert f"Loggen för {expected} lades till." in capsys.readouterr().out
+
+
+def test_log_today_replaces_a_log_when_the_same_date_is_typed_without_a_zero(
+        monkeypatch, capsys):
+    profile = make_profile()
+    type_answers(monkeypatch, answers_with(LOG_ANSWERS, {"date": "2026-09-01"}))
+    main.log_today(profile)
+
+    type_answers(monkeypatch, answers_with(LOG_ANSWERS, {"date": "2026-9-1", "weight": "69.2"}))
+    main.log_today(profile)
+
+    assert len(profile.logs) == 1
+    assert profile.logs[0].weight == 69.2
+    assert "Loggen för 2026-09-01 uppdaterades." in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("bad_date", ["inte ett datum", "2026-13-45", "2026-02-30", ""])
+def test_log_today_explains_in_swedish_what_is_wrong_with_the_date(
+        monkeypatch, capsys, bad_date):
+    # N1: tidigare visades Pythons engelska text, till exempel
+    # "time data 'abc' does not match format '%Y-%m-%d'"
+    profile = make_profile()
+    type_answers(monkeypatch, answers_with(LOG_ANSWERS, {"date": bad_date}))
+
+    main.log_today(profile)
+
+    output = capsys.readouterr().out
+    assert "Datumet måste skrivas som ÅÅÅÅ-MM-DD, till exempel 2026-10-08." in output
+    assert "does not match" not in output
+    assert profile.logs == []
+
+
+def test_log_today_checks_the_date_before_it_asks_for_anything_else(monkeypatch):
+    # Ett fel datum ska stoppa direkt, inte först efter att användaren har skrivit in vikt,
+    # kalorier och resten
+    profile = make_profile()
+    type_answers(monkeypatch, answers_with(LOG_ANSWERS, {"date": "abc"}))
+
+    main.log_today(profile)
+
+    assert sys.stdin.read() != ""  # svaren på de andra frågorna är inte lästa
+
+
 # ---------------------------------------------------------------------------
 # run_menu (F21)
 # ---------------------------------------------------------------------------
@@ -617,6 +674,24 @@ def test_run_menu_choice_5_reports_a_missing_file_and_keeps_going(monkeypatch, c
     output = capsys.readouterr().out
     assert "Filen saknas.csv hittades inte." in output
     assert "Hej då." in output
+
+
+def test_run_menu_the_example_file_gives_a_new_user_an_analysis(monkeypatch, capsys):
+    # Den här vägen kan en ny användare gå för att prova programmet utan egna loggar: val 5 med
+    # exempelfilen, sedan val 2. Menyn ger en ny profil dagens datum som startdatum, och
+    # exempelloggarna (2026-09-17 till 2026-10-06) är äldre än så. Före rättningen av
+    # days_since_start blev dagarna negativa och analysen ersattes av en väntetext med
+    # "-3 dagars data" (reproducerat 2026-10-10). Här körs den riktiga analysen, ingen stubb.
+    example_file = str(ROOT / "data" / "exempel_loggar.csv")
+    type_answers(monkeypatch, NEW_USER + ["5", example_file, "2", "7", "6"])
+
+    main.run_menu()
+
+    output = capsys.readouterr().out
+    assert "20 loggar lästes in från" in output
+    assert "Vikten: minskar med" in output
+    assert "Fokusera på:" in output
+    assert "vore bara brus" not in output
 
 
 # ---------------------------------------------------------------------------

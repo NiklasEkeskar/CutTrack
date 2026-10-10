@@ -20,7 +20,7 @@ Vad som återstår, och var koden avviker från visionen, står i kravspec.md oc
 
 ## Klasser
 ### User (basklass)
-Attribut: name, height_cm, age, sex, activity_level, start_weight, created_date, logs (lista med DailyLog).
+Attribut: name, height_cm, age, sex, activity_level, start_weight, created_date (kontrolleras och skrivs som ÅÅÅÅ-MM-DD med nollor av `normalize_date`), logs (lista med DailyLog).
 Metoder: add_log, get_logs(days, offset_days=0), average_weight(days, offset_days=0), weight_change(days), training_days(days).
 
 ### CutProfile(User), barnklass
@@ -32,8 +32,8 @@ Validerar i `__init__` att målvikten är lägre än startvikten och att takten 
 `super().__init__(...)` anropar Users `__init__` så att alla ärvda attribut sätts, inklusive den tomma logglistan. Klassraden `class CutProfile(User)` ger tillgång till förälderns metoder, men attributen kommer inte med automatiskt när barnklassen har en egen `__init__`.
 
 ### DailyLog
-Attribut: date, weight, calories, protein, steps, trained (bool), waist (valfritt).
-Validerar i `__init__` att weight och calories är rimliga tal, annars ValueError som fångas med try/except där loggen skapas.
+Attribut: date (alltid ÅÅÅÅ-MM-DD med nollor), weight, calories, protein, steps, trained (bool), waist (valfritt).
+Validerar i `__init__` att date är ett riktigt datum, genom `normalize_date` som också skriver om det med nollor, och att weight och calories är rimliga tal, annars ValueError som fångas med try/except där loggen skapas. Datumet kontrolleras först.
 
 ## Hantering av valfria värden
 `waist` kan vara `None` när användaren inte mätt. `None` betyder avsaknad av värde, inte noll. Skillnaden spelar roll: 0 cm är ett mätfel, `None` är en utebliven mätning.
@@ -128,7 +128,7 @@ Dag 1 till 6 och dag 7 till 13 visar programmet en kort förklaring av varför d
 
 Tiderna gäller sjudagarsperioden. Med vald period `days` krävs en period (`days` dagar) för att visa ett snitt och två perioder (2 × `days` dagar) för att bedöma takten, så med 14 dagars period börjar full analys på dag 28 och med 30 dagar på dag 60. Två perioder krävs för att takten jämför den senaste perioden med perioden före.
 
-Byggd som en egen metod, waiting_message, på CutProfile, inte inbakat i check_goals. Räknar dagar via days_since_start, som räknar från created_date till senast loggade dagen, inte till dagens riktiga datum, av samma skäl som get_logs: har du inte loggat på några dagar ska analysen ändå utgå från din senaste aktiva period. Känd brist: ligger created_date efter första loggen, till exempel när äldre data läses in i en ny profil, blir antalet dagar negativt och väntetexten fel (statuslogg.md, Steg 1).
+Byggd som en egen metod, waiting_message, på CutProfile, inte inbakat i check_goals. Räknar dagar via days_since_start, som räknar från starten till senast loggade dagen, inte till dagens riktiga datum, av samma skäl som get_logs: har du inte loggat på några dagar ska analysen ändå utgå från din senaste aktiva period. Starten är created_date, eller den tidigaste loggen om den ligger före created_date, och båda dagarna räknas med. Det andra fallet uppstår när äldre data läses in i en ny profil, till exempel exempelfilen, eftersom create_profile ger en ny profil dagens datum. Före rättningen (2026-10-10) räknades alltid från created_date, och antalet dagar blev då negativt och väntetexten fel. created_date ändras inte, så profilen sparas som den skapades. Datumen görs om med strptime och jämförs som datum, som i get_logs. Alla loggars datum läses, så ett ogiltigt datum skulle ge ValueError i days_since_start, även under väntetiden. Sedan datumkontrollen (2026-10-10) kommer ett ogiltigt datum inte in i en logg eller ett startdatum, så felet kan bara uppstå om någon ändrat ett datum direkt i koden (kravspec.md D1, statuslogg.md Steg 1).
 
 check_goals anropar waiting_message först. Finns det text att visa, skrivs den och funktionen avbryter innan någon analys görs. Först när perioden är full (dag 14 för sjudagarsperioden) returnerar waiting_message None och full analys körs.
 
@@ -141,6 +141,7 @@ Avsikten, enligt produktvision.md, är att protein, träning och steg kräver ba
 
 ## Funktioner (utöver klassmetoder)
 Byggda:
+- normalize_date(date_text): kontrollerar att texten är ett riktigt datum i formatet ÅÅÅÅ-MM-DD och returnerar det skrivet med nollor, annars ValueError med svensk text. Anropas av `DailyLog`, `User` och `log_today` (models.py)
 - make_safe_name(name): bygger den säkra delen av ett filnamn från användarnamnet, teckenvis i en loop
 - make_filename(name): lägger till .json, filnamnet för användarens profil
 - make_csv_filename(name): lägger till _loggar.csv, filnamnet för användarens CSV-export
@@ -166,23 +167,24 @@ calculate_trend är struken ur listan. average_weight och weight_change på User
 ## Felhantering
 - load_profile, tre skilda except-block: json.JSONDecodeError (trasig fil), KeyError (saknat fält), ValueError (ogiltiga värden)
 - import_logs_csv, try/except inne i loopen så en trasig rad hoppas över utan att stoppa resten av importen
-- log_today och create_profile, ValueError vid ogiltig inmatning eller orimliga värden
+- normalize_date, ValueError med svensk text för ett datum som inte finns, text som inte följer ÅÅÅÅ-MM-DD och värden som inte är text (`strptime` ger TypeError för dem, och det görs om till samma ValueError). `DailyLog` och `User` anropar den, så felet kastas där objektet skapas
+- log_today och create_profile, ValueError vid ogiltig inmatning eller orimliga värden, även ett ogiltigt datum
 - main, KeyboardInterrupt och EOFError. Inget annat fångas, så ett riktigt fel syns som Python-fel och döljs inte av ett vänligt meddelande
 - save_profile och export_logs_csv, OSError vid skrivproblem
 - API-anrop (om Open Food Facts byggs), nätverksfel och timeout
 
-Fem fall fångas inte ännu och ger ett Python-fel i stället för ett meddelande: en CSV-rad med för få kolumner, en CSV-fil som inte är UTF-8, ett ogiltigt datum i en CSV-fil (läses in, kraschar sedan i `get_logs`), en profilfil med fel struktur eller fel typer och en profilfil som inte går att läsa som fil (kravspec.md N3, statuslogg.md Luckor och Steg 1).
+Fyra fall fångas inte ännu och ger ett Python-fel i stället för ett meddelande: en CSV-rad med för få kolumner, en CSV-fil som inte är UTF-8, en profilfil med fel struktur eller fel typer och en profilfil som inte går att läsa som fil (kravspec.md N3, statuslogg.md Luckor och Steg 1). Det femte fallet, ett ogiltigt datum i en CSV-fil, rättades 2026-10-10: `DailyLog` avvisar datumet, så `import_logs_csv` hoppar över raden och `load_profile` säger att filen innehåller ogiltiga värden.
 
-I menyn finns två brister till som inte kraschar men tappar data: inget sparas före menyval 6, så Ctrl+C eller en stängd terminal tappar allt sedan start, och menyval 6 avslutar även när `save_profile` eller `export_logs_csv` misslyckades, eftersom `run_menu` inte läser deras returvärde (statuslogg.md, Luckor och Steg 1).
+I menyn finns tre brister till som inte kraschar men tappar data: inget sparas före menyval 6, så Ctrl+C eller en stängd terminal tappar allt sedan start, menyval 6 avslutar även när `save_profile` eller `export_logs_csv` misslyckades, eftersom `run_menu` inte läser deras returvärde, och en profilfil som inte går att läsa ersätts av en ny tom profil vid menyval 6, eftersom `load_profile` ger `None` både för en saknad och för en skadad fil och `run_menu` då skapar en ny profil med samma filnamn (provat 2026-10-10, statuslogg.md, Luckor och Steg 1).
 
 ## Tester
 pytest, installerat som utvecklingsberoende med `python -m pip install -r requirements-dev.txt`. Programmet kräver det inte för att köras. Testerna körs från rotmappen med `python -m pytest`. `pytest.ini` anger att `models`, `analysis` och `main` hittas från rotmappen (`pythonpath = .`) och att testerna ligger i `tests/`.
 
 Fyra filer, och vad var och en täcker:
-- `tests/test_models.py`: validering (F2, F7), loggfönstret i kalenderdagar och förskjutningen `offset_days` (D3, F24), snitt, viktförändring och träningsdagar, kaloriförslag och golv (F9, F10), väntetid (F14) och vilken gren `check_goals` väljer (F13, F17)
-- `tests/test_analysis.py`: filnamn (F4, F8), profilfiler (F3), CSV-export och inläsning, inklusive trasiga rader (F8)
-- `tests/test_readme_example.py`: låser det `check_goals` skriver ut i README-exemplet, kontrollerar att README visar samma rader och innehåller testerna av hur vikttakten räknas (F24)
-- `tests/test_main.py`: textmenyn i `main.py` (F1, F2, F5, F6, F7, F21, F22, D2, N5): frågorna och deras omfrågning vid fel svar, profilskapandet, loggningen, de sex menyvalen, `main()` och att `python main.py` startar och avslutas
+- `tests/test_models.py`: validering av värden (F2, F7) och datum (D1), loggfönstret i kalenderdagar och förskjutningen `offset_days` (D3, F24), snitt, viktförändring och träningsdagar, kaloriförslag och golv (F9, F10), väntetid och dagar sedan start (F14) och vilken gren `check_goals` väljer (F13, F17)
+- `tests/test_analysis.py`: filnamn (F4, F8), profilfiler (F3), CSV-export och inläsning, inklusive trasiga rader (F8) och rader och profilfiler med ogiltiga datum (D1)
+- `tests/test_readme_example.py`: låser det `check_goals` skriver ut i README-exemplet, kontrollerar att README visar samma rader, att exempelfilen ger samma analys i en profil som skapats efter loggarna (F14), och innehåller testerna av hur vikttakten räknas (F24)
+- `tests/test_main.py`: textmenyn i `main.py` (F1, F2, F5, F6, F7, F21, F22, D1, D2, N5): frågorna och deras omfrågning vid fel svar, profilskapandet, loggningen, de sex menyvalen, `main()` och att `python main.py` startar och avslutas, samt en ny användare som läser in exempelfilen och får en riktig analys (F14)
 
 Så är testerna skrivna:
 - Varje test i `test_analysis.py` körs i en egen tom mapp, med en fixtur (`autouse=True`) som byter arbetsmapp till `tmp_path`. Funktionerna skriver filer i den aktuella mappen, och utan fixturen hade testerna skrivit profiler och CSV-filer i repot.
@@ -190,24 +192,30 @@ Så är testerna skrivna:
 - Allt som beror på hur takten räknas (F24) ligger i `test_readme_example.py`. De övriga testerna kontrollerar vilken gren som väljs, med data som ligger långt från gränserna. Ett test i `test_models.py` fick ändå ny data när F24 byggdes, eftersom det antog fel: en enda sänkt dag i en annars platt vecka är brus för en metod som jämför snitt, och räknas med rätta som oförändrad vikt (statuslogg.md, Beslut).
 - Ett test som låser dagens beteende (på engelska characterization test) beskriver vad koden gör, inte vad den borde göra. Det användes bara för F24: testerna låste den gamla takträkningen tills den byttes 2026-10-10, och ersattes då av tester av den nya. Övriga kända fel får sina tester först när de rättas (statuslogg.md, Luckor och Beslut). För menyn betyder det att `nan`, negativa steg, `ja` som träningssvar, decimalkomma och tomt namn inte finns i `test_main.py`.
 - Menyn läser med `input()`, och `input()` läser från `sys.stdin`. `test_main.py` byter `sys.stdin` mot en `io.StringIO` med färdiga svar (hjälpfunktionen `type_answers`), så att testet bestämmer vad användaren skriver. När svaren tar slut kastar `input()` `EOFError`, som vid Ctrl+D, så ett test som frågar efter mer än det gett stoppas i stället för att hänga. Svaren syns inte i utskriften, så en fråga och nästa utskrift hamnar på samma rad och testerna kontrollerar med `text in output`, aldrig rad för rad.
-- Analysen (`check_goals`) och diagrammet (`plot_weight`) ersätts med stubbar där menyn anropar dem (`monkeypatch.setattr`). Menyn ska bara skicka vidare rätt period, ingen figur får öppnas under en testkörning, och analysens regler testas på ett ställe, i `test_models.py` och `test_readme_example.py`.
+- Analysen (`check_goals`) och diagrammet (`plot_weight`) ersätts med stubbar där menyn anropar dem (`monkeypatch.setattr`). Menyn ska bara skicka vidare rätt period, ingen figur får öppnas under en testkörning, och analysens regler testas på ett ställe, i `test_models.py` och `test_readme_example.py`. Undantaget är testet av exempelfilen, som kör den riktiga analysen för att visa att en ny användare får en analys och inte en väntetext. Det får sitt startdatum av `create_profile` (dagens datum), så det är beroende av datorns klocka. Testerna i `test_models.py` och `test_readme_example.py` sätter startdatumet själva och är det som bevisar rättningen oavsett datum.
 - Tre tester kör Python som eget program med `subprocess.run`, eftersom `if __name__ == "__main__":` aldrig körs när ett test importerar filen. Två startar `python main.py` och provar att programmet startar och avslutas och att det inte ger någon Python-felutskrift när inmatningen stängs. Det tredje kör `import main` med tom inmatning och provar att menyn inte startar.
 
-Inte täckt: diagramfunktionerna (`plot_weight`, `plot_protein`, `plot_steps`), vad analysen skriver ut när den anropas via menyn och de fem fallen under Felhantering.
+Inte täckt: diagramfunktionerna (`plot_weight`, `plot_protein`, `plot_steps`), vad analysen skriver ut när den anropas via menyn (utom att ett test kontrollerar att en ny användare med exempelfilen får en analys och inte väntetexten) och de fyra fallen under Felhantering.
 
 Hur testerna kontrollerades 2026-10-08: koden ändrades avsiktligt på 177 ställen, en ändring i taget, och testerna kördes mot varje. 173 ändringar gav ett misslyckat test, de fyra som inte gjorde det står i statuslogg.md. Täckning enligt coverage.py: `analysis.py` utom diagrammen täcks helt och `models.py` till 98 procent. Kontrollen gjordes för hand en gång och finns inte som skript i repot.
 
 Menytesterna kontrollerades 2026-10-09 på samma sätt, med `main.py` som mål. Första omgången gav 113 ändringar: 106 upptäcktes, fyra inte (en extra giltig analysperiod, aktivitetsvalet utan krav på heltal, och kalorier och protein lästes som heltal) och tre avbröt testkörningen. Testerna skärptes, och andra omgången gav 120 ändringar som alla upptäcktes. Täckning: `main.py` 99 procent, och raden som saknas är `main()` i skyddet, som bara körs av de två testerna som startar `python main.py` i en egen process. Flytten från notebooken kontrollerades dessutom genom att jämföra syntaxträd och källtext för de sex funktionerna med notebookens celler: de är identiska. Inte heller den här kontrollen finns som skript i repot.
 
+Datumkontrollen kontrollerades 2026-10-10 på samma sätt, med `models.py`, `main.py` och `analysis.py` som mål: 19 avsiktliga ändringar, en i taget. 17 upptäcktes av testerna. De två som inte gjorde det ger samma resultat med avsikt: att `normalize_date` returnerar `strftime("%Y-%m-%d")` i stället för `isoformat()` (samma text för fyrsiffriga år, bara år före 1000 skiljer sig åt, och på Linux bara i Python 3.11 till 3.13), och att `log_today` kastar bort det omskrivna datumet (`DailyLog` skriver om det en gång till). Sviten, 316 tester, gick igenom på Python 3.11, 3.12, 3.13 och 3.14 med varningar behandlade som fel. Täckning: `models.py` 98 procent och `main.py` 99 procent, med samma luckor som före ändringen. Inte heller den här kontrollen finns som skript i repot.
+
 ## Datumformat och dubbletter
 
 ### Format
-Datum skrivs alltid som ÅÅÅÅ-MM-DD, till exempel 2026-09-15. Sorteras rätt som text och läses direkt av datetime.strptime med formatsträngen "%Y-%m-%d". Inmatning som inte följer formatet avvisas. datetime kastar ValueError vid fel format, så felhanteringen kommer via try/except. Undantag: `strptime` godtar månad och dag utan inledande nolla (`2026-10-8`), och `log_today` sparar då texten som den skrevs. Ett sådant datum sorteras fel som text, se nedan. Rättningen ligger i statuslogg.md, Steg 1 (kravspec.md D1).
+Datum skrivs alltid som ÅÅÅÅ-MM-DD med nollor, till exempel 2026-09-15. Sorteras rätt som text och läses direkt av datetime.strptime med formatsträngen "%Y-%m-%d". Funktionen `normalize_date` i models.py ser till att det stämmer. Den läser texten med `strptime`, som kastar ValueError för text som inte följer formatet och för ett datum som inte finns (2026-02-30), och skriver sedan om datumet med `isoformat()`. Ett värde som inte är text alls, till exempel `None` från en JSON-fil, ger TypeError i `strptime`, och det görs om till samma ValueError, så den som anropar fångar bara en feltyp.
 
-Att formatet sorteras rätt som text används i `weight_change`, `current_weight` och `days_since_start`, som hittar tidigaste eller senaste logg genom att jämföra datumsträngarna direkt i en loop, utan att sortera listan. `get_logs` räknar i stället med `datetime`.
+`strptime` godtar månad och dag utan inledande nolla (`2026-10-8`). `normalize_date` skriver om ett sådant datum (`2026-10-08`) i stället för att avvisa det, eftersom det bara kan betyda en dag och det inte finns något att gissa (statuslogg.md, Beslut). `DailyLog.__init__` och `User.__init__` anropar funktionen, så ett objekt kan inte skapas med ett ogiltigt datum, oavsett om det kommer från menyn, en CSV-fil eller en JSON-fil. `log_today` anropar den också, först av allt, så att ett fel datum stoppar innan användaren har skrivit in resten. `isoformat()` valdes framför `strftime("%Y-%m-%d")`, eftersom `strftime` skriver år före 1000 olika på olika Python-versioner (år 26 blir `26` på Python 3.11 till 3.13 och `0026` på 3.14, provat på Linux 2026-10-10) medan `isoformat()` alltid ger fyra siffror.
+
+Att formatet sorteras rätt som text används i `weight_change` och `current_weight`, som hittar tidigaste eller senaste logg genom att jämföra datumsträngarna direkt i en loop, utan att sortera listan. Det är säkert eftersom alla datum skrivs med nollor av `normalize_date`. `get_logs` och `days_since_start` räknar i stället med `datetime`.
+
+Funktionen kontrollerar att datumet finns och har rätt format, inte att det är rimligt. Ett datum i framtiden eller med fel år godtas, och ett datum med mellanslag före eller efter avvisas (kravspec.md D1, statuslogg.md, Luckor).
 
 ### Dubbletter samma dag
-Den nya loggen ersätter den gamla. Två poster för samma datum gör alla snitt fel eftersom dagen räknas dubbelt.
+Den nya loggen ersätter den gamla. Två poster för samma datum gör alla snitt fel eftersom dagen räknas dubbelt. Eftersom datumen skrivs med nollor räknas `2026-10-8` och `2026-10-08` som samma dag.
 
 Innan en logg läggs till: loopa igenom befintliga loggar och kolla om datumet redan finns. Finns det, byt ut posten och tala om för användaren att dagens logg uppdaterades. Annars lägg till som ny. En for-loop och en if-sats.
 
@@ -248,7 +256,7 @@ Inte använt: statistics (all snittberäkning görs med egna loopar, inte statis
 ## Programflöde
 1. `python main.py` kör main(), som anropar run_menu() och fångar Ctrl+C och Ctrl+D.
 2. show_welcome() visar välkomsttext, riktlinjer och ansvarsfriskrivning.
-3. Fråga efter användarnamn. load_profile(name) laddar profilen om den finns. Finns den inte, create_profile(name) frågar efter längd, ålder, kön, aktivitetsnivå, startvikt, målvikt och önskad takt, och visar ett första kaloriförslag och proteinmål direkt.
+3. Fråga efter användarnamn. load_profile(name) laddar profilen om den finns. Finns den inte, eller går den inte att läsa (load_profile ger None i båda fallen), frågar create_profile(name) efter längd, ålder, kön, aktivitetsnivå, startvikt, målvikt och önskad takt, och visar ett första kaloriförslag och proteinmål direkt.
 4. Meny i run_menu(), sex val: logga dagens data, visa analys, visa viktdiagram, visa kaloriförslag, läs in loggar från CSV, spara och avsluta.
 5. Vid avslut (val 6) sparar save_profile profilen som JSON och export_logs_csv exporterar loggarna som CSV till användarens eget filnamn (<namn>_loggar.csv), innan programmet avslutas. Det är det enda tillfället då något sparas.
 
@@ -258,7 +266,7 @@ Uppslag av livsmedel (search_food) finns inte med i menyn, eftersom Open Food Fa
 Håll input() och print() i egna funktioner, separat från klasserna och beräkningslogiken, så att CLI kan bytas mot en app senare utan att röra kärnlogiken.
 
 Koden är uppdelad i fyra filer, i samma mapp:
-- `models.py`: DailyLog, User, CutProfile
+- `models.py`: DailyLog, User, CutProfile, normalize_date
 - `analysis.py`: make_safe_name, make_filename, make_csv_filename, save_profile, load_profile, export_logs_csv, import_logs_csv, plot_weight, plot_protein, plot_steps. Importerar DailyLog och CutProfile från models.py.
 - `main.py`: show_welcome, ask_number, ask_period, create_profile, log_today, run_menu (UI-lagret) och main, startpunkten. Importerar från models.py och analysis.py. Startas med `python main.py`.
 - `cuttrack.ipynb`: importerar från de tre andra filerna. Innehåller förklaringar samt alla test- och democeller, men kör inte menyn.

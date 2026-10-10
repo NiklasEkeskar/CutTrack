@@ -219,6 +219,52 @@ def test_load_profile_reports_invalid_log_values(capsys):
     assert "Filen annaberg.json innehåller ogiltiga värden: Vikten" in capsys.readouterr().out
 
 
+def test_load_profile_reports_a_log_date_that_is_not_a_real_date(capsys):
+    save_profile(make_profile())
+    data = read_json("annaberg.json")
+    data["logs"][1]["date"] = "2026-13-45"
+    write_json("annaberg.json", data)
+    assert load_profile("Anna Berg") is None
+    assert ("Filen annaberg.json innehåller ogiltiga värden: "
+            "Datumet måste skrivas som ÅÅÅÅ-MM-DD") in capsys.readouterr().out
+
+
+def test_load_profile_reports_a_log_date_that_is_missing(capsys):
+    # null i JSON blir None i Python
+    save_profile(make_profile())
+    data = read_json("annaberg.json")
+    data["logs"][0]["date"] = None
+    write_json("annaberg.json", data)
+    assert load_profile("Anna Berg") is None
+    assert "Filen annaberg.json innehåller ogiltiga värden: Datumet" in capsys.readouterr().out
+
+
+def test_load_profile_reports_a_start_date_that_is_not_a_real_date(capsys):
+    save_profile(make_profile())
+    data = read_json("annaberg.json")
+    data["created_date"] = "inte ett datum"
+    write_json("annaberg.json", data)
+    assert load_profile("Anna Berg") is None
+    assert "Filen annaberg.json innehåller ogiltiga värden: Datumet" in capsys.readouterr().out
+
+
+def test_load_profile_reads_dates_written_without_zeros_and_fixes_them():
+    # En profilfil sparad före D1 kan ha datum som 2026-9-1. Den ska gå att läsa in och inte
+    # bli oläsbar, och datumen skrivs om med nollor vid inläsningen.
+    save_profile(make_profile())
+    data = read_json("annaberg.json")
+    data["created_date"] = "2026-9-1"
+    data["logs"][0]["date"] = "2026-9-1"
+    data["logs"][1]["date"] = "2026-9-2"
+    write_json("annaberg.json", data)
+
+    loaded = load_profile("Anna Berg")
+
+    assert loaded is not None
+    assert loaded.created_date == "2026-09-01"
+    assert [log.date for log in loaded.logs] == ["2026-09-01", "2026-09-02"]
+
+
 # ---------------------------------------------------------------------------
 # export_logs_csv (F8)
 # ---------------------------------------------------------------------------
@@ -339,6 +385,33 @@ def test_import_skips_broken_rows_and_reads_the_rest(capsys):
     assert "Vikten måste vara ett rimligt tal" in out
     assert "Kalorierna måste vara ett rimligt tal" in out
     assert "2 loggar lästes in från trasig.csv." in out
+
+
+def test_import_reads_dates_written_without_zeros_and_fixes_them():
+    write_text("data.csv", CSV_HEADER
+               + "2026-9-1,90.0,2200,150,8000,True,\n"
+               + "2026-9-2,89.5,2200,150,8000,False,\n")
+    profile = make_profile(with_logs=False)
+    assert import_logs_csv(profile, "data.csv") == 2
+    assert [log.date for log in profile.logs] == ["2026-09-01", "2026-09-02"]
+
+
+def test_import_skips_rows_with_a_date_that_is_not_a_real_date(capsys):
+    write_text("datum.csv", CSV_HEADER
+               + "2026-09-01,90.0,2200,150,8000,True,\n"       # bra rad
+               + "2026-13-45,89.5,2200,150,8000,True,\n"       # månad 13 finns inte
+               + "inte ett datum,89.0,2200,150,8000,True,\n"   # inget datum alls
+               + ",88.5,2200,150,8000,True,\n"                 # datumet saknas
+               + "2026-09-05,88.0,2200,150,8000,False,\n")     # bra rad
+    profile = make_profile(with_logs=False)
+
+    assert import_logs_csv(profile, "datum.csv") == 2
+
+    assert [log.date for log in profile.logs] == ["2026-09-01", "2026-09-05"]
+    out = capsys.readouterr().out
+    assert out.count("Hoppade över en rad med ogiltiga värden: "
+                     "Datumet måste skrivas som ÅÅÅÅ-MM-DD") == 3
+    assert "2 loggar lästes in från datum.csv." in out
 
 
 def test_import_skips_rows_when_a_column_is_missing(capsys):

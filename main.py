@@ -6,7 +6,7 @@ from main import (show_welcome, ask_number, ask_period,
                   create_profile, log_today, run_menu)"""
 from datetime import datetime
 
-from models import DailyLog, CutProfile
+from models import DailyLog, CutProfile, normalize_date
 from analysis import (make_csv_filename, save_profile, load_profile,
                       export_logs_csv, import_logs_csv, plot_weight)
 
@@ -131,7 +131,9 @@ def log_today(user):
     # text där tal förväntas, eller orimliga värden i DailyLog. Ett gemensamt except
     # räcker därför. Går något fel sparas ingen logg, hela blocket hoppas över.
     try:
-        datetime.strptime(date_text, "%Y-%m-%d")
+        # Datumet kontrolleras först, så att ett fel datum stoppar innan användaren har
+        # skrivit in resten, och skrivs om till ÅÅÅÅ-MM-DD med nollor
+        date_text = normalize_date(date_text)
         weight = float(input("Vikt i kg: "))
         calories = float(input("Kalorier: "))
         protein = float(input("Protein i gram: "))

@@ -72,9 +72,10 @@ AFTER_20_DAYS = [
 ]
 
 
-def make_readme_profile(log_count):
-    """Profilen Testperson från README, med de första log_count loggarna ur exempelfilen."""
-    profile = CutProfile("Testperson", 189, 39, "man", 1.55, 101.5, "2026-09-17",
+def make_readme_profile(log_count, created_date="2026-09-17"):
+    """Profilen Testperson från README, med de första log_count loggarna ur exempelfilen.
+    Utan created_date skapas profilen samma dag som den första loggen."""
+    profile = CutProfile("Testperson", 189, 39, "man", 1.55, 101.5, created_date,
                          goal_weight=98.0, target_rate_percent=0.6,
                          protein_goal_per_kg=2.1, step_goal=10000, training_goal_days=5)
     import_logs_csv(profile, str(EXAMPLE_CSV))
@@ -279,3 +280,18 @@ def test_f24_without_logs_in_the_previous_period_the_rate_is_not_assessed(capsys
 
     assert lines[0] == "Vikten: för lite data för att bedöma takten."
     assert lines[-1] == "Allt ligger inom mål just nu. Fortsätt som du gör."
+
+
+# ---------------------------------------------------------------------------
+# Exempelfilen i en ny profil (dagar sedan start)
+# ---------------------------------------------------------------------------
+
+def test_a_profile_created_after_the_example_logs_gets_the_same_analysis(capsys):
+    # Så läser en ny användare in exempelfilen: menyn ger en ny profil dagens datum som
+    # startdatum, och exempelloggarna är från 2026-09-17 till 2026-10-06. Före rättningen av
+    # days_since_start räknades dagarna från startdatumet 2026-10-10 och blev -4 + 1 = -3, så
+    # analysen ersattes av en väntetext. Nu räknas de från den tidigaste loggen, 20 dagar
+    # (17 september till 6 oktober), och analysen är densamma som för profilen i README.
+    profile = make_readme_profile(20, created_date="2026-10-10")
+    assert profile.days_since_start() == 20
+    assert check_goals_lines(profile, capsys) == AFTER_20_DAYS
