@@ -27,7 +27,7 @@ Projektet började som slutprojekt i kursen Utveckling med Python, grund, inom Y
 
 | Område | Så bedöms det |
 | --- | --- |
-| Vikt | Takten räknas som procent av kroppsvikten per vecka. Går det långsammare än ditt eget mål flaggas det. Går det över 1,0 procent per vecka flaggas det alltid, oavsett ditt mål, eftersom risken för muskelförlust ökar. Ökar vikten flaggas det också. |
+| Vikt | Takten räknas som procent av kroppsvikten per vecka, från skillnaden mellan snittet för den senaste perioden och snittet för perioden före. Går det långsammare än ditt eget mål flaggas det. Går det över 1,0 procent per vecka flaggas det alltid, oavsett ditt mål, eftersom risken för muskelförlust ökar. Ökar vikten, eller står den still (mindre än 0,05 kg per vecka), flaggas det också. |
 | Protein | Dagligt snitt mot ett mål på 1,9 gram per kilo målvikt. |
 | Träning | Antal träningsdagar mot ditt mål, standard tre per vecka, omräknat till vald period. |
 | Steg | Dagligt snitt mot ditt stegmål, standard 8 000. |
@@ -35,15 +35,15 @@ Projektet började som slutprojekt i kursen Utveckling med Python, grund, inom Y
 
 Av målen frågar menyn bara efter målvikt och takt. Standardvärdena för protein, steg och träning ligger i koden och kan ändras i profilens JSON-fil.
 
-Programmet väntar med bedömningen. En vald period (7, 14 eller 30 dagar) krävs för att visa ett snitt och två perioder för att bedöma takten, eftersom den andra perioden visar om snittet faktiskt rör sig. Med sjudagarsperiod börjar full analys på dag 14, med 14 dagars period på dag 28 och med 30 dagar på dag 60. Under väntetiden skriver programmet en förklaring och hur många dagar som återstår.
+Programmet väntar med bedömningen. En vald period (7, 14 eller 30 dagar) krävs för att visa ett snitt och två perioder för att bedöma takten, eftersom takten jämför snittet för den senaste perioden med snittet för perioden före. Med sjudagarsperiod börjar full analys på dag 14, med 14 dagars period på dag 28 och med 30 dagar på dag 60. Under väntetiden skriver programmet en förklaring och hur många dagar som återstår.
 
 ## Exempel
 
-Exemplet kommer från en testperiod på 20 dagar med profilen Testperson: man, 189 cm, 39 år, startvikt 101,5 kg, målvikt 98 kg, önskad takt 0,6 procent per vecka, proteinmål 2,1 gram per kilo målvikt, stegmål 10 000 och fem träningsdagar i veckan. Loggarna är simulerade, inte en logg förd dag för dag, och finns i [data/exempel_loggar.csv](data/exempel_loggar.csv). Utskrifterna visar analysen över de senaste sju dagarna.
+Exemplet kommer från en testperiod på 20 dagar med profilen Testperson: man, 189 cm, 39 år, startvikt 101,5 kg, målvikt 98 kg, önskad takt 0,6 procent per vecka, proteinmål 2,1 gram per kilo målvikt, stegmål 10 000 och fem träningsdagar i veckan. Loggarna är simulerade, inte en logg förd dag för dag, och finns i [data/exempel_loggar.csv](data/exempel_loggar.csv). Utskrifterna visar analysen över de senaste sju dagarna, jämförd med de sju dagarna före.
 
 **Efter 14 dagar, första gången full analys är möjlig:**
 ```
-Vikten: minskar med 1.31 procent per vecka (cirka 1.3 kg), över säkerhetsgränsen 1,0 procent (cirka 1.0 kg för dig). Risk för muskelförlust.
+Vikten: minskar med 1.66 procent per vecka (cirka 1.6 kg), över säkerhetsgränsen 1,0 procent (cirka 1.0 kg för dig). Risk för muskelförlust.
 Protein: snitt 211 g mot mål 206 g. Målet nås.
 Träning: 5 av 5 förväntade dagar under perioden. Målet nås.
 Steg: snitt 10160 mot mål 10000. Målet nås.
@@ -53,22 +53,22 @@ Fokusera på: vikt.
 
 **Efter 18 dagar (bara viktraden visas här):**
 ```
-Vikten: minskar med 0.41 procent per vecka (cirka 0.4 kg), långsammare än ditt mål på 0.6 procent (cirka 0.6 kg för dig).
+Vikten: minskar med 1.54 procent per vecka (cirka 1.5 kg), över säkerhetsgränsen 1,0 procent (cirka 1.0 kg för dig). Risk för muskelförlust.
 ```
 
 **Efter 20 dagar:**
 ```
-Vikten: minskar med 0.61 procent per vecka (cirka 0.6 kg), vid eller över ditt mål på 0.6 procent och inom säkerhetsgränsen.
+Vikten: minskar med 1.12 procent per vecka (cirka 1.1 kg), över säkerhetsgränsen 1,0 procent (cirka 1.0 kg för dig). Risk för muskelförlust.
 Protein: snitt 213 g mot mål 206 g. Målet nås.
 Träning: 5 av 5 förväntade dagar under perioden. Målet nås.
 Steg: snitt 9953 mot mål 10000. Under målet.
 
-Fokusera på: steg.
+Fokusera på: vikt.
 ```
 
-Takten byter besked mellan utskrifterna (1,31, 0,41 och 0,61 procent per vecka) trots att veckosnittet för vikten sjunker hela tiden (99,03, 98,26 och 98,13 kg vid de tre tillfällena). Det beror på att takten i version 1 räknas från första och sista vägningen i perioden, och därför följer enskilda dagars svängningar. Det är just den sortens brus CutTrack ska skydda mot, så metoden ska bytas (se Begränsningar och Roadmap). Utskrifterna visar vad programmet faktiskt skriver ut, inte vad som är sant om testpersonens utveckling.
+Takten räknas från snitten. Efter 14 dagar jämförs snittet för dag 8 till 14 (99,03 kg) med snittet för dag 1 till 7 (100,67 kg): skillnaden är 1,64 kg på en vecka, och det är 1,66 procent av 99,03 kg. Efter 18 och 20 dagar flyttas båda perioderna framåt, och takten blir 1,54 respektive 1,12 procent per vecka. Den ligger över säkerhetsgränsen vid alla tre tillfällena men minskar i takt med att veckosnittet för vikten planar ut (99,03, 98,26 och 98,13 kg vid de tre tillfällena). Efter 20 dagar ligger stegen under målet, men vikten har företräde i prioriteringen, så fokus ligger kvar på vikt. Utskrifterna visar vad programmet faktiskt skriver ut, inte vad som är sant om testpersonens utveckling.
 
-Programmets kaloriförslag för samma profil blev 2409 kcal per dag. Det faktiska intaget i datan låg på 2300 kcal, något under förslaget, vilket är en bidragande orsak till att takten låg över säkerhetsgränsen tidigt i perioden.
+Programmets kaloriförslag för samma profil blev 2409 kcal per dag. Det faktiska intaget i datan låg på 2300 kcal, 109 kcal under förslaget, vilket enligt 7700-regeln motsvarar cirka 0,1 kg i veckan och alltså inte förklarar nedgången i exemplet. Datan är simulerad och vikten är inte räknad ur intaget, så exemplet visar hur programmet beskriver en given logg, inte hur en kropp reagerar.
 
 Midjemåttet loggades tre gånger och sjönk från 90,0 till 88,2 cm. CutTrack sparar det men analyserar det inte än (se Roadmap). Läst för hand pekar en sjunkande midja tillsammans med sjunkande vikt mot att det är fett som försvinner, resonemanget finns i [docs/produktvision.md](docs/produktvision.md).
 
@@ -138,7 +138,9 @@ CutTrack/
 
 **Klasser och arv.** `DailyLog` är en dags logg och validerar vikt och kalorier när objektet skapas. `User` är basklassen med personens grunddata och metoderna som räknar på loggarna. `CutProfile` ärver från `User` med `super().__init__()` och lägger till mål, kaloriberäkning (Mifflin-St Jeor) och regelanalysen i `check_goals`. Att deffa är ett läge bland flera möjliga, så arvet gör det möjligt att lägga till andra lägen utan att ändra `User`.
 
-**Kalenderdagar, inte antal loggar.** Fönstret för ett snitt räknas i kalenderdagar bakåt från det senast loggade datumet, inte som de senaste raderna i listan. Annars skulle sju loggar utspridda över en månad räknas som ett veckosnitt. Urvalet ligger i `get_logs`, som alla snitt använder, så regeln finns på ett enda ställe.
+**Kalenderdagar, inte antal loggar.** Fönstret för ett snitt räknas i kalenderdagar bakåt från det senast loggade datumet, inte som de senaste raderna i listan. Annars skulle sju loggar utspridda över en månad räknas som ett veckosnitt. Urvalet ligger i `get_logs`, som alla snitt använder, så regeln finns på ett enda ställe. Perioden före hämtas med samma regel: `get_logs(7, 7)` hoppar över de sju senaste dagarna och tar de sju därefter.
+
+**Takten jämför två perioder.** `check_goals` räknar medelvikten för den senaste perioden och för perioden före. Ett snitt ligger mitt i sin period, så de två snitten hör till tidpunkter som ligger lika många dagar isär som perioden är lång. Skillnaden delas därför med periodens längd och multipliceras med sju, vilket ger kilo per vecka, och procenttalet räknas på det senaste snittet. Då ger en och samma nedgång per vecka samma kilotal för 7, 14 och 30 dagar, och en enskild vägning är bara en av många i snittet. Är skillnaden under 0,05 kg per vecka avrundas den till 0,0 kg, och vikten får texten oförändrad i stället för "minskar med 0.0 kg". Saknas vägningar i någon av perioderna står det att det är för lite data.
 
 **Saknade värden.** `None` betyder att ett värde saknas, 0 betyder att det mättes till noll. Ett midjemått som inte mätts är `None`, och kontrollen görs med `is not None` eftersom 0 och `None` annars behandlas lika i ett vanligt if-test.
 
@@ -148,7 +150,7 @@ CutTrack/
 
 **Säkra filnamn.** Filnamnen byggs aldrig direkt av det användaren skriver. `make_safe_name` behåller bara a till z och siffror, så ett namn som `../../etc/passwd` inte kan styra var filen hamnar. `make_filename` och `make_csv_filename` lägger sedan till `.json` respektive `_loggar.csv`, så varje användare får en egen profilfil och en egen exportfil.
 
-**Tester.** `tests/` innehåller automatiska tester med pytest. `test_models.py` täcker reglerna: validering, kalenderdagsfönstret, snitt, kaloriförslag och golv, väntetid och vilken gren `check_goals` väljer. `test_analysis.py` täcker filhanteringen: filnamn, profilfiler, CSV-export och inläsning med trasiga rader. `test_readme_example.py` låser vad `check_goals` skriver ut i exemplet ovan och kontrollerar att README visar samma rader som koden. `test_main.py` täcker menyn: testet skriver in svaren åt programmet i stället för tangentbordet, och tre tester kör Python som ett eget program, för att se att `python main.py` startar och att menyn inte startar vid import. Förväntade värden är uträknade för hand i kommentarerna, inte kopierade från programmets utskrift. Diagrammen testas inte.
+**Tester.** `tests/` innehåller automatiska tester med pytest. `test_models.py` täcker reglerna: validering, kalenderdagsfönstret, snitt, kaloriförslag och golv, väntetid och vilken gren `check_goals` väljer. `test_analysis.py` täcker filhanteringen: filnamn, profilfiler, CSV-export och inläsning med trasiga rader. `test_readme_example.py` låser vad `check_goals` skriver ut i exemplet ovan, kontrollerar att README visar samma rader som koden och innehåller testerna av hur vikttakten räknas. `test_main.py` täcker menyn: testet skriver in svaren åt programmet i stället för tangentbordet, och tre tester kör Python som ett eget program, för att se att `python main.py` startar och att menyn inte startar vid import. Förväntade värden är uträknade för hand i kommentarerna, inte kopierade från programmets utskrift. Diagrammen testas inte.
 
 **Beroenden.** Det programmet behöver står i `requirements.txt` och det som bara behövs för att utveckla i `requirements-dev.txt`, så att den som bara vill köra programmet slipper installera pytest. Varje rad anger en lägsta och en högsta version, till exempel `matplotlib>=3.11,<4`. Den lägsta är den första utgåvan som är provad, och den högsta utesluter nästa huvudversion, som kan ändra hur biblioteket fungerar.
 
@@ -180,15 +182,15 @@ CutTrack/
 
 ## Begränsningar
 
-- Vikttakten räknas från första och sista vägningen i perioden, inte på snitt. En enskild vägning flyttar därför resultatet märkbart: i exemplet ger 200 gram mer eller mindre på sista vägningen 1,11 respektive 1,52 procent per vecka i stället för 1,31. Divisionen sker dessutom på periodens längd i stället för på antalet dagar mellan första och sista vägningen, vilket ger en takt som är ungefär 14 procent för låg på sjudagarsperioden. Metoden ska bytas mot en jämförelse mellan snittet för senaste perioden och snittet för perioden före.
+- Vikttakten bygger på att det finns vägningar i båda perioderna, men programmet kräver bara en vägning per period. En period med få vägningar ger ett snitt som är nästan lika osäkert som en enskild vägning. Luckor i loggningen gör dessutom att avståndet mellan de två snitten inte är exakt lika långt som perioden, så takten blir mindre exakt ju fler dagar som saknas. Loggar du de flesta dagar är felet litet.
 - Kaloriförslaget är en uppskattning. 7700-regeln överskattar viktnedgången över tid, så siffran ska justeras efter verkligt utfall efter ett par veckors loggning.
 - Proteinmålet räknas på målvikt eftersom programmet inte känner till kroppsfett.
 - Under väntetiden visar programmet bara en förklaring. Protein, steg och träning analyseras inte förrän perioden är full, och snittet visas inte under dag 7 till 13.
 - Antalet dagar sedan start räknas från profilens startdatum. En ny profil får dagens datum, så loggar som är äldre än så, till exempel `data/exempel_loggar.csv`, ger ett negativt antal dagar och en felaktig väntetext. Exempelfilen går därför inte att prova i menyn med en ny profil än.
 - Midjemåttet sparas men används inte i någon analys än.
-- Vald period styr väntetiden: med 30 dagar krävs 60 dagars data innan takten bedöms.
+- Takten jämför två hela perioder, så vald period styr väntetiden: med 30 dagar krävs 60 dagars data innan takten bedöms.
 - Menyn visar bara viktdiagrammet.
-- Testerna täcker reglerna, filhanteringen och menyn, inte diagrammen. Några av dem låser dagens takträkning (F24) och ska ändras först när metoden byts.
+- Testerna täcker reglerna, filhanteringen och menyn, inte diagrammen.
 - Inget sparas före val 6 i menyn. Avbryter du med Ctrl+C eller Ctrl+D, stänger terminalen eller kraschar programmet är det du loggat sedan start borta. Val 6 avslutar dessutom även om sparningen misslyckades, och skriver då bara ett felmeddelande.
 - Menyn kontrollerar inte all inmatning. `nan` godtas som vikt eller kalorier, längd och ålder kontrolleras inte, protein och steg får vara negativa, ett tomt namn godtas och på träningsfrågan räknas bara svaret `j` som ja, så `ja` blir nej. Decimaltal skrivs med punkt. Vissa felmeddelanden innehåller Pythons engelska text. Listan och planen finns i [docs/statuslogg.md](docs/statuslogg.md).
 - Vissa trasiga filer stoppar fortfarande programmet med ett Python-fel i stället för ett begripligt meddelande: en CSV-rad med för få kolumner, en CSV-fil som inte är UTF-8, ett ogiltigt datum i en CSV-fil (loggen läses in men analysen kraschar efteråt) och en profilfil med fel struktur eller som inte går att läsa som fil. Listan och planen finns i [docs/statuslogg.md](docs/statuslogg.md).
@@ -222,11 +224,11 @@ Licensen gäller programvaran och dokumentationen i det här repot. Den gäller 
 Nästa steg, i den ordning jag tänker ta dem. Detaljer finns i [docs/produktvision.md](docs/produktvision.md) och [docs/statuslogg.md](docs/statuslogg.md).
 
 1. **Grund.** Automatiska tester för reglerna, filhanteringen och menyn är klara (se Hur det är byggt). Programmet startar med `python main.py` utan Jupyter, och beroendena installeras med `requirements.txt` och `requirements-dev.txt`. Licensen är MIT (se Licens).
-2. **Rätta vikttakten och bygg det visionen redan beskriver.** Takten räknas på snitt mot föregående snitt i stället för på första och sista vägningen, och antalet dagar sedan start räknas rätt även när loggarna är äldre än profilen. Trasig indata (en CSV-rad med för få kolumner, datum utan nollor, vissa profilfiler) ger ett meddelande i stället för ett Python-fel eller ett tyst fel. Därefter analys av protein, steg och träning redan under väntetiden, snittet under dag 7 till 13, friskrivningen även vid kaloriförslaget, protein- och stegdiagram i menyn och sist midjemått jämfört med vikt.
+2. **Rätta vikttakten och bygg det visionen redan beskriver.** Den nya vikttakten, som jämför snittet för den senaste perioden med snittet för perioden före, är skriven. Kvar är att antalet dagar sedan start räknas rätt även när loggarna är äldre än profilen, och att trasig indata (en CSV-rad med för få kolumner, datum utan nollor, vissa profilfiler) ger ett meddelande i stället för ett Python-fel eller ett tyst fel. Därefter analys av protein, steg och träning redan under väntetiden, snittet under dag 7 till 13, friskrivningen även vid kaloriförslaget, protein- och stegdiagram i menyn och sist midjemått jämfört med vikt.
 3. **Mer räkning på redan loggad data.** Dagar till målvikt (linjär projektion av aktuell takt), platådetektion (vikten har stått still trots rätt underskott), midjemått mot vikt över hela perioden, och korrelation mellan protein, steg, träning och viktförändring.
 4. **Fler lägen.** Viktbalans och muskelbygge som nya barnklasser till `User`, samt en coachroll som kan läsa en användares analys utan att kunna ändra loggarna.
 5. **Mer datainsamling och andra gränssnitt.** Automatisk inläsning av steg från telefon eller klocka, ett webbgränssnitt ovanpå samma klasser, veckorapporter och koppling till hälso- och träningsappar.
 
 ## AI-användning
 
-Jag har använt Claude (Anthropic) som bollplank och kodassistent genom hela projektet. Idén, produktvisionen och de bärande besluten är mina. Stora delar av koden har skrivits av Claude utifrån mina beslut och krav, och jag har gått igenom, testat och lagt in den själv. Testerna i `tests/` är skrivna av Claude utifrån kraven i `docs/kravspec.md`, med förväntade värden som är uträknade för hand i kommentarerna. Claude har också förklarat koncept som var nya för mig och ifrågasatt mina val när de haft brister. Jag har gått igenom koden i `models.py` och `analysis.py` och testerna `test_models.py`, `test_analysis.py` och `test_readme_example.py` funktion för funktion och kan förklara vad varje del gör och varför den är skriven som den är. Det gäller nu också `main.py`, `test_main.py` och beroendefilerna `requirements.txt` och `requirements-dev.txt`.
+Jag har använt Claude (Anthropic) som bollplank och kodassistent genom hela projektet. Idén, produktvisionen och de bärande besluten är mina. Stora delar av koden har skrivits av Claude utifrån mina beslut och krav, och jag har gått igenom, testat och lagt in den själv. Testerna i `tests/` är skrivna av Claude utifrån kraven i `docs/kravspec.md`, med förväntade värden som är uträknade för hand i kommentarerna. Claude har också förklarat koncept som var nya för mig och ifrågasatt mina val när de haft brister. Jag har gått igenom koden i `models.py` och `analysis.py` och testerna `test_models.py`, `test_analysis.py` och `test_readme_example.py` funktion för funktion och kan förklara vad varje del gör och varför den är skriven som den är. Det gäller nu också `main.py`, `test_main.py` och beroendefilerna `requirements.txt` och `requirements-dev.txt`. Ett undantag: den nya vikttakten (F24), alltså ändringarna i `get_logs`, `average_weight` och `check_goals` i `models.py` och de nya testerna, är skriven men ännu inte genomgången av mig.

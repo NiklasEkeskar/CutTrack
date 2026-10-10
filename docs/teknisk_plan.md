@@ -21,7 +21,7 @@ Vad som återstår, och var koden avviker från visionen, står i kravspec.md oc
 ## Klasser
 ### User (basklass)
 Attribut: name, height_cm, age, sex, activity_level, start_weight, created_date, logs (lista med DailyLog).
-Metoder: add_log, get_logs(days), average_weight(days), weight_change(days), training_days(days).
+Metoder: add_log, get_logs(days, offset_days=0), average_weight(days, offset_days=0), weight_change(days), training_days(days).
 
 ### CutProfile(User), barnklass
 Extra attribut: goal_weight, calorie_goal, protein_goal_per_kg, step_goal, target_rate_percent, training_goal_days (standard 3).
@@ -93,6 +93,7 @@ Två olika gränser med olika syften, inte ett gemensamt fast intervall:
 Konsekvens: sätter någon sitt mål till 0,3 procent och når exakt det, räknas det som rätt takt, inte som för långsamt. Sätter någon sitt mål till 1,0 och landar på 1,3, flaggas det ändå, trots att de själva bad om en snabb takt.
 
 - vikten ökar: underskottet räcker inte, flaggas alltid
+- vikten är oförändrad (skillnaden under 0,05 kg per vecka): underskottet räcker inte, flaggas alltid, med en egen text
 - under eget mål men inom säkerhetstaket: långsammare än önskat, flaggas
 - vid eller över eget mål och inom säkerhetstaket: rätt takt
 - över 1,0 procent: över säkerhetsgränsen, flaggas alltid, oavsett eget mål
@@ -112,18 +113,20 @@ Räknas med `training_days(days)` på User, som loopar över loggarna i fönstre
 ### Trend och tidsfönster
 Sjudagarssnittet räknas på de sju senaste kalenderdagarna, inte de sju senaste loggarna. Skälet är att trend handlar om tid. Sju loggar utspridda över en månad är inte ett veckosnitt.
 
-Avsikten var att kräva minst fyra loggar inom fönstret innan ett snitt används. Så är det inte byggt: `average_weight` kräver minst en logg och `weight_change` minst två.
+Avsikten var att kräva minst fyra loggar inom fönstret innan ett snitt används. Så är det inte byggt: `average_weight` kräver minst en logg, och takten bedöms när båda perioderna har minst en vägning.
 
-**Hur takten räknas idag, och varför det ska ändras.** `weight_change(days)` ger sista minus första loggade vikt i fönstret, och `check_goals` gör om det till en veckotakt med `raw_change / days * 7`. Det har två svagheter. Första: en enskild vägning flyttar resultatet märkbart. I exemplet i README ger 200 gram mer eller mindre på sista vägningen 1,11 respektive 1,52 procent per vecka i stället för 1,31, vilket strider mot tanken att inte lita på enskilda vägningar. Andra: divisionen sker på periodens längd i stället för på antalet dagar mellan första och sista vägningen. Loggar för sju kalenderdagar ligger sex dagar isär, så takten blir ungefär 14 procent för låg på sjudagarsperioden (7 procent på 14 dagar, 3 procent på 30). Planerad lösning: räkna takten som skillnaden mellan snittet för senaste perioden och snittet för perioden före. Det är också därför två perioder krävs innan takten bedöms. Det kräver att `get_logs` kan välja en period längre bak i tiden (kravspec.md F24).
+**Hur takten räknas.** Takten är skillnaden mellan snittet för den senaste perioden och snittet för perioden före, `(average_weight(days) - average_weight(days, days)) / days * 7`, alltså kilo per vecka, och procenttalet räknas på det senaste snittet. Ett snitt över `days` kalenderdagar ligger mitt i sin period, så de två snitten hör till tidpunkter som ligger `days` dagar isär. Därför delas skillnaden med `days` och multipliceras med sju, och samma nedgång per vecka ger samma kilotal för 7, 14 och 30 dagars period. Perioden före hämtas med `get_logs(days, offset_days)`, som hoppar över de `offset_days` senaste dagarna med samma kalenderdagsregel som alla andra urval. En enskild vägning är en av många i ett snitt: i exemplet i README flyttar 200 gram mer eller mindre på sista vägningen takten från 1,66 till 1,63 respektive 1,69 procent per vecka. Skillnader under 0,05 kg per vecka, det som avrundas till 0.0 kg i utskriften, räknas som oförändrad vikt och får en egen text, så att programmet aldrig skriver "minskar med 0.0 kg" eller "-0.0 procent". Saknas vägningar i någon av perioderna skrivs att det är för lite data.
+
+**Vad metoden ersatte, och dess gränser.** Före F24 (byggt 2026-10-10) räknade `check_goals` takten från `weight_change(days)`, sista minus första loggade vikt i fönstret, med `raw_change / days * 7`. Det hade två svagheter. Första: en enskild vägning flyttade resultatet märkbart, i exemplet gav 200 gram på sista vägningen 1,11 respektive 1,52 procent per vecka i stället för 1,31. Andra: divisionen skedde på periodens längd i stället för på antalet dagar mellan första och sista vägningen, så takten blev ungefär 14 procent för låg på sjudagarsperioden. `weight_change` finns kvar men används inte längre av `check_goals`. Den nya metoden har egna gränser. Den kräver bara en vägning per period, så en period med få vägningar ger ett snitt som är nästan lika osäkert som en enskild vägning, och luckor i loggningen gör att avståndet mellan snitten avviker från `days`. Två perioder krävs för alla periodlängder, eftersom takten jämför två hela perioder, så takten bedöms först efter 14, 28 eller 60 dagar (kravspec.md F24 och statuslogg.md, Beslut).
 
 Kräver `datetime` från standardbiblioteket för att göra om datumsträngar till datumobjekt som kan jämföras.
 
-Urvalet ligger i `get_logs(days)`, som anropas av `average_weight`, `weight_change` och `training_days`. Regeln finns därmed på ett enda ställe och behöver bara ändras där.
+Urvalet ligger i `get_logs(days, offset_days=0)`, som anropas av `average_weight`, `weight_change` och `training_days`. Regeln finns därmed på ett enda ställe och behöver bara ändras där.
 
 ### Väntetexter
 Dag 1 till 6 och dag 7 till 13 visar programmet en kort förklaring av varför det inte ger råd än, plus hur många dagar som återstår. Två till tre meningar, inte mer.
 
-Tiderna gäller sjudagarsperioden. Med vald period `days` krävs en period (`days` dagar) för att visa ett snitt och två perioder (2 × `days` dagar) för att bedöma takten, så med 14 dagars period börjar full analys på dag 28 och med 30 dagar på dag 60.
+Tiderna gäller sjudagarsperioden. Med vald period `days` krävs en period (`days` dagar) för att visa ett snitt och två perioder (2 × `days` dagar) för att bedöma takten, så med 14 dagars period börjar full analys på dag 28 och med 30 dagar på dag 60. Två perioder krävs för att takten jämför den senaste perioden med perioden före.
 
 Byggd som en egen metod, waiting_message, på CutProfile, inte inbakat i check_goals. Räknar dagar via days_since_start, som räknar från created_date till senast loggade dagen, inte till dagens riktiga datum, av samma skäl som get_logs: har du inte loggat på några dagar ska analysen ändå utgå från din senaste aktiva period. Känd brist: ligger created_date efter första loggen, till exempel när äldre data läses in i en ny profil, blir antalet dagar negativt och väntetexten fel (statuslogg.md, Steg 1).
 
@@ -176,16 +179,16 @@ I menyn finns två brister till som inte kraschar men tappar data: inget sparas 
 pytest, installerat som utvecklingsberoende med `python -m pip install -r requirements-dev.txt`. Programmet kräver det inte för att köras. Testerna körs från rotmappen med `python -m pytest`. `pytest.ini` anger att `models`, `analysis` och `main` hittas från rotmappen (`pythonpath = .`) och att testerna ligger i `tests/`.
 
 Fyra filer, och vad var och en täcker:
-- `tests/test_models.py`: validering (F2, F7), loggfönstret i kalenderdagar (D3), snitt, viktförändring och träningsdagar, kaloriförslag och golv (F9, F10), väntetid (F14) och vilken gren `check_goals` väljer (F13, F17)
+- `tests/test_models.py`: validering (F2, F7), loggfönstret i kalenderdagar och förskjutningen `offset_days` (D3, F24), snitt, viktförändring och träningsdagar, kaloriförslag och golv (F9, F10), väntetid (F14) och vilken gren `check_goals` väljer (F13, F17)
 - `tests/test_analysis.py`: filnamn (F4, F8), profilfiler (F3), CSV-export och inläsning, inklusive trasiga rader (F8)
-- `tests/test_readme_example.py`: låser det `check_goals` skriver ut i README-exemplet, kontrollerar att README visar samma rader och låser den kända bristen F24
+- `tests/test_readme_example.py`: låser det `check_goals` skriver ut i README-exemplet, kontrollerar att README visar samma rader och innehåller testerna av hur vikttakten räknas (F24)
 - `tests/test_main.py`: textmenyn i `main.py` (F1, F2, F5, F6, F7, F21, F22, D2, N5): frågorna och deras omfrågning vid fel svar, profilskapandet, loggningen, de sex menyvalen, `main()` och att `python main.py` startar och avslutas
 
 Så är testerna skrivna:
 - Varje test i `test_analysis.py` körs i en egen tom mapp, med en fixtur (`autouse=True`) som byter arbetsmapp till `tmp_path`. Funktionerna skriver filer i den aktuella mappen, och utan fixturen hade testerna skrivit profiler och CSV-filer i repot.
 - Förväntade värden räknas ut för hand i kommentarerna och kopieras inte från programmets utskrift, så att testet kontrollerar koden i stället för att upprepa den. Undantaget är README-exemplet, som är programmets egen utskrift. Den är kontrollräknad utanför koden, och samma rader måste stå i README.
-- Allt som beror på hur takten räknas (F24) ligger i `test_readme_example.py`. De övriga testerna kontrollerar vilken gren som väljs, med data där alla rimliga taktmetoder ger samma gren.
-- Ett test som låser dagens beteende (på engelska characterization test) beskriver vad koden gör, inte vad den borde göra. Det används bara för F24. Övriga kända fel får sina tester först när de rättas (statuslogg.md, Luckor och Beslut). För menyn betyder det att `nan`, negativa steg, `ja` som träningssvar, decimalkomma och tomt namn inte finns i `test_main.py`.
+- Allt som beror på hur takten räknas (F24) ligger i `test_readme_example.py`. De övriga testerna kontrollerar vilken gren som väljs, med data som ligger långt från gränserna. Ett test i `test_models.py` fick ändå ny data när F24 byggdes, eftersom det antog fel: en enda sänkt dag i en annars platt vecka är brus för en metod som jämför snitt, och räknas med rätta som oförändrad vikt (statuslogg.md, Beslut).
+- Ett test som låser dagens beteende (på engelska characterization test) beskriver vad koden gör, inte vad den borde göra. Det användes bara för F24: testerna låste den gamla takträkningen tills den byttes 2026-10-10, och ersattes då av tester av den nya. Övriga kända fel får sina tester först när de rättas (statuslogg.md, Luckor och Beslut). För menyn betyder det att `nan`, negativa steg, `ja` som träningssvar, decimalkomma och tomt namn inte finns i `test_main.py`.
 - Menyn läser med `input()`, och `input()` läser från `sys.stdin`. `test_main.py` byter `sys.stdin` mot en `io.StringIO` med färdiga svar (hjälpfunktionen `type_answers`), så att testet bestämmer vad användaren skriver. När svaren tar slut kastar `input()` `EOFError`, som vid Ctrl+D, så ett test som frågar efter mer än det gett stoppas i stället för att hänga. Svaren syns inte i utskriften, så en fråga och nästa utskrift hamnar på samma rad och testerna kontrollerar med `text in output`, aldrig rad för rad.
 - Analysen (`check_goals`) och diagrammet (`plot_weight`) ersätts med stubbar där menyn anropar dem (`monkeypatch.setattr`). Menyn ska bara skicka vidare rätt period, ingen figur får öppnas under en testkörning, och analysens regler testas på ett ställe, i `test_models.py` och `test_readme_example.py`.
 - Tre tester kör Python som eget program med `subprocess.run`, eftersom `if __name__ == "__main__":` aldrig körs när ett test importerar filen. Två startar `python main.py` och provar att programmet startar och avslutas och att det inte ger någon Python-felutskrift när inmatningen stängs. Det tredje kör `import main` med tom inmatning och provar att menyn inte startar.

@@ -15,9 +15,9 @@ Så läser du ett test:
 De förväntade siffrorna är uträknade för hand i kommentarerna, inte kopierade från
 programmets utskrift. Då kontrollerar testet koden i stället för att upprepa den.
 
-Inget test här ska behöva ändras när takten rättas (F24, Steg 1). Testerna av
-check_goals kontrollerar vilken gren som väljs, med data där alla rimliga sätt att
-räkna takten ger samma gren. De exakta taktsiffrorna ligger i test_readme_example.py.
+Testerna av check_goals kontrollerar vilken gren som väljs, med data som ligger långt från
+gränserna. De exakta taktsiffrorna, och allt annat som beror på hur takten räknas (F24),
+ligger i test_readme_example.py.
 """
 from datetime import date, timedelta
 
@@ -241,6 +241,46 @@ def test_window_longer_than_the_data_returns_all_logs():
     assert len(user.get_logs(30)) == 2
 
 
+def test_window_can_be_moved_back_with_an_offset():
+    # 14 loggar, dag 0 till 13. De sju senaste är dag 7 till 13, de sju före är dag 0 till 6.
+    user = make_user()
+    user.logs.extend(make_logs([90.0] * 14))
+    assert [log.date for log in user.get_logs(7)] == [day_text(day) for day in range(7, 14)]
+    assert [log.date for log in user.get_logs(7, 7)] == [day_text(day) for day in range(0, 7)]
+
+
+def test_moved_window_is_counted_in_calendar_days_back_from_the_latest_log():
+    # Senaste loggen är dag 17. Med sju dagar och förskjutning sju är fönstret dag 4 till 10.
+    # Dag 10 är sju dagar före och är med, dag 11 är sex dagar före och är inte med. Dag 4 är
+    # 13 dagar före och är med, dag 3 är 14 dagar före och är inte med.
+    user = make_user()
+    user.logs.extend([make_log(3), make_log(4), make_log(10), make_log(11), make_log(17)])
+    assert [log.date for log in user.get_logs(7, 7)] == [day_text(4), day_text(10)]
+
+
+def test_offset_zero_is_the_same_as_no_offset():
+    user = make_user()
+    user.logs.extend(make_logs([90.0] * 14))
+    assert user.get_logs(7, 0) == user.get_logs(7)
+
+
+def test_moved_window_is_empty_when_the_offset_is_beyond_the_data():
+    user = make_user()
+    user.logs.extend(make_logs([90.0] * 14))
+    assert user.get_logs(7, 30) == []
+
+
+def test_get_logs_with_an_offset_is_empty_without_logs():
+    assert make_user().get_logs(7, 7) == []
+
+
+def test_a_negative_offset_is_rejected():
+    user = make_user()
+    user.logs.append(make_log(0))
+    with pytest.raises(ValueError):
+        user.get_logs(7, -1)
+
+
 # ---------------------------------------------------------------------------
 # User: snitt, viktförändring och träningsdagar
 # ---------------------------------------------------------------------------
@@ -269,6 +309,16 @@ def test_averages_are_none_without_logs():
     assert user.average_weight(7) is None
     assert user.average_protein(7) is None
     assert user.average_steps(7) is None
+
+
+def test_average_weight_can_be_taken_over_the_period_before():
+    # Dag 7 och 8 ligger i den senaste perioden (dag 2 till 8), dag 0 och 1 i perioden före
+    user = make_user()
+    user.logs.extend([make_log(0, weight=90.0), make_log(1, weight=88.0),
+                      make_log(7, weight=86.0), make_log(8, weight=84.0)])
+    assert user.average_weight(7) == pytest.approx(85.0)  # (86 + 84) / 2
+    assert user.average_weight(7, 7) == pytest.approx(89.0)  # (90 + 88) / 2
+    assert user.average_weight(7, 30) is None  # inga loggar så långt bak
 
 
 def test_weight_change_is_last_minus_first_so_loss_is_negative():
@@ -562,8 +612,11 @@ def test_loss_above_the_safety_limit_is_flagged(capsys):
 
 
 def test_loss_slower_than_the_goal_is_flagged(capsys):
-    weights = weights_changing_by(0.0)  # oförändrad vikt ...
-    weights[-1] = 89.9  # ... utom sista dagen, 100 gram ner
+    # Perioden före väger 90.0 kg och den senaste 89.9 kg: 0,1 kg per vecka, alltså 0,11
+    # procent, långt under målet på 0,6 procent
+    weights = weights_changing_by(0.0)  # 14 dagar på 90.0 kg ...
+    for day in range(7, 14):
+        weights[day] = 89.9  # ... men den senaste veckan 100 gram lägre
     profile = make_checked_profile(weights)
     profile.check_goals()
     lines = capsys.readouterr().out.splitlines()

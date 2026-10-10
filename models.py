@@ -47,8 +47,11 @@ class User:
         self.logs.append(new_log)
         print(f"Loggen för {new_log.date} lades till.")
 
-    def get_logs(self, days):
-        """Returnerar loggarna från de senaste days kalenderdagarna."""
+    def get_logs(self, days, offset_days=0):
+        """Returnerar loggarna från de senaste days kalenderdagarna. Med offset_days flyttas
+        fönstret så många dagar bakåt, så get_logs(7, 7) är de sju dagarna före de sju senaste."""
+        if offset_days < 0:
+            raise ValueError("Förskjutningen får inte vara negativ.")
         if len(self.logs) == 0:
             return []
 
@@ -59,19 +62,21 @@ class User:
             if latest_date is None or log_date > latest_date:
                 latest_date = log_date
 
-        # Steg 2: ta med loggar som ligger inom antalet dagar räknat bakåt
+        # Steg 2: ta med loggar som ligger inom antalet dagar räknat bakåt, efter att de
+        # offset_days senaste dagarna hoppats över
         selected_logs = []
         for log in self.logs:
             log_date = datetime.strptime(log.date, "%Y-%m-%d")
             days_ago = (latest_date - log_date).days
-            if days_ago < days:
+            if offset_days <= days_ago < offset_days + days:
                 selected_logs.append(log)
 
         return selected_logs
 
-    def average_weight(self, days):
-        """Medelvikt över perioden. Returnerar None om det inte finns några loggar."""
-        selected_logs = self.get_logs(days)
+    def average_weight(self, days, offset_days=0):
+        """Medelvikt över perioden. Med offset_days flyttas perioden bakåt, se get_logs.
+        Returnerar None om det inte finns några loggar."""
+        selected_logs = self.get_logs(days, offset_days)
 
         if len(selected_logs) == 0:
             return None
@@ -287,8 +292,8 @@ class CutProfile(User):
                     f"{total_days} dagars data vore bara brus. {remaining} dagar kvar tills ett "
                     f"{days}-dagarssnitt visas.")
 
-        # Två perioder krävs innan takten bedöms: den andra perioden visar
-        # om snittet faktiskt rör sig, inte bara vad det är just nu
+        # Två perioder krävs innan takten bedöms: takten är skillnaden mellan snittet för
+        # den senaste perioden och snittet för perioden före (se check_goals)
         if total_days < days * 2:
             remaining = days * 2 - total_days
             return ("Snittet är nu tillräckligt med data för att visas, men "
@@ -308,18 +313,27 @@ class CutProfile(User):
         focus_area = None
 
         # Vikt: undre gränsen är personens eget mål, övre gränsen är ett fast säkerhetstak.
-        # weight_change ger total förändring över hela fönstret, den normaliseras här till
-        # en veckotakt, annars blir en förändring över 30 dagar feltolkad som en veckotakt.
-        raw_change = self.weight_change(days)
+        # Takten är skillnaden mellan snittet för den senaste perioden och snittet för
+        # perioden före. Ett snitt ligger mitt i sin period, så de två snitten hör till
+        # tidpunkter som ligger days dagar från varandra (med loggar de flesta dagar, luckor
+        # gör takten mindre exakt). Skillnaden delas därför med days och multipliceras med 7,
+        # annars blir en förändring över 30 dagar feltolkad som en veckotakt.
         avg_weight = self.average_weight(days)
-        if raw_change is not None and avg_weight is not None and avg_weight > 0:
-            weekly_change = raw_change / days * 7
+        previous_avg_weight = self.average_weight(days, days)
+        if avg_weight is not None and previous_avg_weight is not None and avg_weight > 0:
+            weekly_change = (avg_weight - previous_avg_weight) / days * 7
             rate_percent = -weekly_change / avg_weight * 100
             actual_kg = round(abs(weekly_change), 1)
             safety_kg = round(avg_weight * 1.0 / 100, 1)
             target_kg = round(avg_weight * self.target_rate_percent / 100, 1)
 
-            if weekly_change > 0:
+            # Under 0,05 kg per vecka avrundas kilotalet till 0.0. Då vore "minskar med 0.0
+            # kg" missvisande, så vikten räknas som oförändrad
+            if abs(weekly_change) < 0.05:
+                print("Vikten: oförändrad jämfört med perioden före. "
+                      "Underskottet räcker inte.")
+                focus_area = "vikt"
+            elif weekly_change > 0:
                 print(f"Vikten: ökar med {actual_kg} kg per vecka i snitt. "
                       "Underskottet räcker inte.")
                 focus_area = "vikt"
