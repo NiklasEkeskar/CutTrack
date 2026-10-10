@@ -7,7 +7,7 @@ from main import (show_welcome, ask_number, ask_period,
 from datetime import datetime
 
 from models import DailyLog, CutProfile, normalize_date
-from analysis import (make_csv_filename, save_profile, load_profile,
+from analysis import (make_csv_filename, save_profile, load_profile, profile_file_exists,
                       export_logs_csv, import_logs_csv, plot_weight)
 
 
@@ -124,7 +124,9 @@ def create_profile(name):
 
 
 def log_today(user):
-    """Frågar användaren om dagens värden och lägger till en DailyLog på user."""
+    """Frågar användaren om dagens värden och lägger till en DailyLog på user. Ger True om
+    loggen lades till och False om inmatningen var fel, så att anroparen vet om det finns
+    något nytt att spara."""
     date_text = input("Datum (ÅÅÅÅ-MM-DD): ")
 
     # Allt inuti try-blocket delar samma feltyp (ValueError), från fel datumformat,
@@ -150,9 +152,11 @@ def log_today(user):
 
         new_log = DailyLog(date_text, weight, calories, protein, steps, trained, waist)
         user.add_log(new_log)
+        return True
 
     except ValueError as error:
         print(f"Loggen sparades inte. Något var fel i inmatningen: {error}")
+        return False
 
 
 def run_menu():
@@ -163,6 +167,16 @@ def run_menu():
     profile = load_profile(name)
 
     if profile is None:
+        # load_profile ger None både när filen saknas och när den inte går att läsa. Finns
+        # filen men går inte att läsa får ingen ny profil skapas: menyval 6 skulle skriva
+        # över filen med den tomma profilen, och loggarna som låg i filen vore borta.
+        if profile_file_exists(name):
+            print()
+            print("Programmet avslutas utan att ändra filen. Rätta filen eller flytta den "
+                  "till en annan mapp och starta om.")
+            print("En ny profil skapas inte, eftersom den skulle skriva över filen.")
+            return
+
         profile = create_profile(name)
         print()
         print(f"Profil skapad för {profile.name}.")
@@ -187,7 +201,15 @@ def run_menu():
         choice = input("Välj: ")
 
         if choice == "1":
-            log_today(profile)
+            log_added = log_today(profile)
+            if log_added:
+                # Sparar direkt, så att loggen inte försvinner om programmet avbryts före
+                # menyval 6. Misslyckas det ligger loggen kvar i programmet, och menyval 6
+                # försöker igen.
+                saved = save_profile(profile)
+                if not saved:
+                    print("Loggen finns i programmet men är inte sparad på disk. "
+                          "Välj 6 för att försöka spara igen.")
         elif choice == "2":
             print()
             period = ask_period()
@@ -207,10 +229,18 @@ def run_menu():
                 filename = default_filename
             import_logs_csv(profile, filename)
         elif choice == "6":
-            save_profile(profile)
-            export_logs_csv(profile)
-            print("Hej då.")
-            running = False
+            saved = save_profile(profile)
+            if saved:
+                # CSV-filen är en extra kopia av loggarna och skrivs bara när profilen har
+                # sparats. Misslyckas disken är en halvskriven CSV-fil sämre än ingen, den
+                # skulle ersätta den förra kopian.
+                export_logs_csv(profile)
+                print("Hej då.")
+                running = False
+            else:
+                print("Profilen sparades inte, så programmet avslutas inte.")
+                print("Rätta felet ovan och välj 6 igen.")
+                print("Avbryter du i stället går det du inte sparat förlorat.")
         else:
             print("Välj ett tal mellan 1 och 6.")
 
@@ -222,9 +252,15 @@ def main():
     except (KeyboardInterrupt, EOFError):
         # Ctrl+C ger KeyboardInterrupt, och Ctrl+D eller en stängd inmatning ger
         # EOFError. Båda är användarens sätt att avbryta, inte fel i programmet.
-        # Det som inte sparats med menyval 6 är borta, så det sägs rakt ut.
+        # Menyval 1 sparar hela profilen efter varje ny logg. Det som lästs in från CSV
+        # (menyval 5) sparas inte direkt, bara av nästa ny logg eller av menyval 6, så
+        # båda sägs rakt ut.
         print()
-        print("Avbrutet. Det som inte sparats med menyval 6 är inte sparat.")
+        print("Avbrutet.")
+        print("Varje logg du lade till med menyval 1 sparades direkt, om inte programmet "
+              "sa att sparningen misslyckades.")
+        print("Loggar som lästs in från CSV sparas först när du lägger till en ny logg "
+              "eller väljer 6.")
 
 
 if __name__ == "__main__":

@@ -13,8 +13,9 @@ import os
 
 import pytest
 
+import analysis
 from analysis import (make_safe_name, make_filename, make_csv_filename, save_profile,
-                      load_profile, export_logs_csv, import_logs_csv)
+                      load_profile, profile_file_exists, export_logs_csv, import_logs_csv)
 from models import DailyLog, CutProfile
 
 
@@ -92,6 +93,18 @@ def write_json(filename, data):
 def write_text(filename, text):
     with open(filename, "w", newline="", encoding="utf-8") as file:
         file.write(text)
+
+
+def write_bytes(filename, raw_bytes):
+    """Skriver exakta bytes, för filer som inte är UTF-8."""
+    with open(filename, "wb") as file:
+        file.write(raw_bytes)
+
+
+def read_bytes(filename):
+    """Filens exakta innehåll, för att kontrollera att en fil inte ändrats."""
+    with open(filename, "rb") as file:
+        return file.read()
 
 
 def read_csv_rows(filename):
@@ -178,11 +191,103 @@ def test_save_profile_reports_when_the_file_cannot_be_written(capsys):
     os.mkdir("annaberg.json")  # en mapp med filens namn gör att skrivningen misslyckas
     assert save_profile(make_profile()) is False
     assert "Profilen kunde inte sparas:" in capsys.readouterr().out
+    assert os.listdir(".") == ["annaberg.json"]  # ingen temporär fil blev kvar
+
+
+# N3: sparningen skriver först till annaberg.tmp.json och byter namn när allt är skrivet,
+# så att ett fel mitt i skrivningen inte förstör den profil som redan ligger på disk
+
+def test_save_profile_leaves_no_temp_file_behind():
+    save_profile(make_profile())
+    assert os.listdir(".") == ["annaberg.json"]
+
+
+def test_save_profile_replaces_the_old_file_with_the_new_content():
+    profile = make_profile(with_logs=False)
+    save_profile(profile)
+    profile.logs.append(DailyLog("2026-09-03", 69.0, 1900, 110, 8000, True))
+
+    save_profile(profile)
+
+    assert [log["date"] for log in read_json("annaberg.json")["logs"]] == ["2026-09-03"]
+    assert os.listdir(".") == ["annaberg.json"]
+
+
+def test_save_profile_overwrites_a_temp_file_left_by_an_earlier_crash():
+    write_text("annaberg.tmp.json", "halvskriven rest")
+    assert save_profile(make_profile()) is True
+    assert os.listdir(".") == ["annaberg.json"]
+    assert len(load_profile("Anna Berg").logs) == 2
+
+
+def test_save_profile_keeps_the_old_file_when_writing_fails_halfway(monkeypatch, capsys):
+    # Förut öppnades profilfilen direkt för skrivning, och det tömmer den. Ett fel mitt i
+    # skrivningen (full disk, ett urdraget USB-minne) lämnade en halv fil och förstörde
+    # profilen som redan var sparad.
+    save_profile(make_profile())
+    old_content = read_bytes("annaberg.json")
+    capsys.readouterr()
+    written_to = []
+
+    def failing_dump(data, file, **options):
+        written_to.append(file.name)
+        file.write('{"name": "Anna Be')  # en halvskriven fil
+        raise OSError("Disken är full")
+
+    monkeypatch.setattr(analysis.json, "dump", failing_dump)
+    changed_profile = make_profile()
+    changed_profile.logs.append(DailyLog("2026-09-03", 69.0, 1900, 110, 8000, True))
+
+    assert save_profile(changed_profile) is False
+
+    assert written_to == ["annaberg.tmp.json"]
+    assert read_bytes("annaberg.json") == old_content
+    assert os.listdir(".") == ["annaberg.json"]  # den halvskrivna temporära filen är borttagen
+    assert "Profilen kunde inte sparas: Disken är full" in capsys.readouterr().out
+
+
+def test_save_profile_keeps_the_old_file_when_the_rename_fails(monkeypatch, capsys):
+    save_profile(make_profile())
+    old_content = read_bytes("annaberg.json")
+    capsys.readouterr()
+
+    def failing_replace(source, destination):
+        raise OSError("Åtkomst nekad")
+
+    monkeypatch.setattr(analysis.os, "replace", failing_replace)
+
+    assert save_profile(make_profile(with_logs=False)) is False
+
+    assert read_bytes("annaberg.json") == old_content
+    assert os.listdir(".") == ["annaberg.json"]
+    assert "Profilen kunde inte sparas: Åtkomst nekad" in capsys.readouterr().out
+
+
+def test_save_profile_reports_it_when_the_temp_file_can_neither_be_written_nor_removed(capsys):
+    save_profile(make_profile())
+    old_content = read_bytes("annaberg.json")
+    os.mkdir("annaberg.tmp.json")  # en mapp med temp-filens namn: går varken att skriva eller ta bort
+    capsys.readouterr()
+
+    assert save_profile(make_profile(with_logs=False)) is False
+
+    assert read_bytes("annaberg.json") == old_content
+    assert os.path.isdir("annaberg.tmp.json")
+    assert "Profilen kunde inte sparas:" in capsys.readouterr().out
 
 
 def test_load_profile_returns_none_when_there_is_no_file(capsys):
     assert load_profile("Finns Inte") is None
     assert "Ingen sparad profil hittades för Finns Inte." in capsys.readouterr().out
+
+
+def test_profile_file_exists_tells_a_missing_file_from_one_that_cannot_be_read():
+    # load_profile ger None i båda fallen. Menyn behöver skilja dem åt, för en ny profil får
+    # bara skapas när filen saknas, annars skulle den skriva över den trasiga filen.
+    assert profile_file_exists("Anna Berg") is False
+    write_text("annaberg.json", "{ detta är inte JSON")
+    assert profile_file_exists("Anna Berg") is True
+    assert profile_file_exists("ANNA berg") is True  # samma filnamn oavsett hur namnet skrivs
 
 
 def test_load_profile_reports_a_damaged_file(capsys):
@@ -263,6 +368,53 @@ def test_load_profile_reads_dates_written_without_zeros_and_fixes_them():
     assert loaded is not None
     assert loaded.created_date == "2026-09-01"
     assert [log.date for log in loaded.logs] == ["2026-09-01", "2026-09-02"]
+
+
+# N3: filer som inte går att läsa. Förut kraschade programmet med ett Python-fel för alla
+# utom filen i fel teckenkodning, som gav en engelsk text. Nu ger alla ett svenskt
+# meddelande och None.
+
+# En loggpost där vikten är text i stället för tal: giltig JSON men fel typ
+LOG_WITH_TEXT_WEIGHT = {"date": "2026-09-01", "weight": "70", "calories": 2000,
+                        "protein": 120, "steps": 7000, "trained": True, "waist": None}
+
+
+@pytest.mark.parametrize("content", ["[]", '"text"', "null", "5"])
+def test_load_profile_reports_a_file_that_is_not_a_profile_object(capsys, content):
+    # Giltig JSON, men en lista, text, null eller ett tal i stället för ett objekt med fält
+    write_text("annaberg.json", content)
+    assert load_profile("Anna Berg") is None
+    assert ("Filen annaberg.json har fel uppbyggnad och kunde inte läsas som en profil."
+            in capsys.readouterr().out)
+
+
+@pytest.mark.parametrize("bad_logs", [None, "abc", [5], [[1, 2]], [LOG_WITH_TEXT_WEIGHT]])
+def test_load_profile_reports_logs_with_the_wrong_structure(capsys, bad_logs):
+    save_profile(make_profile())
+    data = read_json("annaberg.json")
+    data["logs"] = bad_logs
+    write_json("annaberg.json", data)
+    assert load_profile("Anna Berg") is None
+    assert "Filen annaberg.json har fel uppbyggnad" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("raw_bytes", [
+    pytest.param('{"name": "Åsa"}'.encode("latin-1"), id="latin-1"),  # Å som ett enda byte
+    pytest.param('{"name": "Anna"}'.encode("utf-16"), id="utf-16"),   # börjar med ett BOM
+])
+def test_load_profile_reports_a_file_that_is_not_saved_as_utf8(capsys, raw_bytes):
+    # Förut hamnade det här under "ogiltiga värden", med Pythons engelska text om kodeken
+    write_bytes("annaberg.json", raw_bytes)
+    assert load_profile("Anna Berg") is None
+    output = capsys.readouterr().out
+    assert "Filen annaberg.json är inte sparad som UTF-8 och kunde inte läsas." in output
+    assert "codec" not in output
+
+
+def test_load_profile_reports_a_file_that_cannot_be_opened(capsys):
+    os.mkdir("annaberg.json")  # en mapp med profilfilens namn går inte att läsa som en fil
+    assert load_profile("Anna Berg") is None
+    assert "Filen annaberg.json kunde inte läsas:" in capsys.readouterr().out
 
 
 # ---------------------------------------------------------------------------
@@ -384,6 +536,8 @@ def test_import_skips_broken_rows_and_reads_the_rest(capsys):
     assert out.count("Hoppade över en rad med ogiltiga värden") == 4
     assert "Vikten måste vara ett rimligt tal" in out
     assert "Kalorierna måste vara ett rimligt tal" in out
+    assert "Vikt måste vara ett tal, men raden har 'abc'." in out
+    assert "Steg måste vara ett heltal, men raden har '12.5'." in out
     assert "2 loggar lästes in från trasig.csv." in out
 
 
@@ -414,17 +568,248 @@ def test_import_skips_rows_with_a_date_that_is_not_a_real_date(capsys):
     assert "2 loggar lästes in från datum.csv." in out
 
 
-def test_import_skips_rows_when_a_column_is_missing(capsys):
-    # En äldre exportfil utan kolumnen för midjemått
-    write_text("gammal.csv",
-               "date,weight,calories,protein,steps,trained\n"
-               "2026-09-01,90.0,2200,150,8000,True\n"
-               "2026-09-02,89.5,2200,150,8000,False\n")
+# ---------------------------------------------------------------------------
+# import_logs_csv, trasiga filer och rader (N3)
+#
+# Två nivåer. Går det fel på hela filen (fel teckenkodning, ingen rubrikrad, fel
+# avgränsare, saknade kolumner) skrivs ett meddelande och ingenting läses in. Går det fel på
+# en rad hoppas just den raden över, med ett meddelande, och resten läses in.
+# ---------------------------------------------------------------------------
+
+FIRST_ROW = "2026-09-01,90.0,2200,150,8000,True,\n"
+SECOND_ROW = "2026-09-02,89.5,2200,150,8000,False,88.5\n"
+THIRD_ROW = "2026-09-03,89.0,2200,150,8000,True,\n"
+
+
+def import_text(text):
+    """Skriver texten till data.csv, läser in den i en ny tom profil och returnerar profilen
+    och antalet inlästa loggar."""
+    write_text("data.csv", text)
     profile = make_profile(with_logs=False)
-    assert import_logs_csv(profile, "gammal.csv") == 0
+    imported_count = import_logs_csv(profile, "data.csv")
+    return profile, imported_count
+
+
+def test_import_reads_a_file_that_starts_with_a_bom():
+    # En BOM är tre dolda bytes först i en UTF-8-fil. Utan särskild hantering blir den
+    # första kolumnens namn "\ufeffdate" i stället för "date", och ingen rad går att läsa.
+    profile, imported_count = import_text("\ufeff" + CSV_HEADER + FIRST_ROW + SECOND_ROW)
+
+    with open("data.csv", "rb") as file:
+        assert file.read(3) == b"\xef\xbb\xbf"  # filen börjar verkligen med en BOM
+    assert imported_count == 2
+    assert [log.date for log in profile.logs] == ["2026-09-01", "2026-09-02"]
+
+
+@pytest.mark.parametrize("line_ending", ["\n", "\r\n", "\r"], ids=["lf", "crlf", "cr"])
+def test_import_reads_every_kind_of_line_ending(line_ending):
+    text = (CSV_HEADER + FIRST_ROW + SECOND_ROW).replace("\n", line_ending)
+    profile, imported_count = import_text(text)
+    assert imported_count == 2
+
+
+@pytest.mark.parametrize("raw_bytes", [
+    pytest.param((CSV_HEADER + FIRST_ROW).encode("utf-16"), id="utf16"),
+    pytest.param((CSV_HEADER + FIRST_ROW + SECOND_ROW.replace("88.5", "ä")).encode("latin-1"),
+                 id="latin1"),
+])
+def test_import_reports_a_file_that_is_not_utf8(raw_bytes, capsys):
+    write_bytes("data.csv", raw_bytes)
+    profile = make_profile(with_logs=False)
+
+    assert import_logs_csv(profile, "data.csv") == 0
+
+    assert profile.logs == []
     out = capsys.readouterr().out
-    assert out.count("Hoppade över en rad som saknar kolumnen 'waist'.") == 2
-    assert "0 loggar lästes in från gammal.csv." in out
+    assert "Filen data.csv är inte sparad som UTF-8 och kunde inte läsas." in out
+
+
+def test_a_file_that_turns_out_not_to_be_utf8_late_imports_nothing():
+    # Python läser filen i bitar om cirka 8 kB. Här är de första 300 raderna bra och felet
+    # kommer efter den första biten. Ingen rad får ha lästs in då, annars är filen halvt
+    # inläst och användaren vet inte vilka rader som saknas.
+    rows = ""
+    for number in range(300):
+        rows = rows + f"2025-{number // 28 + 1:02d}-{number % 28 + 1:02d},90.0,2200,150,8000,True,\n"
+    raw_text = CSV_HEADER + rows + SECOND_ROW.replace("88.5", "ä")
+    write_bytes("data.csv", raw_text.encode("latin-1"))
+    profile = make_profile(with_logs=False)
+
+    assert import_logs_csv(profile, "data.csv") == 0
+    assert profile.logs == []
+
+
+def test_import_reports_a_file_that_cannot_be_read_as_csv(capsys):
+    # csv-modulen vägrar fält som är längre än 131072 tecken och kastar csv.Error. En fil
+    # som inte alls är en loggfil kan ha en sådan rad.
+    profile, imported_count = import_text(
+        CSV_HEADER + FIRST_ROW + "x" * 200000 + ",90.0,2200,150,8000,True,\n")
+
+    assert imported_count == 0
+    assert profile.logs == []
+    assert "Filen data.csv kunde inte tolkas som en CSV-fil." in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("text", ["", "\n", "\n\n"],
+                         ids=["empty", "one_blank_line", "two_blank_lines"])
+def test_import_reports_a_file_without_a_header(text, capsys):
+    profile, imported_count = import_text(text)
+
+    assert imported_count == 0
+    assert "Filen data.csv är tom eller saknar rubrikrad." in capsys.readouterr().out
+
+
+def test_import_of_a_file_with_only_a_header_reads_zero_logs(capsys):
+    profile, imported_count = import_text(CSV_HEADER)
+
+    assert imported_count == 0
+    assert "0 loggar lästes in från data.csv." in capsys.readouterr().out
+
+
+def test_import_reports_a_file_that_uses_semicolons(capsys):
+    # Semikolon mellan kolumnerna och decimalkomma. csv-modulen läser rubrikraden som en enda
+    # kolumn, och utan särskild hantering ger varje rad ett eget meddelande.
+    profile, imported_count = import_text(
+        "date;weight;calories;protein;steps;trained;waist\n"
+        "2026-09-01;90,5;2200;150;8000;True;\n"
+        "2026-09-02;89,5;2200;150;8000;False;88,5\n")
+
+    assert imported_count == 0
+    assert profile.logs == []
+    out = capsys.readouterr().out
+    assert "Filen data.csv verkar ha semikolon mellan kolumnerna." in out
+    assert "saknar kolumnerna" not in out  # ett enda meddelande, inte ett till om kolumnerna
+    assert "Hoppade över" not in out
+
+
+def test_import_reports_a_missing_column_once_and_reads_nothing(capsys):
+    # En äldre exportfil utan kolumnen för midjemått. Ett meddelande för hela filen,
+    # inte ett per rad.
+    profile, imported_count = import_text(
+        "date,weight,calories,protein,steps,trained\n"
+        "2026-09-01,90.0,2200,150,8000,True\n"
+        "2026-09-02,89.5,2200,150,8000,False\n")
+
+    assert imported_count == 0
+    assert profile.logs == []
+    out = capsys.readouterr().out
+    assert ("Filen data.csv saknar kolumnerna: waist. "
+            "Förväntade kolumner: date, weight, calories, protein, steps, trained, waist.") in out
+    assert "Hoppade över" not in out
+
+
+def test_import_lists_every_missing_column_in_the_expected_order(capsys):
+    profile, imported_count = import_text("calories,date,weight\n2200,2026-09-01,90.0\n")
+
+    assert imported_count == 0
+    assert "Filen data.csv saknar kolumnerna: protein, steps, trained, waist." in capsys.readouterr().out
+
+
+def test_import_accepts_columns_in_any_order_and_ignores_extra_columns():
+    profile, imported_count = import_text(
+        "note,waist,trained,steps,protein,calories,weight,date\n"
+        "bra dag,88.5,True,8000,150,2200,90.0,2026-09-01\n")
+
+    assert imported_count == 1
+    assert logs_as_dicts(profile.logs) == [{
+        "date": "2026-09-01", "weight": 90.0, "calories": 2200.0, "protein": 150.0,
+        "steps": 8000, "trained": True, "waist": 88.5}]
+
+
+@pytest.mark.parametrize("bad_row, expected_message", [
+    pytest.param("2026-09-02,89.5,2200\n",
+                 "Raden har färre värden än rubrikraden.", id="three_values"),
+    pytest.param("2026-09-02,89.5,2200,150,8000,False\n",
+                 "Raden har färre värden än rubrikraden.", id="last_cell_missing"),
+    pytest.param("2026-09-02,89.5,2200,150,8000,False,88,5\n",
+                 "Raden har fler värden än rubrikraden. "
+                 "Ett decimaltecken som komma kan orsaka det.", id="decimal_comma_in_last_cell"),
+])
+def test_import_skips_rows_with_the_wrong_number_of_values(bad_row, expected_message, capsys):
+    # Sista fallet: 88,5 skrivet med decimalkomma delas i två celler. Utan kontroll läses
+    # 88 in som midjemått och 5 försvinner, utan något meddelande.
+    profile, imported_count = import_text(CSV_HEADER + FIRST_ROW + bad_row + THIRD_ROW)
+
+    assert imported_count == 2
+    assert [log.date for log in profile.logs] == ["2026-09-01", "2026-09-03"]
+    out = capsys.readouterr().out
+    assert f"Hoppade över en rad med ogiltiga värden: {expected_message}" in out
+    assert "2 loggar lästes in från data.csv." in out
+
+
+def test_import_ignores_rows_where_every_cell_is_empty(capsys):
+    # Rader som bara består av kommatecken kan komma från ett kalkylprogram. De är inte
+    # fel, så ingen ska få ett meddelande om dem.
+    profile, imported_count = import_text(
+        CSV_HEADER + FIRST_ROW + ",,,,,,\n" + "\n" + " , ,,,,,\n" + SECOND_ROW + ",,,,,,\n")
+
+    assert imported_count == 2
+    out = capsys.readouterr().out
+    assert "Hoppade över" not in out
+    assert "2 loggar lästes in från data.csv." in out
+
+
+@pytest.mark.parametrize("cell, expected", [
+    ("True", True), ("true", True), ("TRUE", True), (" True ", True),
+    ("False", False), ("false", False), ("FALSE", False), (" False ", False),
+])
+def test_import_reads_true_and_false_in_any_case(cell, expected):
+    # Förut räknades allt utom exakt "True" som nej, så "TRUE" blev ett tyst nej.
+    profile, imported_count = import_text(CSV_HEADER + f"2026-09-01,90.0,2200,150,8000,{cell},\n")
+
+    assert imported_count == 1
+    assert profile.logs[0].trained is expected
+
+
+@pytest.mark.parametrize("cell", ["ja", "nej", "1", "0", "yes", "SANT", "FALSKT", "Truee", ""],
+                         ids=["ja", "nej", "1", "0", "yes", "sant", "falskt", "truee", "empty"])
+def test_import_skips_a_row_where_training_is_not_true_or_false(cell, capsys):
+    # Andra stavningar än True och False gissas inte på. Raden hoppas över med ett
+    # meddelande i stället för att tyst bli ett nej.
+    profile, imported_count = import_text(
+        CSV_HEADER + FIRST_ROW + f"2026-09-02,89.5,2200,150,8000,{cell},\n" + THIRD_ROW)
+
+    assert imported_count == 2
+    assert [log.date for log in profile.logs] == ["2026-09-01", "2026-09-03"]
+    assert ("Hoppade över en rad med ogiltiga värden: "
+            f"Träning måste vara True eller False, men raden har '{cell}'.") in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("bad_row, expected_message", [
+    pytest.param("2026-09-02,abc,2200,150,8000,True,\n",
+                 "Vikt måste vara ett tal, men raden har 'abc'.", id="weight"),
+    pytest.param('2026-09-02,"89,5",2200,150,8000,True,\n',
+                 "Vikt måste vara ett tal, men raden har '89,5'.", id="weight_with_decimal_comma"),
+    pytest.param("2026-09-02,89.5,2 200,150,8000,True,\n",
+                 "Kalorier måste vara ett tal, men raden har '2 200'.", id="calories"),
+    pytest.param("2026-09-02,89.5,2200,,8000,True,\n",
+                 "Protein måste vara ett tal, men raden har ''.", id="protein_empty"),
+    pytest.param("2026-09-02,89.5,2200,150,12.5,True,\n",
+                 "Steg måste vara ett heltal, men raden har '12.5'.", id="steps"),
+    pytest.param("2026-09-02,89.5,2200,150,8000,True,x\n",
+                 "Midjemått måste vara ett tal, men raden har 'x'.", id="waist"),
+])
+def test_import_says_which_value_is_not_a_number(bad_row, expected_message, capsys):
+    # Meddelandet nämner kolumnen och det som stod i cellen, på svenska. Förut visades
+    # Pythons egen engelska text, till exempel "could not convert string to float".
+    profile, imported_count = import_text(CSV_HEADER + FIRST_ROW + bad_row + THIRD_ROW)
+
+    assert imported_count == 2
+    assert [log.date for log in profile.logs] == ["2026-09-01", "2026-09-03"]
+    assert f"Hoppade över en rad med ogiltiga värden: {expected_message}" in capsys.readouterr().out
+
+
+def test_import_trims_spaces_around_the_values():
+    profile, imported_count = import_text(
+        CSV_HEADER
+        + "2026-09-01 , 90.0 , 2200 , 150 , 8000 , True , 88.5 \n"
+        + "2026-09-02,89.5,2200,150,8000,False,   \n")
+
+    assert imported_count == 2
+    assert profile.logs[0].date == "2026-09-01"
+    assert profile.logs[0].trained is True
+    assert profile.logs[0].waist == 88.5
+    assert profile.logs[1].waist is None  # en cell med bara mellanslag är ett saknat värde
 
 
 def test_import_reports_when_the_file_cannot_be_read(capsys):

@@ -107,6 +107,13 @@ def make_profile(with_logs=False):
     return profile
 
 
+def save_that_always_fails(profile):
+    """Ersätter save_profile i menyn med en sparning som alltid misslyckas, som när disken är
+    full. Skriver ut ett felmeddelande och ger False, precis som den riktiga funktionen."""
+    print("Profilen kunde inte sparas: Disken är full")
+    return False
+
+
 # ---------------------------------------------------------------------------
 # Frågor med talsvar (ask_number, ask_period)
 # ---------------------------------------------------------------------------
@@ -500,6 +507,38 @@ def test_log_today_checks_the_date_before_it_asks_for_anything_else(monkeypatch)
     assert sys.stdin.read() != ""  # svaren på de andra frågorna är inte lästa
 
 
+def test_log_today_returns_true_when_a_log_was_added(monkeypatch):
+    # N3: menyn sparar profilen på disk bara när en logg faktiskt lades till
+    profile = make_profile()
+    type_answers(monkeypatch, list(LOG_ANSWERS.values()))
+
+    assert main.log_today(profile) is True
+
+
+def test_log_today_returns_true_when_a_log_was_replaced(monkeypatch):
+    profile = make_profile()
+    type_answers(monkeypatch, list(LOG_ANSWERS.values()))
+    main.log_today(profile)
+
+    type_answers(monkeypatch, answers_with(LOG_ANSWERS, {"weight": "69.2"}))
+
+    assert main.log_today(profile) is True
+
+
+@pytest.mark.parametrize("field, bad_answer", [
+    ("date", "inte ett datum"),
+    ("weight", "abc"),
+    ("weight", "0"),
+    ("steps", "9000.5"),
+    ("waist", "abc"),
+])
+def test_log_today_returns_false_when_no_log_was_added(monkeypatch, field, bad_answer):
+    profile = make_profile()
+    type_answers(monkeypatch, answers_with(LOG_ANSWERS, {field: bad_answer}))
+
+    assert main.log_today(profile) is False
+
+
 # ---------------------------------------------------------------------------
 # run_menu (F21)
 # ---------------------------------------------------------------------------
@@ -695,6 +734,166 @@ def test_run_menu_the_example_file_gives_a_new_user_an_analysis(monkeypatch, cap
 
 
 # ---------------------------------------------------------------------------
+# run_menu: tappa inte loggar (N3)
+# ---------------------------------------------------------------------------
+
+def test_run_menu_saves_the_profile_right_after_a_new_log(monkeypatch, capsys, tmp_path):
+    # Förut sparades profilen bara med menyval 6, så en logg försvann om programmet avbröts
+    # före det. Här tar inmatningen slut direkt efter loggen, som vid Ctrl+D.
+    type_answers(monkeypatch, NEW_USER + LOG_ONE_DAY)
+
+    with pytest.raises(EOFError):
+        main.run_menu()
+
+    assert (tmp_path / "annaberg.json").exists()
+    saved = load_profile("Anna Berg")
+    assert len(saved.logs) == 1
+    assert saved.logs[0].date == "2026-09-01"
+    assert "Profilen sparades i annaberg.json." in capsys.readouterr().out
+
+
+def test_run_menu_saves_again_after_every_new_log(monkeypatch):
+    second_day = ["1"] + answers_with(LOG_ANSWERS, {"date": "2026-09-02"})
+    type_answers(monkeypatch, NEW_USER + LOG_ONE_DAY + second_day)
+
+    with pytest.raises(EOFError):
+        main.run_menu()
+
+    assert len(load_profile("Anna Berg").logs) == 2
+
+
+def test_run_menu_does_not_save_after_a_log_that_was_rejected(monkeypatch, tmp_path):
+    type_answers(monkeypatch, NEW_USER + ["1", "inte ett datum"])
+
+    with pytest.raises(EOFError):
+        main.run_menu()
+
+    assert not (tmp_path / "annaberg.json").exists()
+
+
+def test_run_menu_choice_5_does_not_save_by_itself(monkeypatch, tmp_path):
+    # Importen ersätter loggar med samma datum utan att fråga. Sparas den inte direkt går den
+    # att ångra med Ctrl+C, och CSV-filen finns kvar att läsa in igen.
+    export_logs_csv(make_profile(with_logs=True))
+    type_answers(monkeypatch, NEW_USER + ["5", ""])
+
+    with pytest.raises(EOFError):
+        main.run_menu()
+
+    assert not (tmp_path / "annaberg.json").exists()
+
+
+def test_run_menu_the_next_new_log_also_saves_what_was_read_from_csv(monkeypatch):
+    # Menyval 5 sparar inget själv, men save_profile sparar hela profilen. En ny logg efter
+    # inläsningen tar därför med det inlästa, och meddelandet vid Ctrl+C säger att det går så.
+    export_logs_csv(make_profile(with_logs=True))
+    third_day = ["1"] + answers_with(LOG_ANSWERS, {"date": "2026-09-03"})
+    type_answers(monkeypatch, NEW_USER + ["5", ""] + third_day)
+
+    with pytest.raises(EOFError):
+        main.run_menu()
+
+    saved_dates = []
+    for log in load_profile("Anna Berg").logs:
+        saved_dates.append(log.date)
+    assert sorted(saved_dates) == ["2026-09-01", "2026-09-02", "2026-09-03"]
+
+
+def test_run_menu_warns_when_the_automatic_save_fails_and_keeps_going(monkeypatch, capsys):
+    monkeypatch.setattr(main, "save_profile", save_that_always_fails)
+    type_answers(monkeypatch, NEW_USER + LOG_ONE_DAY)
+
+    # Menyn ska fråga efter nästa val i stället för att avsluta. Det syns på att inmatningen
+    # tar slut där, och att pytest.raises får sitt EOFError.
+    with pytest.raises(EOFError):
+        main.run_menu()
+
+    output = capsys.readouterr().out
+    assert "Profilen kunde inte sparas: Disken är full" in output
+    assert "Loggen finns i programmet men är inte sparad på disk." in output
+    assert "Välj 6 för att försöka spara igen." in output
+
+
+def test_run_menu_choice_6_saves_the_log_that_the_automatic_save_could_not(
+        monkeypatch, capsys):
+    real_save_profile = main.save_profile
+    saved_log_counts = []
+
+    def save_that_fails_once(profile):
+        saved_log_counts.append(len(profile.logs))
+        if len(saved_log_counts) == 1:
+            print("Profilen kunde inte sparas: Disken är full")
+            return False
+        return real_save_profile(profile)
+
+    monkeypatch.setattr(main, "save_profile", save_that_fails_once)
+    type_answers(monkeypatch, NEW_USER + LOG_ONE_DAY + ["6"])
+
+    main.run_menu()
+
+    assert saved_log_counts == [1, 1]  # loggen fanns kvar och sparades om vid menyval 6
+    assert "Hej då." in capsys.readouterr().out
+    assert len(load_profile("Anna Berg").logs) == 1
+
+
+def test_run_menu_choice_6_does_not_exit_when_the_save_fails(monkeypatch, capsys, tmp_path):
+    # Förut skrevs "Hej då." och programmet avslutades även om sparningen misslyckats
+    monkeypatch.setattr(main, "save_profile", save_that_always_fails)
+    type_answers(monkeypatch, NEW_USER + LOG_ONE_DAY + ["6", "6"])
+
+    # Menyn frågar igen efter varje misslyckad sparning, tills inmatningen tar slut
+    with pytest.raises(EOFError):
+        main.run_menu()
+
+    output = capsys.readouterr().out
+    assert output.count("Profilen sparades inte, så programmet avslutas inte.") == 2
+    assert "Rätta felet ovan och välj 6 igen." in output
+    assert "går det du inte sparat förlorat." in output
+    assert "Hej då." not in output
+    # CSV-filen skrivs inte heller när profilen inte kunde sparas. Misslyckas disken är en
+    # halvskriven CSV-fil sämre än ingen, den skulle ersätta den förra kopian.
+    assert not (tmp_path / "annaberg_loggar.csv").exists()
+
+
+@pytest.mark.parametrize("raw_bytes", [
+    pytest.param(b'{"name": "Anna Berg", "height_cm": 17', id="cut-off"),
+    pytest.param(b"", id="empty"),
+    pytest.param(b"[]", id="not-an-object"),
+    pytest.param('{"name": "Åsa"}'.encode("latin-1"), id="not-utf8"),
+])
+def test_run_menu_stops_and_leaves_a_profile_file_it_cannot_read_untouched(
+        monkeypatch, capsys, tmp_path, raw_bytes):
+    # Förut skapade menyn en ny tom profil, och menyval 6 skrev över filen med den (provat:
+    # en fil på 772 byte blev 328 byte utan loggar). Här finns bara namnet som svar. Skulle
+    # menyn fråga efter längd tar inmatningen slut och testet får ett EOFError.
+    profile_file = tmp_path / "annaberg.json"
+    profile_file.write_bytes(raw_bytes)
+    type_answers(monkeypatch, ["Anna Berg"])
+
+    main.run_menu()
+
+    output = capsys.readouterr().out
+    assert "Programmet avslutas utan att ändra filen." in output
+    assert "En ny profil skapas inte, eftersom den skulle skriva över filen." in output
+    assert "Längd i cm" not in output
+    assert "Hej då." not in output
+    assert profile_file.read_bytes() == raw_bytes
+    assert os.listdir(tmp_path) == ["annaberg.json"]
+
+
+def test_run_menu_stops_when_the_profile_file_is_a_folder(monkeypatch, capsys, tmp_path):
+    (tmp_path / "annaberg.json").mkdir()
+    type_answers(monkeypatch, ["Anna Berg"])
+
+    main.run_menu()
+
+    output = capsys.readouterr().out
+    assert "Filen annaberg.json kunde inte läsas:" in output
+    assert "Programmet avslutas utan att ändra filen." in output
+    assert (tmp_path / "annaberg.json").is_dir()
+
+
+# ---------------------------------------------------------------------------
 # main (startpunkten): Ctrl+C och Ctrl+D (N3, N5)
 # ---------------------------------------------------------------------------
 
@@ -729,7 +928,9 @@ def test_main_function_ends_quietly_when_the_user_interrupts(
 
     output = capsys.readouterr().out
     assert "Avbrutet." in output
-    assert "inte sparat" in output
+    assert "Varje logg du lade till med menyval 1 sparades direkt" in output
+    assert ("Loggar som lästs in från CSV sparas först när du lägger till en ny logg "
+            "eller väljer 6.") in output
 
 
 def test_main_function_does_not_hide_other_errors(monkeypatch):
@@ -802,6 +1003,19 @@ def test_python_main_py_ends_without_a_traceback_when_the_input_is_closed(tmp_pa
     assert result.returncode == 0
     assert "Avbrutet." in result.stdout
     assert "Traceback" not in result.stderr
+
+
+def test_python_main_py_stops_without_touching_a_profile_file_it_cannot_read(tmp_path):
+    damaged_text = '{"name": "Anna Berg", "height_cm": 17'
+    profile_file = tmp_path / "annaberg.json"
+    profile_file.write_text(damaged_text, encoding="utf-8")
+
+    result = run_python([str(MAIN_PY)], "Anna Berg\n", tmp_path)
+
+    assert "är skadad och kunde inte läsas." in result.stdout
+    assert "Programmet avslutas utan att ändra filen." in result.stdout
+    assert "Traceback" not in result.stderr
+    assert profile_file.read_text(encoding="utf-8") == damaged_text
 
 
 def test_importing_main_does_not_start_the_menu():

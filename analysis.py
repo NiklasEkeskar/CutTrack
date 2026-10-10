@@ -1,7 +1,7 @@
 """Filhantering (JSON, CSV) och diagram för CutTrack.
 Importeras i cuttrack.ipynb med:
 from analysis import (make_filename, make_csv_filename,
-                       save_profile, load_profile,
+                       save_profile, load_profile, profile_file_exists,
                        export_logs_csv, import_logs_csv,
                        plot_weight, plot_protein, plot_steps)"""
 import json
@@ -13,6 +13,10 @@ from models import DailyLog, CutProfile
 
 
 ALLOWED_CHARACTERS = "abcdefghijklmnopqrstuvwxyz0123456789"
+
+# Kolumnerna i CSV-filen, i den ordning exporten skriver dem. Importen kräver att alla
+# finns i rubrikraden men bryr sig inte om i vilken ordning de står.
+CSV_COLUMNS = ["date", "weight", "calories", "protein", "steps", "trained", "waist"]
 
 
 def make_safe_name(name):
@@ -75,16 +79,39 @@ def save_profile(profile):
         "logs": log_list
     }
 
+    # Skrivs först till en temporär fil, och den får bytas mot den riktiga profilfilen först
+    # när allt är skrivet. Ett fel mitt i skrivningen lämnar då den gamla profilfilen orörd,
+    # i stället för en halv fil. Punkten i namnet gör att det aldrig kan bli en annan
+    # användares profilfil, eftersom make_safe_name tar bort punkter.
+    temp_filename = make_safe_name(profile.name) + ".tmp.json"
+
     # OSError fångar problem med själva skrivningen, till exempel att disken
     # är full eller att mappen saknar skrivrättigheter
     try:
-        with open(filename, "w", encoding="utf-8") as file:
+        with open(temp_filename, "w", encoding="utf-8") as file:
             json.dump(data, file, ensure_ascii=False, indent=4)
+        # os.replace byter ut den gamla filen mot den nya i ett enda steg, och ersätter en
+        # fil som redan finns på alla datorer (os.rename kastar FileExistsError på Windows)
+        os.replace(temp_filename, filename)
         print(f"Profilen sparades i {filename}.")
         return True
     except OSError as error:
         print(f"Profilen kunde inte sparas: {error}")
+        # Den halvskrivna temporära filen tas bort. Går inte det heller blir den kvar och
+        # skrivs över vid nästa sparning.
+        try:
+            os.remove(temp_filename)
+        except OSError:
+            pass
         return False
+
+
+def profile_file_exists(name):
+    """Säger om det finns en profilfil för namnet, oavsett om den går att läsa. load_profile
+    ger None både när filen saknas och när den inte går att läsa. Menyn behöver skilja dem
+    åt, eftersom en ny profil bara får skapas när filen saknas, annars skriver den över
+    den trasiga filen."""
+    return os.path.exists(make_filename(name))
 
 
 def load_profile(name):
@@ -92,7 +119,7 @@ def load_profile(name):
     filename = make_filename(name)
 
     # Att filen saknas är inte ett fel, det är normalt för en ny användare
-    if not os.path.exists(filename):
+    if not profile_file_exists(name):
         print(f"Ingen sparad profil hittades för {name}.")
         return None
 
@@ -118,19 +145,34 @@ def load_profile(name):
         print(f"Profilen för {profile.name} laddades, {len(profile.logs)} loggar.")
         return profile
 
-    # Tre skilda except-block, inte ett gemensamt, eftersom felen betyder olika
-    # saker och kräver olika åtgärder av användaren
+    # Flera skilda except-block, inte ett gemensamt, eftersom felen betyder olika
+    # saker och kräver olika åtgärder av användaren. JSONDecodeError och UnicodeDecodeError
+    # är båda sorters ValueError, så de måste stå före ValueError, annars når de aldrig fram.
     except json.JSONDecodeError:
         # Filen finns men innehållet är inte giltig JSON, t.ex. redigerad för hand
         print(f"Filen {filename} är skadad och kunde inte läsas.")
+        return None
+    except UnicodeDecodeError:
+        # Filen är sparad i en annan teckenkodning än UTF-8, t.ex. av ett annat program
+        print(f"Filen {filename} är inte sparad som UTF-8 och kunde inte läsas.")
         return None
     except KeyError as error:
         # Giltig JSON men saknar ett fält koden förväntar sig, t.ex. en äldre filversion
         print(f"Filen {filename} saknar fältet {error}.")
         return None
+    except TypeError:
+        # Giltig JSON men fel form, till exempel en lista i stället för ett objekt, eller
+        # null där en lista med loggar skulle stå
+        print(f"Filen {filename} har fel uppbyggnad och kunde inte läsas som en profil.")
+        return None
     except ValueError as error:
         # Fälten finns men värdena är orimliga, DailyLog eller CutProfile vägrar dem
         print(f"Filen {filename} innehåller ogiltiga värden: {error}")
+        return None
+    except OSError as error:
+        # Filen finns men går inte att öppna eller läsa, till exempel en mapp med profilfilens
+        # namn eller en fil utan läsrättigheter
+        print(f"Filen {filename} kunde inte läsas: {error}")
         return None
 
 
@@ -146,13 +188,11 @@ def export_logs_csv(profile, filename=None):
         print("Det finns inga loggar att exportera.")
         return False
 
-    column_names = ["date", "weight", "calories", "protein", "steps", "trained", "waist"]
-
     # newline="" krävs av csv-modulen, annars kan filen få extra tomrader på Windows
     try:
         with open(filename, "w", newline="", encoding="utf-8") as file:
             writer = csv.writer(file)
-            writer.writerow(column_names)
+            writer.writerow(CSV_COLUMNS)
 
             for log in profile.logs:
                 # None skrivs som tom cell, inte som texten "None"
@@ -175,10 +215,81 @@ def export_logs_csv(profile, filename=None):
         return False
 
 
+def parse_number(text, label, is_integer=False):
+    """Gör om texten i en CSV-cell till ett tal. Kastar ValueError med svensk text som nämner
+    kolumnen och vad som stod i cellen, i stället för Pythons engelska felmeddelande."""
+    # Allt som läses från CSV är text, även talen, därför float() och int()
+    try:
+        if is_integer:
+            return int(text)
+        return float(text)
+    except ValueError:
+        if is_integer:
+            number_kind = "ett heltal"
+        else:
+            number_kind = "ett tal"
+        raise ValueError(f"{label} måste vara {number_kind}, men raden har '{text}'.")
+
+
+def parse_trained(text):
+    """Gör om texten i kolumnen för träning till True eller False. Versaler och mellanslag
+    spelar ingen roll, men inget annat än true och false godtas. Då blir en felstavning
+    ett meddelande i stället för ett tyst nej."""
+    cleaned_text = text.strip().lower()
+    if cleaned_text == "true":
+        return True
+    if cleaned_text == "false":
+        return False
+    raise ValueError(f"Träning måste vara True eller False, men raden har '{text}'.")
+
+
+def is_empty_row(row):
+    """True om alla celler i raden är tomma, till exempel en rad som bara är ,,,,,,"""
+    for cell in row.values():
+        if cell.strip() != "":
+            return False
+    return True
+
+
+def make_log_from_row(row):
+    """Bygger en DailyLog från en rad i CSV-filen, en dictionary från csv.DictReader.
+    Kastar ValueError med svensk text om raden inte går att läsa. Returnerar None för en
+    rad där alla celler är tomma."""
+    # DictReader fyller på med None när en rad har färre celler än rubrikraden, och samlar
+    # de överskjutande cellerna i en lista under nyckeln None. Båda betyder att cellerna kan
+    # ha hamnat under fel kolumn, till exempel av en decimalkomma, så raden används inte alls.
+    if None in row:
+        raise ValueError("Raden har fler värden än rubrikraden. "
+                         "Ett decimaltecken som komma kan orsaka det.")
+    if None in row.values():
+        raise ValueError("Raden har färre värden än rubrikraden.")
+
+    if is_empty_row(row):
+        return None
+
+    # Kolumnerna kontrolleras i samma ordning som i filen. Datumet kontrolleras av DailyLog.
+    weight = parse_number(row["weight"], "Vikt")
+    calories = parse_number(row["calories"], "Kalorier")
+    protein = parse_number(row["protein"], "Protein")
+    steps = parse_number(row["steps"], "Steg", True)
+    trained = parse_trained(row["trained"])
+
+    waist_text = row["waist"].strip()
+    if waist_text == "":
+        waist = None
+    else:
+        waist = parse_number(waist_text, "Midjemått")
+
+    # Mellanslag runt datumet tas bort här, vid gränsen mot filen. normalize_date godtar
+    # inga mellanslag.
+    return DailyLog(row["date"].strip(), weight, calories, protein, steps, trained, waist)
+
+
 def import_logs_csv(profile, filename=None):
     """Läser in loggar från en CSV-fil och lägger till dem på profilen.
     Utan filnamn läses användarens eget standardnamn, samma som exporten använder.
-    Rader med ogiltiga värden hoppas över, resten läses in."""
+    Går det fel på hela filen läses ingenting in. En rad med ogiltiga värden hoppas över,
+    resten läses in. Returnerar antalet inlästa loggar."""
     if filename is None:
         filename = make_csv_filename(profile.name)
 
@@ -186,46 +297,62 @@ def import_logs_csv(profile, filename=None):
         print(f"Filen {filename} hittades inte.")
         return 0
 
-    imported_count = 0
-
+    # Hela filen läses innan någon rad används. Går något fel vid läsningen, till exempel att
+    # filen inte är UTF-8 långt ner, har ingen logg hunnit läggas till, så profilen är orörd.
     try:
-        with open(filename, "r", newline="", encoding="utf-8") as file:
+        # utf-8-sig läser vanlig UTF-8 och hoppar över en BOM om filen börjar med en
+        with open(filename, "r", newline="", encoding="utf-8-sig") as file:
             # DictReader läser varje rad som en dictionary, med kolumnnamnen från
             # första raden som nycklar, så ordningen på kolumnerna spelar ingen roll
             reader = csv.DictReader(file)
-
-            for row in reader:
-                # try/except inne i loopen, så en trasig rad inte stoppar hela importen
-                try:
-                    # Allt som läses från CSV är text, även talen, därför float()/int()
-                    if row["waist"] == "":
-                        waist = None
-                    else:
-                        waist = float(row["waist"])
-
-                    log = DailyLog(
-                        row["date"],
-                        float(row["weight"]),
-                        float(row["calories"]),
-                        float(row["protein"]),
-                        int(row["steps"]),
-                        row["trained"] == "True",
-                        waist
-                    )
-                    profile.add_log(log)
-                    imported_count = imported_count + 1
-
-                except ValueError as error:
-                    print(f"Hoppade över en rad med ogiltiga värden: {error}")
-                except KeyError as error:
-                    print(f"Hoppade över en rad som saknar kolumnen {error}.")
-
-        print(f"{imported_count} loggar lästes in från {filename}.")
-        return imported_count
-
+            column_names = reader.fieldnames
+            rows = list(reader)
+    except UnicodeDecodeError:
+        print(f"Filen {filename} är inte sparad som UTF-8 och kunde inte läsas. "
+              "Spara om den som UTF-8 och försök igen.")
+        return 0
+    except csv.Error:
+        print(f"Filen {filename} kunde inte tolkas som en CSV-fil.")
+        return 0
     except OSError as error:
         print(f"Filen kunde inte läsas: {error}")
         return 0
+
+    # En tom fil ger None som kolumnnamn, och en fil som börjar med en tom rad ger en tom lista
+    if column_names is None or len(column_names) == 0:
+        print(f"Filen {filename} är tom eller saknar rubrikrad.")
+        return 0
+
+    # Med semikolon mellan kolumnerna ser csv-modulen hela rubrikraden som ett enda namn
+    if ";" in column_names[0]:
+        print(f"Filen {filename} verkar ha semikolon mellan kolumnerna. "
+              "CutTrack läser komma mellan kolumnerna och punkt som decimaltecken.")
+        return 0
+
+    missing_columns = []
+    for column_name in CSV_COLUMNS:
+        if column_name not in column_names:
+            missing_columns.append(column_name)
+
+    if len(missing_columns) > 0:
+        print(f"Filen {filename} saknar kolumnerna: {', '.join(missing_columns)}. "
+              f"Förväntade kolumner: {', '.join(CSV_COLUMNS)}.")
+        return 0
+
+    imported_count = 0
+
+    for row in rows:
+        # try/except inne i loopen, så en trasig rad inte stoppar hela importen
+        try:
+            log = make_log_from_row(row)
+            if log is not None:
+                profile.add_log(log)
+                imported_count = imported_count + 1
+        except ValueError as error:
+            print(f"Hoppade över en rad med ogiltiga värden: {error}")
+
+    print(f"{imported_count} loggar lästes in från {filename}.")
+    return imported_count
 
 
 def plot_weight(profile, days=30):
