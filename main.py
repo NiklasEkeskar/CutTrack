@@ -12,6 +12,14 @@ from models import (DailyLog, CutProfile, normalize_date, MIN_HEIGHT_CM, MAX_HEI
 from analysis import (make_csv_filename, is_usable_name, save_profile, load_profile,
                       profile_file_exists, export_logs_csv, import_logs_csv, plot_weight)
 
+# Ansvarsfriskrivningen, på ett ställe så att välkomsttexten och texten vid kaloriförslaget
+# alltid säger samma sak (F22)
+DISCLAIMER_LINES = [
+    "Observera: CutTrack ger allmänna riktvärden baserade på etablerade",
+    "rekommendationer. Det är inte medicinsk rådgivning. Rådgör med läkare",
+    "eller dietist vid sjukdom, graviditet eller medicinering.",
+]
+
 
 def show_welcome():
     """Visar välkomsttext, riktlinjer och ansvarsfriskrivning."""
@@ -37,10 +45,21 @@ def show_welcome():
     print("  Logga varje dag. Programmet väntar 14 dagar innan det bedömer takten,")
     print("  eftersom dagliga vägningar svänger mer än en hel veckas fettförlust.")
     print()
-    print("Observera: CutTrack ger allmänna riktvärden baserade på etablerade")
-    print("rekommendationer. Det är inte medicinsk rådgivning. Rådgör med läkare")
-    print("eller dietist vid sjukdom, graviditet eller medicinering.")
+    for line in DISCLAIMER_LINES:
+        print(line)
     print()
+
+
+def show_suggestion_note():
+    """Texten efter kaloriförslaget: att förslaget är en startpunkt som ska justeras, och
+    ansvarsfriskrivningen (F22)."""
+    print()
+    print("Förslaget är en startpunkt, inte ett facit. Följ vikten i ett par veckor")
+    print("och justera kalorierna om analysen (menyval 2) visar att takten inte")
+    print("stämmer med ditt mål.")
+    print()
+    for line in DISCLAIMER_LINES:
+        print(line)
 
 
 def to_number(answer, label, is_integer=False):
@@ -249,6 +268,7 @@ def run_menu():
         profile.suggest_calorie_goal()
         print(f"Ditt kaloriförslag: {profile.calorie_goal} kcal per dag.")
         print(f"Ditt proteinmål: {round(profile.protein_goal())} gram per dag.")
+        show_suggestion_note()
 
     running = True
     while running:
@@ -287,6 +307,7 @@ def run_menu():
             profile.suggest_calorie_goal()
             print(f"Kaloriförslag: {profile.calorie_goal} kcal per dag.")
             print(f"Proteinmål: {round(profile.protein_goal())} gram per dag.")
+            show_suggestion_note()
         elif choice == "5":
             default_filename = make_csv_filename(profile.name)
             filename = input(f"Filnamn (tomt för {default_filename}): ")

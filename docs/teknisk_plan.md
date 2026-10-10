@@ -169,6 +169,7 @@ Byggda:
 - ask_period(): frågar efter analysperiod, 7, 14 eller 30 dagar (main.py)
 - create_profile(name): frågar efter uppgifterna som behövs och skapar en ny CutProfile (main.py)
 - show_welcome(): välkomsttext, riktlinjer och ansvarsfriskrivning (main.py)
+- show_suggestion_note(): raden om att kaloriförslaget är en startpunkt, och ansvarsfriskrivningen. Anropas efter förslaget när en profil skapas och i menyval 4. Friskrivningen står i listan `DISCLAIMER_LINES`, som också `show_welcome` skriver ut (main.py)
 - run_menu(): CLI-loop med input(), separat från beräkningslogiken. Sparar profilen efter varje ny logg, stannar utan att ändra filen om profilfilen finns men inte går att läsa, och avslutar vid val 6 bara om sparningen lyckades (main.py)
 - log_today(user): frågar efter dagens värden och lägger till en DailyLog. Returnerar `True` om en logg lades till och `False` om inmatningen var fel, så att run_menu vet om det finns något att spara (main.py)
 - main(): startpunkten. Kör run_menu() och fångar KeyboardInterrupt och EOFError (Ctrl+C, och Ctrl+D eller stängd inmatning) med ett kort meddelande i stället för en Python-felutskrift. Meddelandet säger att varje logg från menyval 1 sparades direkt, om inte programmet sa att sparningen misslyckades, och att loggar som lästs in från CSV sparas först när användaren lägger till en ny logg eller väljer 6. Anropas av `if __name__ == "__main__":` längst ned i main.py (main.py)
@@ -307,7 +308,7 @@ Inte använt: statistics (all snittberäkning görs med egna loopar, inte statis
 ## Programflöde
 1. `python main.py` kör main(), som anropar run_menu() och fångar Ctrl+C och Ctrl+D.
 2. show_welcome() visar välkomsttext, riktlinjer och ansvarsfriskrivning.
-3. Fråga efter användarnamn. load_profile(name) laddar profilen om den finns. Finns den inte, frågar create_profile(name) efter längd, ålder, kön, aktivitetsnivå, startvikt, målvikt och önskad takt, och visar ett första kaloriförslag och proteinmål direkt. Finns filen men går den inte att läsa (load_profile ger None i båda fallen, profile_file_exists skiljer dem åt) skriver programmet att det avslutas utan att ändra filen, och ingen ny profil skapas.
+3. Fråga efter användarnamn. load_profile(name) laddar profilen om den finns. Finns den inte, frågar create_profile(name) efter längd, ålder, kön, aktivitetsnivå, startvikt, målvikt och önskad takt, och visar ett första kaloriförslag och proteinmål direkt. Finns filen men går den inte att läsa (load_profile ger None i båda fallen, profile_file_exists skiljer dem åt) skriver programmet att det avslutas utan att ändra filen, och ingen ny profil skapas. Efter kaloriförslaget, här och i menyval 4, skriver show_suggestion_note() att förslaget är en startpunkt och visar friskrivningen.
 4. Meny i run_menu(), sex val: logga dagens data, visa analys, visa viktdiagram, visa kaloriförslag, läs in loggar från CSV, spara och avsluta.
 5. Efter varje ny logg (val 1) sparar save_profile profilen som JSON. Vid avslut (val 6) sparas profilen igen, och bara om det lyckades exporterar export_logs_csv loggarna som CSV till användarens eget filnamn (<namn>_loggar.csv) innan programmet avslutas. Misslyckas sparningen vid val 6 stannar menyn. Det som lästs in från CSV (val 5) sparas inte direkt, utan av nästa ny logg eller av val 6.
 

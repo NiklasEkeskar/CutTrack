@@ -350,6 +350,69 @@ def test_show_welcome_shows_the_disclaimer(capsys):
     assert "inte medicinsk rådgivning" in capsys.readouterr().out
 
 
+# F22: friskrivningen och en rad om att förslaget är en startpunkt ska stå vid
+# kaloriförslaget, både när profilen skapas och i menyval 4, inte bara vid start
+
+STARTING_POINT_TEXT = "Förslaget är en startpunkt, inte ett facit."
+
+
+def test_show_suggestion_note_says_the_suggestion_is_a_starting_point(capsys):
+    main.show_suggestion_note()
+    output = capsys.readouterr().out
+    assert STARTING_POINT_TEXT in output
+    assert "ett par veckor" in output
+    assert "inte medicinsk rådgivning" in output
+
+
+def test_the_note_uses_the_same_disclaimer_as_the_welcome_text(capsys):
+    # Friskrivningen står på ett ställe i koden, så de två texterna kan inte glida isär
+    main.show_welcome()
+    welcome = capsys.readouterr().out
+    main.show_suggestion_note()
+    note = capsys.readouterr().out
+    for line in main.DISCLAIMER_LINES:
+        assert line in welcome
+        assert line in note
+
+
+def test_run_menu_shows_the_note_right_after_the_first_suggestion(monkeypatch, capsys):
+    type_answers(monkeypatch, NEW_USER + ["6"])
+
+    main.run_menu()
+
+    output = capsys.readouterr().out
+    suggestion_at = output.index("Ditt kaloriförslag:")
+    assert output.index(STARTING_POINT_TEXT) > suggestion_at
+    # En gång vid start, en gång vid förslaget
+    assert output.count("inte medicinsk rådgivning") == 2
+    assert output.index(STARTING_POINT_TEXT) < output.index("Meny")
+
+
+def test_run_menu_choice_4_shows_the_note_after_the_suggestion(monkeypatch, capsys):
+    save_profile(make_profile(with_logs=True))
+    capsys.readouterr()
+    type_answers(monkeypatch, ["Anna Berg", "4", "6"])
+
+    main.run_menu()
+
+    output = capsys.readouterr().out
+    after_choice = output[output.index("Kaloriförslag:"):]
+    assert STARTING_POINT_TEXT in after_choice
+    assert "inte medicinsk rådgivning" in after_choice
+
+
+def test_run_menu_does_not_show_the_note_for_a_loaded_profile_until_choice_4(
+        monkeypatch, capsys):
+    # En sparad profil får inget förslag vid start, så ingen not heller
+    save_profile(make_profile(with_logs=True))
+    capsys.readouterr()
+    type_answers(monkeypatch, ["Anna Berg", "6"])
+
+    main.run_menu()
+
+    assert STARTING_POINT_TEXT not in capsys.readouterr().out
+
+
 # ---------------------------------------------------------------------------
 # create_profile (F1, F2)
 # ---------------------------------------------------------------------------
