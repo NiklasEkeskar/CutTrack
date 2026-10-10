@@ -140,7 +140,7 @@ Statusöversikt över alla områden plus en sak att fokusera på. Ordning: vikt,
 
 Byggd i check_goals som en flagga (focus_area) som bara sätts av det första området som inte når sitt mål, genom `if focus_area is None:` i varje gren. Vikten kollas först i koden, så ett viktproblem vinner alltid över ett proteinproblem oavsett vilken ordning de faktiskt hittas i. Är focus_area fortfarande None efter alla fyra kontrollerna, skrivs en sammanfattning byggd på att inget slog till, inte en generell fras.
 
-Avsikten, enligt produktvision.md, är att protein, träning och steg kräver bara ett snitt och därför ska analyseras direkt, till skillnad från vikten som kräver väntetiden i waiting_message. Så är det inte byggt idag: check_goals avbryter efter väntetexten, så inget område analyseras förrän perioden är full (kravspec.md F15).
+Avsikten, enligt produktvision.md, är att protein, träning och steg kräver bara ett snitt och därför ska analyseras direkt, till skillnad från vikten som kräver väntetiden i waiting_message. Så är det byggt sedan 2026-10-10 (kravspec.md F15, byggt men inte genomgånget): check_goals skriver väntetexten, hoppar över vikten och analyserar protein, träning och steg. Träningsmålet skalas till min(days, days_since_start()) dagar, och blir förväntan 0 skrivs att det är för få dagar. Utan fokusområde säger slutraden att det som gick att bedöma ligger inom mål och att vikten bedöms när väntetiden är över.
 
 ## Funktioner (utöver klassmetoder)
 Byggda:

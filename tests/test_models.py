@@ -1064,11 +1064,84 @@ def test_waiting_message_for_logs_older_than_the_profile_shows_no_negative_days(
 # CutProfile.check_goals: vilken gren väljs, och i vilken ordning (F12, F13, F17)
 # ---------------------------------------------------------------------------
 
-def test_check_goals_during_the_waiting_period_prints_only_the_waiting_message(capsys):
+# F15: under väntetiden bedöms inte vikten, men protein, träning och steg kräver bara ett snitt
+# och analyseras direkt. Förut skrev check_goals bara väntetexten och avbröt.
+
+def waiting_profile(days_logged, protein=200, steps=9000, trained=True):
+    """Profil skapad dag 0 med en logg per dag från dag 0, så att days_since_start blir
+    days_logged. Under 14 dagar är väntetiden för sjudagarsperioden inte över."""
     profile = make_profile()
-    profile.logs.append(make_log(3))  # dag 4 sedan start, mindre än en period
+    for day in range(days_logged):
+        profile.logs.append(make_log(day, protein=protein, steps=steps, trained=trained))
+    return profile
+
+
+def test_check_goals_during_the_waiting_period_starts_with_the_waiting_message(capsys):
+    profile = waiting_profile(4)  # dag 4 sedan start, mindre än en period
     profile.check_goals()
-    assert capsys.readouterr().out == profile.waiting_message() + "\n"
+    # En tomrad skiljer väntetexten från bedömningen av protein, träning och steg
+    assert capsys.readouterr().out.startswith(profile.waiting_message() + "\n\n")
+
+
+def test_check_goals_during_the_waiting_period_does_not_assess_the_weight(capsys):
+    waiting_profile(4).check_goals()
+    assert "Vikten:" not in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("days_logged", [4, 10])
+def test_check_goals_during_the_waiting_period_assesses_protein(capsys, days_logged):
+    # Proteinmålet är 80 kg * 1.9 = 152 g. Snittet 150 g ligger under det.
+    waiting_profile(days_logged, protein=150).check_goals()
+    output = capsys.readouterr().out
+    assert "Protein: snitt 150 g mot mål 152 g. Under målet." in output
+    assert "Fokusera på: protein." in output
+
+
+def test_check_goals_during_the_waiting_period_assesses_steps(capsys):
+    waiting_profile(4, steps=5000).check_goals()
+    output = capsys.readouterr().out
+    assert "Steg: snitt 5000 mot mål 8000. Under målet." in output
+    assert "Fokusera på: steg." in output
+
+
+def test_check_goals_during_the_waiting_period_scales_training_to_the_days_so_far(capsys):
+    # Fyra dagar utan träning. Målet 3 dagar per vecka gäller fyra dagar, inte sju:
+    # 3 * 4 / 7 = 1.71, avrundat 2 förväntade dagar
+    waiting_profile(4, trained=False).check_goals()
+    output = capsys.readouterr().out
+    assert "Träning: 0 av 2 förväntade dagar under perioden. Under målet." in output
+    assert "Fokusera på: träning." in output
+
+
+def test_check_goals_after_one_period_expects_training_for_the_whole_period(capsys):
+    # Dag 10: perioden på sju dagar är full, så 3 * 7 / 7 = 3 förväntade dagar
+    waiting_profile(10, trained=False).check_goals()
+    assert "Träning: 0 av 3 förväntade dagar" in capsys.readouterr().out
+
+
+def test_check_goals_expects_one_training_day_after_two_days(capsys):
+    # Två dagar: 3 * 2 / 7 = 0.86, avrundat 1 förväntad dag
+    waiting_profile(2, trained=False).check_goals()
+    assert ("Träning: 0 av 1 förväntade dagar under perioden. Under målet."
+            in capsys.readouterr().out)
+
+
+def test_check_goals_says_when_too_few_days_have_passed_to_assess_training(capsys):
+    # En dag: 3 * 1 / 7 = 0.43, avrundat 0 förväntade dagar. Då finns inget att bedöma.
+    waiting_profile(1, trained=False).check_goals()
+    output = capsys.readouterr().out
+    assert "Träning: för få dagar för att bedöma än." in output
+    assert "Fokusera på: träning." not in output
+
+
+def test_check_goals_during_the_waiting_period_does_not_claim_everything_is_on_target(capsys):
+    # Protein, träning och steg nås, men vikten är inte bedömd. Slutraden får inte säga att
+    # allt ligger inom mål.
+    waiting_profile(4).check_goals()
+    output = capsys.readouterr().out
+    assert "Allt ligger inom mål" not in output
+    assert ("Det som gick att bedöma ligger inom mål. Vikten bedöms när väntetiden är över."
+            in output)
 
 
 def test_check_goals_with_one_log_in_the_window_says_too_little_data(capsys):

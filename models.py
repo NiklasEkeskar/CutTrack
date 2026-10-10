@@ -456,57 +456,60 @@ class CutProfile(User):
 
     def check_goals(self, days=7):
         """Statusöversikt för vald analysperiod (7, 14 eller 30 dagar), plus en sak att
-        fokusera på. Prioritetsordning: vikt, protein, träningsfrekvens, steg."""
+        fokusera på. Prioritetsordning: vikt, protein, träningsfrekvens, steg. Under
+        väntetiden bedöms vikten inte, men protein, träning och steg gör det (F15)."""
         waiting_text = self.waiting_message(days)
-        if waiting_text is not None:
-            print(waiting_text)
-            return
-
         focus_area = None
 
-        # Vikt: undre gränsen är personens eget mål, övre gränsen är ett fast säkerhetstak.
-        # Takten är skillnaden mellan snittet för den senaste perioden och snittet för
-        # perioden före. Ett snitt ligger mitt i sin period, så de två snitten hör till
-        # tidpunkter som ligger days dagar från varandra (med loggar de flesta dagar, luckor
-        # gör takten mindre exakt). Skillnaden delas därför med days och multipliceras med 7,
-        # annars blir en förändring över 30 dagar feltolkad som en veckotakt.
-        avg_weight = self.average_weight(days)
-        previous_avg_weight = self.average_weight(days, days)
-        if avg_weight is not None and previous_avg_weight is not None and avg_weight > 0:
-            weekly_change = (avg_weight - previous_avg_weight) / days * 7
-            rate_percent = -weekly_change / avg_weight * 100
-            actual_kg = round(abs(weekly_change), 1)
-            safety_kg = round(avg_weight * 1.0 / 100, 1)
-            target_kg = round(avg_weight * self.target_rate_percent / 100, 1)
-
-            # Under 0,05 kg per vecka avrundas kilotalet till 0.0. Då vore "minskar med 0.0
-            # kg" missvisande, så vikten räknas som oförändrad
-            if abs(weekly_change) < 0.05:
-                print("Vikten: oförändrad jämfört med perioden före. "
-                      "Underskottet räcker inte.")
-                focus_area = "vikt"
-            elif weekly_change > 0:
-                print(f"Vikten: ökar med {actual_kg} kg per vecka i snitt. "
-                      "Underskottet räcker inte.")
-                focus_area = "vikt"
-            elif rate_percent > 1.0:
-                print(f"Vikten: minskar med {round(rate_percent, 2)} procent per vecka "
-                      f"(cirka {actual_kg} kg), över säkerhetsgränsen 1,0 procent "
-                      f"(cirka {safety_kg} kg för dig). Risk för muskelförlust.")
-                if focus_area is None:
-                    focus_area = "vikt"
-            elif rate_percent < self.target_rate_percent:
-                print(f"Vikten: minskar med {round(rate_percent, 2)} procent per vecka "
-                      f"(cirka {actual_kg} kg), långsammare än ditt mål på "
-                      f"{self.target_rate_percent} procent (cirka {target_kg} kg för dig).")
-                if focus_area is None:
-                    focus_area = "vikt"
-            else:
-                print(f"Vikten: minskar med {round(rate_percent, 2)} procent per vecka "
-                      f"(cirka {actual_kg} kg), vid eller över ditt mål på "
-                      f"{self.target_rate_percent} procent och inom säkerhetsgränsen.")
+        if waiting_text is not None:
+            # Vikten kräver två hela perioder (se waiting_message). Protein, träning och steg
+            # kräver bara ett snitt, så de analyseras ändå nedan.
+            print(waiting_text)
+            print()
         else:
-            print("Vikten: för lite data för att bedöma takten.")
+            # Vikt: undre gränsen är personens eget mål, övre gränsen är ett fast säkerhetstak.
+            # Takten är skillnaden mellan snittet för den senaste perioden och snittet för
+            # perioden före. Ett snitt ligger mitt i sin period, så de två snitten hör till
+            # tidpunkter som ligger days dagar från varandra (med loggar de flesta dagar, luckor
+            # gör takten mindre exakt). Skillnaden delas därför med days och multipliceras med 7,
+            # annars blir en förändring över 30 dagar feltolkad som en veckotakt.
+            avg_weight = self.average_weight(days)
+            previous_avg_weight = self.average_weight(days, days)
+            if avg_weight is not None and previous_avg_weight is not None and avg_weight > 0:
+                weekly_change = (avg_weight - previous_avg_weight) / days * 7
+                rate_percent = -weekly_change / avg_weight * 100
+                actual_kg = round(abs(weekly_change), 1)
+                safety_kg = round(avg_weight * 1.0 / 100, 1)
+                target_kg = round(avg_weight * self.target_rate_percent / 100, 1)
+
+                # Under 0,05 kg per vecka avrundas kilotalet till 0.0. Då vore "minskar med 0.0
+                # kg" missvisande, så vikten räknas som oförändrad
+                if abs(weekly_change) < 0.05:
+                    print("Vikten: oförändrad jämfört med perioden före. "
+                          "Underskottet räcker inte.")
+                    focus_area = "vikt"
+                elif weekly_change > 0:
+                    print(f"Vikten: ökar med {actual_kg} kg per vecka i snitt. "
+                          "Underskottet räcker inte.")
+                    focus_area = "vikt"
+                elif rate_percent > 1.0:
+                    print(f"Vikten: minskar med {round(rate_percent, 2)} procent per vecka "
+                          f"(cirka {actual_kg} kg), över säkerhetsgränsen 1,0 procent "
+                          f"(cirka {safety_kg} kg för dig). Risk för muskelförlust.")
+                    if focus_area is None:
+                        focus_area = "vikt"
+                elif rate_percent < self.target_rate_percent:
+                    print(f"Vikten: minskar med {round(rate_percent, 2)} procent per vecka "
+                          f"(cirka {actual_kg} kg), långsammare än ditt mål på "
+                          f"{self.target_rate_percent} procent (cirka {target_kg} kg för dig).")
+                    if focus_area is None:
+                        focus_area = "vikt"
+                else:
+                    print(f"Vikten: minskar med {round(rate_percent, 2)} procent per vecka "
+                          f"(cirka {actual_kg} kg), vid eller över ditt mål på "
+                          f"{self.target_rate_percent} procent och inom säkerhetsgränsen.")
+            else:
+                print("Vikten: för lite data för att bedöma takten.")
 
         # Protein, dagligt mål, ingen skalning behövs
         avg_protein = self.average_protein(days)
@@ -523,10 +526,14 @@ class CutProfile(User):
         else:
             print("Protein: för lite data.")
 
-        # Träningsfrekvens är ett veckomål, det skalas till den valda perioden
+        # Träningsfrekvens är ett veckomål, det skalas till den valda perioden. Under väntetiden
+        # har perioden inte hunnit bli full, så målet skalas till dagarna hittills.
+        covered_days = min(days, self.days_since_start())
         training_count = self.training_days(days)
-        expected_training = round(self.training_goal_days * days / 7)
-        if training_count < expected_training:
+        expected_training = round(self.training_goal_days * covered_days / 7)
+        if expected_training == 0:
+            print("Träning: för få dagar för att bedöma än.")
+        elif training_count < expected_training:
             print(f"Träning: {training_count} av {expected_training} förväntade dagar under "
                   "perioden. Under målet.")
             if focus_area is None:
@@ -548,7 +555,10 @@ class CutProfile(User):
             print("Steg: för lite data.")
 
         print()
-        if focus_area is None:
+        if focus_area is None and waiting_text is not None:
+            # Vikten är inte bedömd, så slutraden får inte säga att allt ligger inom mål
+            print("Det som gick att bedöma ligger inom mål. Vikten bedöms när väntetiden är över.")
+        elif focus_area is None:
             print("Allt ligger inom mål just nu. Fortsätt som du gör.")
         else:
             print(f"Fokusera på: {focus_area}.")
