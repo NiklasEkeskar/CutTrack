@@ -357,7 +357,11 @@ def import_logs_csv(profile, filename=None):
             # första raden som nycklar, så ordningen på kolumnerna spelar ingen roll
             reader = csv.DictReader(file)
             column_names = reader.fieldnames
-            rows = list(reader)
+            # Varje rad sparas med sitt radnummer i filen. line_num räknar fysiska rader, även
+            # tomma rader som csv-modulen hoppar över, så numret stämmer med filen.
+            rows = []
+            for row in reader:
+                rows.append((reader.line_num, row))
     except UnicodeDecodeError:
         print(f"Filen {filename} är inte sparad som UTF-8 och kunde inte läsas. "
               "Spara om den som UTF-8 och försök igen.")
@@ -391,19 +395,44 @@ def import_logs_csv(profile, filename=None):
         return 0
 
     imported_count = 0
+    replaced_count = 0
+    skipped_count = 0
 
-    for row in rows:
+    for line_number, row in rows:
         # try/except inne i loopen, så en trasig rad inte stoppar hela importen
         try:
             log = make_log_from_row(row)
             if log is not None:
-                profile.add_log(log)
+                # Tyst, en sammanfattning skrivs efteråt i stället för en rad per logg
+                replaced = profile.add_log(log, announce=False)
                 imported_count = imported_count + 1
+                if replaced:
+                    replaced_count = replaced_count + 1
         except ValueError as error:
-            print(f"Hoppade över en rad med ogiltiga värden: {error}")
+            print(f"Hoppade över rad {line_number} med ogiltiga värden: {error}")
+            skipped_count = skipped_count + 1
 
-    print(f"{imported_count} loggar lästes in från {filename}.")
+    print_import_summary(filename, imported_count, replaced_count, skipped_count)
     return imported_count
+
+
+def print_import_summary(filename, imported_count, replaced_count, skipped_count):
+    """Sammanfattningen efter en CSV-import, med rätt böjning för en och flera."""
+    if imported_count == 1:
+        print(f"1 logg lästes in från {filename}.")
+    else:
+        print(f"{imported_count} loggar lästes in från {filename}.")
+
+    # Importen ersätter loggar med samma datum utan att fråga, så det ska synas
+    if replaced_count == 1:
+        print("En av dem ersatte en befintlig logg med samma datum.")
+    elif replaced_count > 1:
+        print(f"{replaced_count} av dem ersatte befintliga loggar med samma datum.")
+
+    if skipped_count == 1:
+        print("1 rad hoppades över, se meddelandet ovan.")
+    elif skipped_count > 1:
+        print(f"{skipped_count} rader hoppades över, se meddelandena ovan.")
 
 
 def plot_weight(profile, days=30):

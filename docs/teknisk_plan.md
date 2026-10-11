@@ -156,7 +156,7 @@ Byggda:
 - profile_file_exists(name): säger om profilfilen finns, oavsett om den går att läsa. `load_profile` ger `None` i båda fallen, och menyn måste kunna skilja dem åt (analysis.py)
 - load_profile(name): läser profil och loggar från JSON, try/except för sex feltyper. Ger `None` om filen saknas eller inte går att läsa (analysis.py)
 - export_logs_csv(profile, filename=None): loggarna som CSV, utan filnamn används make_csv_filename(profile.name)
-- import_logs_csv(profile, filename=None): läser loggar från CSV, utan filnamn läses samma standardnamn som exporten skriver. Går det fel på hela filen läses ingenting in och ett meddelande säger vad som är fel, en trasig rad hoppas över med ett meddelande. Returnerar antalet inlästa loggar
+- import_logs_csv(profile, filename=None): läser loggar från CSV, utan filnamn läses samma standardnamn som exporten skriver. Går det fel på hela filen läses ingenting in och ett meddelande säger vad som är fel, en trasig rad hoppas över med ett meddelande som nämner radnumret. Loggarna läggs till tyst, och print_import_summary skriver efteråt antal inlästa, ersatta och överhoppade. Returnerar antalet inlästa loggar
 - make_log_from_row(row): bygger en DailyLog från en rad (en dictionary från `csv.DictReader`). Kastar ValueError med svensk text om raden inte går att läsa och ger None för en rad där alla celler är tomma (analysis.py)
 - parse_number(text, label, is_integer=False): gör om en cell till ett tal. Kastar ValueError med svensk text som nämner kolumnen och cellens innehåll (analysis.py)
 - parse_trained(text): `True` eller `False` med valfria versaler och mellanslag, annars ValueError (analysis.py)

@@ -179,15 +179,21 @@ class User:
         # Tom lista, en ny användare har per definition inga loggar än
         self.logs = []
 
-    def add_log(self, new_log):
+    def add_log(self, new_log, announce=True):
+        """Lägger till loggen, eller ersätter en logg med samma datum. Returnerar True om en
+        logg ersattes. Med announce=False skrivs inget ut, så att CSV-importen kan skriva en
+        sammanfattning i stället för en rad per logg."""
         # Samma datum finns redan, ersätt den gamla posten i stället för en dubblett
         for i in range(len(self.logs)):
             if self.logs[i].date == new_log.date:
                 self.logs[i] = new_log
-                print(f"Loggen för {new_log.date} uppdaterades.")
-                return
+                if announce:
+                    print(f"Loggen för {new_log.date} uppdaterades.")
+                return True
         self.logs.append(new_log)
-        print(f"Loggen för {new_log.date} lades till.")
+        if announce:
+            print(f"Loggen för {new_log.date} lades till.")
+        return False
 
     def get_logs(self, days, offset_days=0):
         """Returnerar loggarna från de senaste days kalenderdagarna. Med offset_days flyttas

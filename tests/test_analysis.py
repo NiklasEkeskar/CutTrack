@@ -794,7 +794,74 @@ def test_importing_the_same_file_twice_does_not_duplicate_logs(capsys):
     capsys.readouterr()
     import_logs_csv(fresh)
     assert len(fresh.logs) == 2
-    assert "uppdaterades" in capsys.readouterr().out
+    assert "2 av dem ersatte befintliga loggar med samma datum." in capsys.readouterr().out
+
+
+# Sammanfattningen av en CSV-import: en rad per fil i stället för en rad per logg, antalet
+# loggar som ersatte loggar med samma datum, och radnummer för rader som hoppades över
+
+def test_import_does_not_print_a_line_per_log(capsys):
+    import_text(CSV_HEADER + FIRST_ROW + SECOND_ROW + THIRD_ROW)
+    output = capsys.readouterr().out
+    assert "lades till" not in output
+    assert "uppdaterades" not in output
+    assert "3 loggar lästes in från data.csv." in output
+
+
+def test_import_says_logg_in_the_singular_for_one_log(capsys):
+    import_text(CSV_HEADER + FIRST_ROW)
+    assert "1 logg lästes in från data.csv." in capsys.readouterr().out
+
+
+def test_import_says_how_many_logs_replaced_logs_with_the_same_date(capsys):
+    profile = make_profile(with_logs=True)  # loggar 2026-09-01 och 2026-09-02
+    write_text("data.csv", CSV_HEADER + FIRST_ROW + SECOND_ROW + THIRD_ROW)
+    capsys.readouterr()
+
+    assert import_logs_csv(profile, "data.csv") == 3
+
+    output = capsys.readouterr().out
+    assert "3 loggar lästes in från data.csv." in output
+    assert "2 av dem ersatte befintliga loggar med samma datum." in output
+    assert len(profile.logs) == 3
+
+
+def test_import_says_in_the_singular_when_one_log_replaced_another(capsys):
+    profile = make_profile(with_logs=True)
+    write_text("data.csv", CSV_HEADER + FIRST_ROW + THIRD_ROW)
+    capsys.readouterr()
+
+    import_logs_csv(profile, "data.csv")
+
+    assert "En av dem ersatte en befintlig logg med samma datum." in capsys.readouterr().out
+
+
+def test_import_says_nothing_about_replaced_logs_when_none_were_replaced(capsys):
+    import_text(CSV_HEADER + FIRST_ROW)
+    assert "ersatte" not in capsys.readouterr().out
+
+
+def test_import_gives_the_line_number_of_a_skipped_row(capsys):
+    # Rubrikraden är rad 1. En tom rad räknas med, fast csv-modulen hoppar över den.
+    import_text(CSV_HEADER + FIRST_ROW + "\n" + "2026-09-02,abc,2200,150,8000,True,\n"
+                + THIRD_ROW)
+    assert ("Hoppade över rad 4 med ogiltiga värden: Vikt måste vara ett tal, "
+            "men raden har 'abc'.") in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("bad_rows, expected_line", [
+    ("2026-09-02,abc,2200,150,8000,True,\n", "1 rad hoppades över, se meddelandet ovan."),
+    ("2026-09-02,abc,2200,150,8000,True,\n2026-09-04,abc,2200,150,8000,True,\n",
+     "2 rader hoppades över, se meddelandena ovan."),
+])
+def test_import_summary_says_how_many_rows_were_skipped(capsys, bad_rows, expected_line):
+    import_text(CSV_HEADER + FIRST_ROW + bad_rows)
+    assert expected_line in capsys.readouterr().out
+
+
+def test_import_summary_says_nothing_about_skipped_rows_when_none_were(capsys):
+    import_text(CSV_HEADER + FIRST_ROW)
+    assert "hoppades över" not in capsys.readouterr().out
 
 
 def test_import_reports_a_missing_file(capsys):
@@ -821,7 +888,7 @@ def test_import_skips_broken_rows_and_reads_the_rest(capsys):
 
     assert [log.date for log in profile.logs] == ["2026-09-01", "2026-09-06"]
     out = capsys.readouterr().out
-    assert out.count("Hoppade över en rad med ogiltiga värden") == 4
+    assert out.count("med ogiltiga värden") == 4
     assert "Vikten måste vara ett rimligt tal" in out
     assert "Kalorierna måste vara ett rimligt tal" in out
     assert "Vikt måste vara ett tal, men raden har 'abc'." in out
@@ -851,7 +918,7 @@ def test_import_skips_rows_with_a_date_that_is_not_a_real_date(capsys):
 
     assert [log.date for log in profile.logs] == ["2026-09-01", "2026-09-05"]
     out = capsys.readouterr().out
-    assert out.count("Hoppade över en rad med ogiltiga värden: "
+    assert out.count("med ogiltiga värden: "
                      "Datumet måste skrivas som ÅÅÅÅ-MM-DD") == 3
     assert "2 loggar lästes in från datum.csv." in out
 
@@ -1021,7 +1088,7 @@ def test_import_skips_rows_with_the_wrong_number_of_values(bad_row, expected_mes
     assert imported_count == 2
     assert [log.date for log in profile.logs] == ["2026-09-01", "2026-09-03"]
     out = capsys.readouterr().out
-    assert f"Hoppade över en rad med ogiltiga värden: {expected_message}" in out
+    assert f"Hoppade över rad 3 med ogiltiga värden: {expected_message}" in out
     assert "2 loggar lästes in från data.csv." in out
 
 
@@ -1059,7 +1126,7 @@ def test_import_skips_a_row_where_training_is_not_true_or_false(cell, capsys):
 
     assert imported_count == 2
     assert [log.date for log in profile.logs] == ["2026-09-01", "2026-09-03"]
-    assert ("Hoppade över en rad med ogiltiga värden: "
+    assert ("Hoppade över rad 3 med ogiltiga värden: "
             f"Träning måste vara True eller False, men raden har '{cell}'.") in capsys.readouterr().out
 
 
@@ -1084,7 +1151,7 @@ def test_import_says_which_value_is_not_a_number(bad_row, expected_message, caps
 
     assert imported_count == 2
     assert [log.date for log in profile.logs] == ["2026-09-01", "2026-09-03"]
-    assert f"Hoppade över en rad med ogiltiga värden: {expected_message}" in capsys.readouterr().out
+    assert f"Hoppade över rad 3 med ogiltiga värden: {expected_message}" in capsys.readouterr().out
 
 
 @pytest.mark.parametrize("bad_row, expected_message", [
@@ -1114,7 +1181,7 @@ def test_import_skips_rows_with_values_outside_the_limits(bad_row, expected_mess
 
     assert imported_count == 2
     assert [log.date for log in profile.logs] == ["2026-09-01", "2026-09-03"]
-    assert f"Hoppade över en rad med ogiltiga värden: {expected_message}" in capsys.readouterr().out
+    assert f"Hoppade över rad 3 med ogiltiga värden: {expected_message}" in capsys.readouterr().out
 
 
 def test_import_trims_spaces_around_the_values():

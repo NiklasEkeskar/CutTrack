@@ -561,6 +561,16 @@ def test_a_profile_with_every_value_at_its_upper_limit_is_accepted():
 # User.add_log (F6)
 # ---------------------------------------------------------------------------
 
+def test_add_log_can_add_quietly_and_tells_whether_a_log_was_replaced(capsys):
+    # CSV-importen lägger till många loggar och skriver en sammanfattning i stället för en
+    # rad per logg. add_log säger därför om loggen ersatte en annan.
+    user = make_user()
+    assert user.add_log(make_log(0), announce=False) is False
+    assert user.add_log(make_log(0, weight=89.0), announce=False) is True
+    assert capsys.readouterr().out == ""
+    assert len(user.logs) == 1
+
+
 def test_add_log_appends_a_new_date_and_says_so(capsys):
     user = make_user()
     user.add_log(make_log(0))
