@@ -1,7 +1,7 @@
 """Tester för analysis.py: filnamn, profilfiler (JSON) och loggar som CSV.
 
-Diagramfunktionerna (plot_weight, plot_protein, plot_steps) och menyn i notebooken
-testas inte här.
+Diagramfunktionerna (plot_weight, plot_protein, plot_steps) testas i test_charts.py.
+Menyn i notebooken testas inte här.
 
 Funktionerna skriver och läser filer i den aktuella mappen. Varje test körs därför i en
 egen tom tillfällig mapp (se work_in_temp_folder), så inga testfiler hamnar i repot.
