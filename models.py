@@ -43,6 +43,20 @@ def is_number(value):
     return False
 
 
+def days_left_text(count):
+    """"1 dag kvar" eller "4 dagar kvar", med rätt böjning av dag."""
+    if count == 1:
+        return "1 dag kvar"
+    return f"{count} dagar kvar"
+
+
+def days_data_text(count):
+    """"1 dags data" eller "3 dagars data", med rätt böjning av dag."""
+    if count == 1:
+        return "1 dags data"
+    return f"{count} dagars data"
+
+
 def is_whole_number(value):
     """True om value är ett heltal (int). Ett decimaltal som 8000.0 räknas inte, och inte
     heller True och False."""
@@ -436,13 +450,14 @@ class CutProfile(User):
         Kräver en period för att visa ett snitt, två perioder för att bedöma takten."""
         total_days = self.days_since_start()
 
-        # En period krävs för att visa ett snitt alls
+        # En period krävs för att visa ett snitt alls. Bara vikten väntar, protein, träning
+        # och steg analyseras redan (F15).
         if total_days < days:
             remaining = days - total_days
             return ("Vikten svänger flera hundra gram från dag till dag på grund av vätska och "
-                    "maginnehåll, mer än ett par dagars verkliga fettförlust. Ett råd byggt på "
-                    f"{total_days} dagars data vore bara brus. {remaining} dagar kvar tills ett "
-                    f"{days}-dagarssnitt visas.")
+                    "maginnehåll, mer än ett par dagars verkliga fettförlust. En bedömning av "
+                    f"vikten byggd på {days_data_text(total_days)} vore bara brus. "
+                    f"{days_left_text(remaining)} tills ett {days}-dagarssnitt visas.")
 
         # Två perioder krävs innan takten bedöms: takten är skillnaden mellan snittet för
         # den senaste perioden och snittet för perioden före (se check_goals)
@@ -450,7 +465,7 @@ class CutProfile(User):
             remaining = days * 2 - total_days
             return ("Snittet är nu tillräckligt med data för att visas, men "
                     "takten går inte att bedöma säkert än. "
-                    f"{remaining} dagar kvar tills full analys är möjlig.")
+                    f"{days_left_text(remaining)} tills takten bedöms.")
 
         return None
 

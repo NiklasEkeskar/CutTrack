@@ -350,6 +350,15 @@ def test_show_welcome_shows_the_disclaimer(capsys):
     assert "inte medicinsk rådgivning" in capsys.readouterr().out
 
 
+def test_show_welcome_describes_the_waiting_time_as_two_periods(capsys):
+    # Förut stod det att programmet väntar 14 dagar, men väntetiden är två perioder:
+    # 14, 28 eller 60 dagar beroende på vald period
+    main.show_welcome()
+    output = capsys.readouterr().out
+    assert "väntar 14 dagar" not in output
+    assert "två hela perioder" in output
+
+
 # F22: friskrivningen och en rad om att förslaget är en startpunkt ska stå vid
 # kaloriförslaget, både när profilen skapas och i menyval 4, inte bara vid start
 

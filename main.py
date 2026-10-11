@@ -42,8 +42,9 @@ def show_welcome():
     print("  Håll ett måttligt kaloriunderskott. För stort underskott kostar")
     print("  muskelmassa utan att gå snabbare i längden.")
     print()
-    print("  Logga varje dag. Programmet väntar 14 dagar innan det bedömer takten,")
-    print("  eftersom dagliga vägningar svänger mer än en hel veckas fettförlust.")
+    print("  Logga varje dag. Takten bedöms först när två hela perioder finns, 14 dagar")
+    print("  med sjudagarsperiod, eftersom dagliga vägningar svänger mer än en hel")
+    print("  veckas fettförlust. Protein, träning och steg bedöms från första dagen.")
     print()
     for line in DISCLAIMER_LINES:
         print(line)

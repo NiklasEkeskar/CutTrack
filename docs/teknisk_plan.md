@@ -127,13 +127,13 @@ Kräver `datetime` från standardbiblioteket för att göra om datumsträngar ti
 Urvalet ligger i `get_logs(days, offset_days=0)`, som anropas av `average_weight`, `weight_change` och `training_days`. Regeln finns därmed på ett enda ställe och behöver bara ändras där.
 
 ### Väntetexter
-Dag 1 till 6 och dag 7 till 13 visar programmet en kort förklaring av varför det inte ger råd än, plus hur många dagar som återstår. Två till tre meningar, inte mer.
+Dag 1 till 6 och dag 7 till 13 visar programmet en kort förklaring av varför vikten inte bedöms än, plus hur många dagar som återstår. Två till tre meningar, inte mer. Dag böjs rätt: "1 dag kvar" och "1 dags data", annars "dagar kvar" och "dagars data" (funktionerna days_left_text och days_data_text i models.py).
 
 Tiderna gäller sjudagarsperioden. Med vald period `days` krävs en period (`days` dagar) för att visa ett snitt och två perioder (2 × `days` dagar) för att bedöma takten, så med 14 dagars period börjar full analys på dag 28 och med 30 dagar på dag 60. Två perioder krävs för att takten jämför den senaste perioden med perioden före.
 
 Byggd som en egen metod, waiting_message, på CutProfile, inte inbakat i check_goals. Räknar dagar via days_since_start, som räknar från starten till senast loggade dagen, inte till dagens riktiga datum, av samma skäl som get_logs: har du inte loggat på några dagar ska analysen ändå utgå från din senaste aktiva period. Starten är created_date, eller den tidigaste loggen om den ligger före created_date, och båda dagarna räknas med. Det andra fallet uppstår när äldre data läses in i en ny profil, till exempel exempelfilen, eftersom create_profile ger en ny profil dagens datum. Före rättningen (2026-10-10) räknades alltid från created_date, och antalet dagar blev då negativt och väntetexten fel. created_date ändras inte, så profilen sparas som den skapades. Datumen görs om med strptime och jämförs som datum, som i get_logs. Alla loggars datum läses, så ett ogiltigt datum skulle ge ValueError i days_since_start, även under väntetiden. Sedan datumkontrollen (2026-10-10) kommer ett ogiltigt datum inte in i en logg eller ett startdatum, så felet kan bara uppstå om någon ändrat ett datum direkt i koden (kravspec.md D1, statuslogg.md Steg 1).
 
-check_goals anropar waiting_message först. Finns det text att visa, skrivs den och funktionen avbryter innan någon analys görs. Först när perioden är full (dag 14 för sjudagarsperioden) returnerar waiting_message None och full analys körs.
+check_goals anropar waiting_message först. Finns det text att visa skrivs den, vikten bedöms inte, och protein, träning och steg analyseras (F15). Efter en hel period visas också viktens snitt (F16). Först när två perioder har gått (dag 14 för sjudagarsperioden) returnerar waiting_message None och takten bedöms.
 
 ### Prioritering av råd
 Statusöversikt över alla områden plus en sak att fokusera på. Ordning: vikt, protein, träningsfrekvens, steg.

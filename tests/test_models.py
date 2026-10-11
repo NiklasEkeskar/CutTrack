@@ -1015,7 +1015,32 @@ def test_waiting_message_before_one_period_shows_the_days_left():
 
 def test_waiting_message_between_one_and_two_periods_shows_the_days_left():
     message = profile_with_days_since_start(10).waiting_message(7)
-    assert message.endswith("säkert än. 4 dagar kvar tills full analys är möjlig.")  # 14 - 10
+    assert message.endswith("säkert än. 4 dagar kvar tills takten bedöms.")  # 14 - 10
+
+
+# Väntetexterna efter F15 och F16: vikten är det enda som väntar, och en dag är en dag, inte
+# "1 dagar"
+
+def test_waiting_message_says_one_day_left_in_the_singular():
+    message = profile_with_days_since_start(6).waiting_message(7)  # 7 - 6 = 1
+    assert message.endswith("vore bara brus. 1 dag kvar tills ett 7-dagarssnitt visas.")
+
+
+def test_waiting_message_says_one_days_data_in_the_singular():
+    message = profile_with_days_since_start(1).waiting_message(7)
+    assert "byggd på 1 dags data vore bara brus." in message
+
+
+def test_waiting_message_between_periods_says_one_day_left_in_the_singular():
+    message = profile_with_days_since_start(13).waiting_message(7)  # 14 - 13 = 1
+    assert message.endswith("säkert än. 1 dag kvar tills takten bedöms.")
+
+
+def test_waiting_message_says_that_only_the_weight_waits():
+    # Protein, träning och steg analyseras redan (F15), så texten får inte säga att allt väntar
+    message = profile_with_days_since_start(3).waiting_message(7)
+    assert "En bedömning av vikten byggd på 3 dagars data vore bara brus." in message
+    assert "Ett råd byggt på" not in message
 
 
 def test_waiting_message_defaults_to_a_seven_day_period():
@@ -1028,7 +1053,7 @@ def test_average_is_shown_after_one_period(days):
     before = profile_with_days_since_start(days - 1).waiting_message(days)
     after = profile_with_days_since_start(days).waiting_message(days)
     assert "visas" in before  # väntar på ett första snitt
-    assert "full analys" in after  # snittet kan visas, takten kan inte bedömas än
+    assert "tills takten bedöms" in after  # snittet kan visas, takten kan inte bedömas än
 
 
 @pytest.mark.parametrize("days, first_full_day", [(7, 14), (14, 28), (30, 60)])
