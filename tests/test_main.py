@@ -305,6 +305,47 @@ def test_to_number_explains_in_swedish_what_was_wrong(answer, is_integer, expect
     assert str(caught.value) == expected_message
 
 
+# Tusentalsavgränsare. "2,000" och "2.000" lästes som 2, så 2 kcal sparades utan ett ord.
+# Ett svar med en avgränsare och exakt tre siffror efter kan betyda båda sakerna, så det
+# avvisas med ett eget meddelande i stället för att gissas (beslutat 2026-10-11).
+
+THOUSANDS_MESSAGE = ("Kalorier: skriv talet utan tusentalsavgränsare, till exempel 2000. "
+                     "Decimaler skrivs med högst två siffror, till exempel 82,5. "
+                     "Du skrev '{answer}'.")
+
+
+@pytest.mark.parametrize("answer", ["2,000", "2.000", "12,500", " 2.000 ", "2 000",
+                                    "10 000", "1.000.000", "1,000,000", "1 000 000", "-2,000"])
+def test_to_number_rejects_a_thousands_separator_with_its_own_message(answer):
+    with pytest.raises(ValueError) as caught:
+        main.to_number(answer, "Kalorier")
+    assert str(caught.value) == THOUSANDS_MESSAGE.format(answer=answer)
+
+
+@pytest.mark.parametrize("answer", ["8,000", "8.000", "8 000"])
+def test_to_number_rejects_a_thousands_separator_also_for_whole_numbers(answer):
+    with pytest.raises(ValueError) as caught:
+        main.to_number(answer, "Steg", True)
+    assert "skriv talet utan tusentalsavgränsare" in str(caught.value)
+
+
+@pytest.mark.parametrize("answer, expected", [
+    ("2000", 2000.0), ("82,5", 82.5), ("82.55", 82.55), ("2000,5", 2000.5),
+    ("2,0000", 2.0),   # fyra decimaler kan inte vara en tusentalsavgränsare
+    ("1234.567", 1234.567),  # fyra siffror före avgränsaren kan inte heller vara det
+])
+def test_to_number_still_reads_numbers_that_cannot_be_thousands(answer, expected):
+    assert main.to_number(answer, "Vikt") == expected
+
+
+def test_log_today_does_not_save_2_kcal_for_2_000(monkeypatch, capsys):
+    profile = make_profile()
+    type_answers(monkeypatch, answers_with(LOG_ANSWERS, {"calories": "2.000"}))
+    assert main.log_today(profile) is False
+    assert profile.logs == []
+    assert "skriv talet utan tusentalsavgränsare" in capsys.readouterr().out
+
+
 # ---------------------------------------------------------------------------
 # ask_name: namnet som profilfilen döps efter (N1)
 # ---------------------------------------------------------------------------
