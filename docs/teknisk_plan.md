@@ -26,7 +26,7 @@ Metoder: add_log, get_logs(days, offset_days=0), average_weight(days, offset_day
 
 ### CutProfile(User), barnklass
 Extra attribut: goal_weight, calorie_goal, protein_goal_per_kg, step_goal, target_rate_percent, training_goal_days (standard 3).
-Extra metoder: current_weight, calculate_bmr, calculate_tdee, protein_goal, suggest_calorie_goal, days_since_start, waiting_message, check_goals, waist_comparison, goal_projection.
+Extra metoder: current_weight, calculate_bmr, calculate_tdee, protein_goal, suggest_calorie_goal, days_since_start, waiting_message, check_goals, waist_comparison, goal_projection, plateau_message.
 
 Validerar i `__init__` att målvikten är ett tal lägre än startvikten, att takten är ett tal mellan 0 och 1,0 procent per vecka, att proteinmålet är över 0 och högst 5 gram per kilo, att stegmålet är ett heltal mellan 1 och 100 000 och att träningsmålet är ett heltal mellan 0 och 7 dagar. Samma mönster som DailyLog, felet kastas där objektet skapas.
 
@@ -138,6 +138,9 @@ check_goals anropar waiting_message först. Finns det text att visa skrivs den, 
 ### Dagar till målvikt (F25)
 goal_projection i CutProfile ger en rak linje från nuvarande takt: kilo kvar (snittet för perioden minus målvikten) delat med takten i kilo per vecka, samma uträkning som i check_goals (F24). Datumet räknas från senaste loggens datum, inte från dagens datum, av samma skäl som get_logs: analysen utgår från den senaste aktiva perioden. Den senaste loggen tas efter datum, inte efter plats i listan. Antalet dagar är minst 1, så raden säger aldrig "om 0 dagar". Under 7 dagar visas dagar, annars hela veckor. Metoden returnerar None under väntetiden, när någon period saknar vägningar och när takten är under 0,05 kg per vecka, samma gräns som texten oförändrad i check_goals, eftersom en prognos då blir orimligt lång eller oändlig. Är snittet redan på eller under målvikten returneras en text om det. check_goals skriver raden direkt efter viktraden när takten är bedömd, och den påverkar inte fokusområdet. Begränsning: en linjär projektion antar att takten håller, men takten brukar avta när vikten går ner, så datumet blir troligen för tidigt. Raden säger det.
 
+### Platå (F26)
+plateau_message i CutProfile tar snitten för de tre senaste perioderna, `average_weight(days, 0)`, `(days, days)` och `(days, 2 * days)`, och räknar två takter i kg per vecka som i check_goals. Är båda under 0,05 kg per vecka åt något håll returneras en text om platå, annars None. Saknar någon period vägningar returneras None. Ingen egen kontroll av väntetiden behövs: finns vägningar i den tredje perioden har minst två perioder gått. check_goals skriver texten direkt efter "Vikten: oförändrad", och fokus är redan vikt där. Gränsen på två jämförelser saknar källa, se statuslogg.md Beslut.
+
 ### Midjemått (F18)
 waist_comparison i CutProfile jämför första och senaste midjemåttet efter datum, om de ligger minst 14 dagar isär, med vikten samma dagar. En förändring under 2 cm räknas som nästan oförändrad (mätfelet vid självmätning, Barrios m.fl. 2016), och vikten räknas som lägre från 1 kg (satt utan källa). Vikt ner och midja ner ger texten att det pekar mot fettförlust, vikt ner och midja nästan oförändrad ger en varning som också säger att det kan vara mätfel. check_goals skriver raden efter stegen. Den blir aldrig fokusområde, eftersom den är en signal och inte ett mål.
 
@@ -158,10 +161,11 @@ Byggda:
 - make_safe_name(name): bygger den säkra delen av ett filnamn från användarnamnet, teckenvis i en loop
 - make_filename(name): lägger till .json, filnamnet för användarens profil
 - make_csv_filename(name): lägger till _loggar.csv, filnamnet för användarens CSV-export
-- save_profile(profile): sparar profil och loggar till JSON. Skriver först till `<namn>.tmp.json` och byter sedan namn till profilfilen med `os.replace`, så att ett fel mitt i skrivningen lämnar den gamla filen orörd. Returnerar `True` om det gick och `False` om det inte gick (analysis.py)
+- write_to_disk(file): `flush()` och `os.fsync` på en öppen fil, så att innehållet ligger på disken före namnbytet (analysis.py)
+- save_profile(profile): sparar profil och loggar till JSON. Skriver först till `<namn>.tmp.json`, tvingar ut den till disken med write_to_disk och byter sedan namn till profilfilen med `os.replace`, så att ett fel mitt i skrivningen lämnar den gamla filen orörd. Returnerar `True` om det gick och `False` om det inte gick (analysis.py)
 - profile_file_exists(name): säger om profilfilen finns, oavsett om den går att läsa. `load_profile` ger `None` i båda fallen, och menyn måste kunna skilja dem åt (analysis.py)
 - load_profile(name): läser profil och loggar från JSON, try/except för sex feltyper. Ger `None` om filen saknas eller inte går att läsa (analysis.py)
-- export_logs_csv(profile, filename=None): loggarna som CSV, utan filnamn används make_csv_filename(profile.name)
+- export_logs_csv(profile, filename=None): loggarna som CSV, utan filnamn används make_csv_filename(profile.name). Skrivs som save_profile via en temporär fil med samma ändelse (`annaberg_loggar.tmp.csv`), write_to_disk och `os.replace`
 - import_logs_csv(profile, filename=None): läser loggar från CSV, utan filnamn läses samma standardnamn som exporten skriver. Går det fel på hela filen läses ingenting in och ett meddelande säger vad som är fel, en trasig rad hoppas över med ett meddelande som nämner radnumret. Loggarna läggs till tyst, och print_import_summary skriver efteråt antal inlästa, ersatta och överhoppade. Returnerar antalet inlästa loggar
 - make_log_from_row(row): bygger en DailyLog från en rad (en dictionary från `csv.DictReader`). Kastar ValueError med svensk text om raden inte går att läsa och ger None för en rad där alla celler är tomma (analysis.py)
 - parse_number(text, label, is_integer=False): gör om en cell till ett tal. Kastar ValueError med svensk text som nämner kolumnen och cellens innehåll (analysis.py)
@@ -169,7 +173,7 @@ Byggda:
 - is_empty_row(row): sant om alla celler i raden är tomma (analysis.py)
 - plot_weight(profile, days): viktdiagram med matplotlib
 - plot_protein(profile, days) och plot_steps(profile, days): samma mönster för protein och steg
-- to_number(answer, label, is_integer=False): gör om ett svar till ett tal, godtar punkt och komma som decimaltecken och avvisar `nan` och `inf`. Kastar ValueError med svensk text som nämner frågan och svaret (main.py)
+- to_number(answer, label, is_integer=False): gör om ett svar till ett tal, godtar punkt och komma som decimaltecken och avvisar `nan` och `inf`. Ett svar som ser ut som tusentalsavgränsare (en till tre siffror och grupper om tre efter punkt, komma eller mellanslag, `THOUSANDS_PATTERN`) avvisas med ett eget meddelande, eftersom `2,000` annars blev 2. Kastar ValueError med svensk text som nämner frågan och svaret (main.py)
 - ask_number(question, is_integer=False, low=None, high=None): frågar tills svaret går att tolka som tal, och med low och high tills det ligger mellan dem (main.py)
 - ask_name(): frågar efter namnet tills det går att bygga ett eget filnamn av det och det har högst 50 tecken (main.py)
 - ask_period(): frågar efter analysperiod, 7, 14 eller 30 dagar (main.py)
@@ -268,7 +272,7 @@ Tre saker skyddar användarens loggar mot att försvinna. De byggdes 2026-10-10 
 
 `os.replace` valdes framför `os.rename`. Pythons dokumentation säger att `os.rename` på Windows alltid kastar `FileExistsError` när målet finns, medan `os.replace` ersätter en befintlig fil, och att namnbytet är atomärt när det lyckas (ett krav i POSIX), alltså att den som läser filen ser antingen den gamla eller den nya, aldrig en blandning. Den temporära filen ligger i samma mapp som profilfilen, eftersom ett namnbyte mellan olika filsystem kan misslyckas. Namnet `<namn>.tmp.json` kan aldrig vara en annan användares profilfil, eftersom `make_safe_name` tar bort punkter. Misslyckas skrivningen (`OSError`) tar `save_profile` bort den halvskrivna filen, skriver ett meddelande och returnerar `False`. Går inte ens borttagningen blir filen kvar, och nästa sparning skriver över den.
 
-Det som inte finns är `fsync`, som tvingar operativsystemet att skriva filen till disken innan namnbytet. Utan det kan ett strömavbrott i fel ögonblick ändå ge en tom eller halv fil, så skyddet gäller mot ett program som kraschar eller avbryts, inte mot en dator som förlorar strömmen. CSV-exporten är inte gjord på samma sätt: `export_logs_csv` skriver direkt i `<namn>_loggar.csv`, som är en extra kopia och inte den enda.
+Sedan 2026-10-11 tvingas den temporära filen ut till disken med `os.fsync` före namnbytet (hjälpfunktionen `write_to_disk`, som först tömmer Pythons buffert med `flush()`), och CSV-exporten skrivs på samma sätt via `<namn>_loggar.tmp.csv`. Före dess saknades båda: `fsync` för att den skyddar mot strömavbrott, inte mot krascher, och exporten för att CSV-filen är en extra kopia. Det som fortfarande saknas är `fsync` på själva mappen efter namnbytet, som på vissa filsystem krävs för att namnbytet ska överleva ett strömavbrott. Det är svårare att göra på Windows och har inte bedömts värt det.
 
 **Sparning efter varje ny logg.** `log_today` returnerar `True` när en logg lades till och `False` när inmatningen var fel, och `run_menu` anropar `save_profile` direkt efter varje `True`. Svaret är en bool och inte en jämförelse av `len(profile.logs)` före och efter, eftersom en logg som ersätter en logg med samma datum inte ändrar antalet. Misslyckas sparningen skriver programmet att loggen finns kvar i programmet men inte på disk, och menyval 6 försöker igen. Menyval 5 (CSV-inläsning) sparar inte direkt: `import_logs_csv` ersätter loggar med samma datum utan att fråga, så Ctrl+C direkt efter en felaktig inläsning är sättet att ångra den, och en automatisk sparning skulle ta bort det. Det inlästa sparas av nästa ny logg, eftersom `save_profile` sparar hela profilen, eller av menyval 6, och meddelandet vid Ctrl+C säger det. En ny profil sparas först vid den första loggen eller vid menyval 6, inte när den skapas.
 
