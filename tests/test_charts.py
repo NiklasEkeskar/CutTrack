@@ -177,3 +177,43 @@ def test_seven_day_average_with_a_log_every_day(plot, field, logged_label, goal_
     average = lines_by_label()["Sjudagarssnitt"]
     assert x_values(average) == ["2026-09-07", "2026-09-08"]
     assert y_values(average) == [40, 50]
+
+
+@pytest.mark.parametrize("plot, field, logged_label, goal_label, goal, title, y_label", PLOTS)
+def test_seven_day_average_counts_calendar_days_not_logs(plot, field, logged_label,
+                                                         goal_label, goal, title, y_label):
+    # Loggar varannan dag: 1, 3, 5, ... 17 september. Ett snitt över sju kalenderdagar
+    # innehåller då tre eller fyra loggar, inte sju. Förut räknades de sju senaste
+    # loggarna, alltså tretton dagar, och kallades ändå sjudagarssnitt.
+    profile = make_profile()
+    values = [10, 20, 30, 40, 50, 60, 70, 80, 90]
+    for index, value in enumerate(values):
+        log_values = {"weight": 70.0, "protein": 120, "steps": 8000}
+        log_values[field] = value
+        day = f"2026-09-{1 + 2 * index:02d}"
+        profile.logs.append(DailyLog(day, log_values["weight"], 2000, log_values["protein"],
+                                     log_values["steps"], True))
+
+    plot(profile)
+
+    average = lines_by_label()["Sjudagarssnitt"]
+    # Första punkten är 7 september, den första loggen minst sex dagar efter den första
+    # loggen. Fönstret 1 till 7 september har 10, 20, 30 och 40: snitt 25.
+    # 9 september: 3 till 9 september, 20 till 50: snitt 35. Och så vidare.
+    assert x_values(average) == ["2026-09-07", "2026-09-09", "2026-09-11", "2026-09-13",
+                                 "2026-09-15", "2026-09-17"]
+    assert y_values(average) == [25, 35, 45, 55, 65, 75]
+
+
+def test_seven_day_average_skips_a_gap_without_logs_in_the_window():
+    # Dag 1 till 7, sedan ett uppehåll till dag 20. Dag 20:s fönster (14 till 20) har bara
+    # dag 20, så snittet är dess eget värde. Förut blandades dag 2 till 7 in.
+    profile = make_profile()
+    add_daily_logs(profile, 1, [70, 70, 70, 70, 70, 70, 70])
+    profile.logs.append(DailyLog("2026-09-20", 63.0, 2000, 120, 8000, True))
+
+    plot_weight(profile)
+
+    average = lines_by_label()["Sjudagarssnitt"]
+    assert x_values(average) == ["2026-09-07", "2026-09-20"]
+    assert y_values(average) == [70, 63]

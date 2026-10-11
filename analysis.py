@@ -5,6 +5,7 @@ from analysis import (make_filename, make_csv_filename,
                        export_logs_csv, import_logs_csv,
                        plot_weight, plot_protein, plot_steps)"""
 import errno
+from datetime import datetime
 import json
 import csv
 import os
@@ -468,6 +469,35 @@ def print_import_summary(filename, imported_count, replaced_count, skipped_count
         print(f"{skipped_count} rader hoppades över, se meddelandena ovan.")
 
 
+def seven_day_averages(dates, values):
+    """Rullande sjudagarssnitt för diagrammen. dates är datum som text (ÅÅÅÅ-MM-DD) i
+    stigande ordning och values ett värde per datum. Varje punkt är snittet av de värden
+    vars datum ligger inom sju kalenderdagar bakåt, dagen själv medräknad. Den första
+    punkten kommer sex dagar efter det första datumet, när en hel vecka har gått.
+    Returnerar två listor: datumen och snitten."""
+    # Kalenderdagar och inte de sju senaste loggarna, som get_logs. Med luckor i
+    # loggningen hade sju loggar annars kunnat sträcka sig över flera veckor.
+    days = []
+    for date_text in dates:
+        days.append(datetime.strptime(date_text, "%Y-%m-%d").date())
+
+    average_dates = []
+    average_values = []
+    for i in range(len(days)):
+        if (days[i] - days[0]).days < 6:
+            continue
+        total = 0
+        count = 0
+        for j in range(i + 1):
+            if (days[i] - days[j]).days <= 6:
+                total = total + values[j]
+                count = count + 1
+        average_dates.append(dates[i])
+        average_values.append(total / count)
+
+    return average_dates, average_values
+
+
 def plot_weight(profile, days=30):
     """Visar ett diagram över viktutvecklingen, med loggad vikt,
     rullande sjudagarssnitt och målvikt."""
@@ -495,16 +525,7 @@ def plot_weight(profile, days=30):
         dates.append(log.date)
         weights.append(log.weight)
 
-    # Rullande sjudagarssnitt, ett värde per dag från och med den sjunde
-    average_dates = []
-    average_weights = []
-    for i in range(len(sorted_logs)):
-        if i >= 6:
-            total = 0
-            for j in range(i - 6, i + 1):
-                total = total + sorted_logs[j].weight
-            average_dates.append(sorted_logs[i].date)
-            average_weights.append(total / 7)
+    average_dates, average_weights = seven_day_averages(dates, weights)
 
     plt.figure(figsize=(10, 5))
     plt.plot(dates, weights, marker="o", label="Loggad vikt")
@@ -549,15 +570,7 @@ def plot_protein(profile, days=30):
         dates.append(log.date)
         proteins.append(log.protein)
 
-    average_dates = []
-    average_proteins = []
-    for i in range(len(sorted_logs)):
-        if i >= 6:
-            total = 0
-            for j in range(i - 6, i + 1):
-                total = total + sorted_logs[j].protein
-            average_dates.append(sorted_logs[i].date)
-            average_proteins.append(total / 7)
+    average_dates, average_proteins = seven_day_averages(dates, proteins)
 
     plt.figure(figsize=(10, 5))
     plt.plot(dates, proteins, marker="o", label="Loggat protein")
@@ -602,15 +615,7 @@ def plot_steps(profile, days=30):
         dates.append(log.date)
         steps.append(log.steps)
 
-    average_dates = []
-    average_steps = []
-    for i in range(len(sorted_logs)):
-        if i >= 6:
-            total = 0
-            for j in range(i - 6, i + 1):
-                total = total + sorted_logs[j].steps
-            average_dates.append(sorted_logs[i].date)
-            average_steps.append(total / 7)
+    average_dates, average_steps = seven_day_averages(dates, steps)
 
     plt.figure(figsize=(10, 5))
     plt.plot(dates, steps, marker="o", label="Loggade steg")
