@@ -48,6 +48,10 @@ PROFILE_ANSWERS = {
     "age": "35",
     "sex": "kvinna",
     "activity": "3",
+    # Målen (F23). Ett tomt svar behåller standardvärdet.
+    "protein_goal": "",
+    "step_goal": "",
+    "training_goal": "",
     "start_weight": "70",
     "goal_weight": "62",
     "rate": "0.8",
@@ -168,6 +172,26 @@ def test_ask_number_does_not_swallow_end_of_input(monkeypatch):
     type_answers(monkeypatch, [])
     with pytest.raises(EOFError):
         main.ask_number("Vikt: ")
+
+
+# F23: ett tomt svar kan ge ett standardvärde
+
+@pytest.mark.parametrize("blank", ["", "   "])
+def test_ask_number_returns_the_default_for_a_blank_answer(monkeypatch, blank):
+    type_answers(monkeypatch, [blank])
+    assert main.ask_number("Stegmål: ", True, 1, 100000, default=8000) == 8000
+
+
+def test_ask_number_without_a_default_asks_again_after_a_blank_answer(monkeypatch, capsys):
+    type_answers(monkeypatch, ["", "82.5"])
+    assert main.ask_number("Vikt: ") == 82.5
+    assert "Skriv ett tal" in capsys.readouterr().out
+
+
+def test_ask_number_with_a_default_still_checks_a_typed_answer(monkeypatch, capsys):
+    type_answers(monkeypatch, ["0", "9000"])
+    assert main.ask_number("Stegmål: ", True, 1, 100000, default=8000) == 9000
+    assert "Skriv ett tal mellan 1 och 100000." in capsys.readouterr().out
 
 
 # N1: decimalkomma, nan och inf, gränser, och ett meddelande som passar frågan
@@ -472,7 +496,7 @@ def test_create_profile_translates_the_activity_choice_to_a_factor(
 def test_create_profile_asks_again_when_the_activity_choice_is_not_1_to_5(monkeypatch, capsys):
     # 6 är ett tal utanför listan. Text och 2.5 är inte heltal. 2 godtas.
     type_answers(monkeypatch,
-                 ["170", "35", "kvinna", "6", "abc", "2.5", "2", "70", "62", "0.8"])
+                 ["170", "35", "kvinna", "6", "abc", "2.5", "2", "", "", "", "70", "62", "0.8"])
 
     profile = main.create_profile("Anna Berg")
 
@@ -494,7 +518,7 @@ def test_create_profile_accepts_man_and_kvinna_in_any_case(monkeypatch, typed, e
 
 
 def test_create_profile_asks_again_when_the_sex_is_not_man_or_kvinna(monkeypatch, capsys):
-    type_answers(monkeypatch, ["170", "35", "hund", "man", "3", "70", "62", "0.8"])
+    type_answers(monkeypatch, ["170", "35", "hund", "man", "3", "", "", "", "70", "62", "0.8"])
 
     profile = main.create_profile("Bo Ek")
 
@@ -503,7 +527,8 @@ def test_create_profile_asks_again_when_the_sex_is_not_man_or_kvinna(monkeypatch
 
 
 def test_create_profile_needs_whole_numbers_for_height_and_age(monkeypatch, capsys):
-    type_answers(monkeypatch, ["170.5", "170", "35.5", "35", "kvinna", "3", "70", "62", "0.8"])
+    type_answers(monkeypatch,
+                 ["170.5", "170", "35.5", "35", "kvinna", "3", "", "", "", "70", "62", "0.8"])
 
     profile = main.create_profile("Anna Berg")
 
@@ -553,6 +578,70 @@ def test_create_profile_asks_again_when_the_rate_is_outside_0_to_1(
     assert profile.target_rate_percent == 0.8
     assert "Det gick inte: Takten måste ligga mellan 0 och 1,0 procent" in \
         capsys.readouterr().out
+
+
+# F23: proteinmål, stegmål och träningsmål frågas när profilen skapas
+
+def test_create_profile_keeps_the_default_goals_for_blank_answers(monkeypatch):
+    type_answers(monkeypatch, list(PROFILE_ANSWERS.values()))
+    profile = main.create_profile("Anna Berg")
+    assert profile.protein_goal_per_kg == 1.9
+    assert profile.step_goal == 8000
+    assert profile.training_goal_days == 3
+
+
+def test_create_profile_uses_the_goals_the_user_types(monkeypatch):
+    type_answers(monkeypatch, answers_with(
+        PROFILE_ANSWERS, {"protein_goal": "2,2", "step_goal": "10000", "training_goal": "4"}))
+    profile = main.create_profile("Anna Berg")
+    assert profile.protein_goal_per_kg == 2.2
+    assert profile.step_goal == 10000
+    assert isinstance(profile.step_goal, int)
+    assert profile.training_goal_days == 4
+
+
+@pytest.mark.parametrize("field, bad_answer, good_answer, expected_message", [
+    ("protein_goal", "0", "2", "Skriv ett tal mellan 0.5 och 5."),
+    ("protein_goal", "19", "2", "Skriv ett tal mellan 0.5 och 5."),
+    ("step_goal", "0", "9000", "Skriv ett tal mellan 1 och 100000."),
+    ("step_goal", "9000.5", "9000", "Skriv ett tal utan decimaler."),
+    ("training_goal", "8", "4", "Skriv ett tal mellan 0 och 7."),
+])
+def test_create_profile_asks_again_for_a_goal_outside_the_limits(
+        monkeypatch, capsys, field, bad_answer, good_answer, expected_message):
+    answers = answers_with(PROFILE_ANSWERS, {field: good_answer})
+    answers.insert(list(PROFILE_ANSWERS).index(field), bad_answer)
+    type_answers(monkeypatch, answers)
+
+    main.create_profile("Anna Berg")
+
+    assert expected_message in capsys.readouterr().out
+
+
+def test_create_profile_shows_the_defaults_in_the_goal_questions(monkeypatch, capsys):
+    type_answers(monkeypatch, list(PROFILE_ANSWERS.values()))
+    main.create_profile("Anna Berg")
+    output = capsys.readouterr().out
+    assert "(Enter för 1.9)" in output
+    assert "(Enter för 8000)" in output
+    assert "(Enter för 3)" in output
+
+
+def test_create_profile_rate_question_matches_what_the_profile_accepts(monkeypatch, capsys):
+    # Frågan sa "0.5 till 1.0", men CutProfile godtar allt över 0 till och med 1.0
+    type_answers(monkeypatch, list(PROFILE_ANSWERS.values()))
+    main.create_profile("Anna Berg")
+    output = capsys.readouterr().out
+    assert "0.5 till 1.0" not in output
+    assert "Önskad takt i procent per vecka (högst 1.0, till exempel 0.7): " in output
+
+
+def test_run_menu_shows_the_protein_goal_from_the_typed_goal(monkeypatch, capsys):
+    # Målvikt 62 kg och 2.0 gram per kilo: 62 * 2.0 = 124 gram
+    answers = ["Anna Berg"] + answers_with(PROFILE_ANSWERS, {"protein_goal": "2"}) + ["6"]
+    type_answers(monkeypatch, answers)
+    main.run_menu()
+    assert "Ditt proteinmål: 124 gram per dag." in capsys.readouterr().out
 
 
 # N1: längd och ålder frågas om direkt, decimalkomma, nan och mellanslag

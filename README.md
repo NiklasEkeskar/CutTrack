@@ -16,7 +16,7 @@ Projektet började som slutprojekt i kursen Utveckling med Python, grund, inom Y
 
 ## Vad programmet gör
 
-- Varje användare har en egen profil med längd, ålder, kön, aktivitetsnivå, startvikt, målvikt och önskad takt. Profilen sparas som JSON.
+- Varje användare har en egen profil med längd, ålder, kön, aktivitetsnivå, startvikt, målvikt och önskad takt, och egna mål för protein, steg och träning (standard 1,9 gram per kilo målvikt, 8 000 steg och 3 träningsdagar per vecka). Profilen sparas som JSON.
 - Dagliga loggar med datum, vikt, kalorier, protein, steg, träning (ja eller nej) och midjemått (valfritt). Datumet kontrolleras och skrivs som ÅÅÅÅ-MM-DD med nollor, så 2026-10-8 sparas som 2026-10-08. En ny logg för ett datum som redan finns ersätter den gamla.
 - Ett personligt kaloriförslag beräknat från profilen, med ett golv som programmet förklarar när det slår i.
 - Analys över 7, 14 eller 30 dagar: viktens takt i procent per vecka, protein, träningsfrekvens och steg, plus en sak att fokusera på.

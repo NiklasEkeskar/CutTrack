@@ -26,6 +26,12 @@ MAX_PROTEIN_PER_KG = 5
 MAX_TRAINING_DAYS = 7
 MAX_NAME_LENGTH = 50
 
+# Standardvärden för målen, när användaren inte anger egna (F23)
+DEFAULT_PROTEIN_PER_KG = 1.9
+DEFAULT_STEP_GOAL = 8000
+DEFAULT_TRAINING_DAYS = 3
+MIN_MENU_PROTEIN_PER_KG = 0.5
+
 DATE_MESSAGE = "Datumet måste skrivas som ÅÅÅÅ-MM-DD, till exempel 2026-10-08."
 
 
@@ -292,8 +298,8 @@ class CutProfile(User):
     """En användare som deffar. Ärver allt från User och lägger till mål och kaloriberäkningar."""
 
     def __init__(self, name, height_cm, age, sex, activity_level, start_weight, created_date,
-                 goal_weight, target_rate_percent, protein_goal_per_kg=1.9, step_goal=8000,
-                 training_goal_days=3):
+                 goal_weight, target_rate_percent, protein_goal_per_kg=DEFAULT_PROTEIN_PER_KG,
+                 step_goal=DEFAULT_STEP_GOAL, training_goal_days=DEFAULT_TRAINING_DAYS):
         # super() sätter alla ärvda attribut, inklusive self.logs, innan de
         # egna attributen sätts nedan. Utan den här raden hade self.logs saknats.
         super().__init__(name, height_cm, age, sex, activity_level, start_weight, created_date)

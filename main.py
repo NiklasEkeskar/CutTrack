@@ -8,7 +8,9 @@ import math
 from datetime import datetime
 
 from models import (DailyLog, CutProfile, normalize_date, MIN_HEIGHT_CM, MAX_HEIGHT_CM,
-                    MIN_AGE, MAX_AGE, MAX_NAME_LENGTH)
+                    MIN_AGE, MAX_AGE, MAX_NAME_LENGTH, MAX_STEPS, MAX_PROTEIN_PER_KG,
+                    MAX_TRAINING_DAYS, MIN_MENU_PROTEIN_PER_KG, DEFAULT_PROTEIN_PER_KG,
+                    DEFAULT_STEP_GOAL, DEFAULT_TRAINING_DAYS)
 from analysis import (make_csv_filename, is_usable_name, save_profile, load_profile,
                       profile_file_exists, export_logs_csv, import_logs_csv, plot_weight)
 
@@ -88,13 +90,16 @@ def to_number(answer, label, is_integer=False):
     return number
 
 
-def ask_number(question, is_integer=False, low=None, high=None):
+def ask_number(question, is_integer=False, low=None, high=None, default=None):
     """Frågar tills användaren skriver ett giltigt tal. Med low och high måste talet ligga
-    mellan dem, båda inkluderade. Ange båda eller ingen av dem."""
+    mellan dem, båda inkluderade. Ange båda eller ingen av dem. Med default ger ett tomt svar
+    det värdet."""
     # while True: loopen upprepas bara vid fel (continue), ett giltigt svar returneras
     # direkt och avslutar funktionen
     while True:
         answer = input(question)
+        if default is not None and answer.strip() == "":
+            return default
         try:
             number = to_number(answer, "Svaret", is_integer)
         except ValueError:
@@ -175,12 +180,26 @@ def create_profile(name):
 
     activity_level = activity_levels[activity_choice]
 
+    # Målen frågas före vikterna, så att de inte frågas om när vikterna eller takten är fel
+    # (F23). Gränserna är desamma som i CutProfile, utom att proteinmålet kräver minst 0,5
+    # gram per kilo här, för att fånga 0 och skrivfel som 0.05.
+    print()
+    print("Dina mål. Tryck Enter för att behålla standardvärdet.")
+    protein_goal_per_kg = ask_number(
+        f"Proteinmål i gram per kilo målvikt (Enter för {DEFAULT_PROTEIN_PER_KG}): ",
+        False, MIN_MENU_PROTEIN_PER_KG, MAX_PROTEIN_PER_KG, DEFAULT_PROTEIN_PER_KG)
+    step_goal = ask_number(f"Stegmål per dag (Enter för {DEFAULT_STEP_GOAL}): ",
+                           True, 1, MAX_STEPS, DEFAULT_STEP_GOAL)
+    training_goal_days = ask_number(
+        f"Träningsdagar per vecka (Enter för {DEFAULT_TRAINING_DAYS}): ",
+        True, 0, MAX_TRAINING_DAYS, DEFAULT_TRAINING_DAYS)
+
     print()
     # Vikterna och takten valideras tillsammans i CutProfile, så alla tre frågas om vid fel
     while True:
         start_weight = ask_number("Startvikt i kg: ")
         goal_weight = ask_number("Målvikt i kg: ")
-        target_rate = ask_number("Önskad takt i procent per vecka (0.5 till 1.0): ")
+        target_rate = ask_number("Önskad takt i procent per vecka (högst 1.0, till exempel 0.7): ")
 
         # Konkret exempel innan profilen skapas, eftersom procent är abstrakt utan ett kilotal
         example_kg = round(start_weight * target_rate / 100, 1)
@@ -189,7 +208,8 @@ def create_profile(name):
         try:
             created_date = datetime.now().strftime("%Y-%m-%d")
             profile = CutProfile(name, height_cm, age, sex, activity_level,
-                                 start_weight, created_date, goal_weight, target_rate)
+                                 start_weight, created_date, goal_weight, target_rate,
+                                 protein_goal_per_kg, step_goal, training_goal_days)
             return profile
         except ValueError as error:
             print(f"Det gick inte: {error}")
