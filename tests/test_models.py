@@ -1134,6 +1134,60 @@ def test_check_goals_says_when_too_few_days_have_passed_to_assess_training(capsy
     assert "Fokusera på: träning." not in output
 
 
+# F16: efter en hel period finns ett snitt av vikten, fast takten inte går att bedöma än.
+# Förut sa väntetexten att snittet kunde visas, men inget snitt skrevs ut.
+
+def test_check_goals_shows_the_weight_average_after_one_period(capsys):
+    # Dag 0 till 9 med vikten 90.0 - 0.1 * dag. De senaste sju dagarna är dag 3 till 9:
+    # (89.7 + 89.6 + 89.5 + 89.4 + 89.3 + 89.2 + 89.1) / 7 = 89.4
+    profile = make_profile()
+    for day in range(10):
+        profile.logs.append(make_log(day, weight=round(90.0 - 0.1 * day, 1), protein=200))
+    profile.check_goals()
+    assert ("Vikten: snitt 89.4 kg de senaste 7 dagarna. Takten bedöms inte än."
+            in capsys.readouterr().out)
+
+
+def test_check_goals_shows_the_weight_average_from_the_day_the_period_is_full(capsys):
+    waiting_profile(7).check_goals()
+    assert "Vikten: snitt 90.0 kg de senaste 7 dagarna." in capsys.readouterr().out
+
+
+def test_check_goals_shows_no_weight_average_before_one_period(capsys):
+    waiting_profile(6).check_goals()
+    assert "Vikten:" not in capsys.readouterr().out
+
+
+def test_check_goals_shows_the_average_for_the_chosen_period(capsys):
+    # Period 14, dag 20: vikten 90.0 - 0.1 * dag. De senaste 14 dagarna är dag 6 till 19,
+    # från 89.4 till 88.1, och snittet är (89.4 + 88.1) / 2 = 88.75, avrundat 88.8. Snittet
+    # för sju dagar vore 88.4, så testet visar att perioden används.
+    profile = make_profile()
+    for day in range(20):
+        profile.logs.append(make_log(day, weight=round(90.0 - 0.1 * day, 1), protein=200))
+    profile.check_goals(14)
+    assert "Vikten: snitt 88.8 kg de senaste 14 dagarna." in capsys.readouterr().out
+
+
+def test_the_weight_average_is_rounded_to_one_decimal(capsys):
+    # De senaste sju av tio vikter: (90.0 + 90.2 + 90.1 + 90.3 + 90.0 + 90.2 + 90.1) / 7
+    # = 90.128..., avrundat 90.1
+    profile = make_profile()
+    weights = [90.0, 90.1, 90.3, 90.0, 90.2, 90.1, 90.3, 90.0, 90.2, 90.1]
+    for day in range(10):
+        profile.logs.append(make_log(day, weight=weights[day], protein=200))
+    profile.check_goals()
+    assert "Vikten: snitt 90.1 kg de senaste 7 dagarna." in capsys.readouterr().out
+
+
+def test_the_weight_average_does_not_set_the_focus(capsys):
+    # Snittet bedöms inte, så det kan inte bli fokusområde. Allt annat nås här.
+    waiting_profile(10).check_goals()
+    output = capsys.readouterr().out
+    assert "Fokusera på" not in output
+    assert "Det som gick att bedöma ligger inom mål." in output
+
+
 def test_check_goals_during_the_waiting_period_does_not_claim_everything_is_on_target(capsys):
     # Protein, träning och steg nås, men vikten är inte bedömd. Slutraden får inte säga att
     # allt ligger inom mål.

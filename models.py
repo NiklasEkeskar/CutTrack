@@ -466,6 +466,14 @@ class CutProfile(User):
             # kräver bara ett snitt, så de analyseras ändå nedan.
             print(waiting_text)
             print()
+            # Efter en hel period finns ett snitt att visa, fast takten inte går att bedöma
+            # förrän perioden före också är full (F16). Snittet bedöms inte och blir aldrig
+            # fokusområde.
+            if self.days_since_start() >= days:
+                avg_weight = self.average_weight(days)
+                if avg_weight is not None:
+                    print(f"Vikten: snitt {round(avg_weight, 1)} kg de senaste {days} dagarna. "
+                          "Takten bedöms inte än.")
         else:
             # Vikt: undre gränsen är personens eget mål, övre gränsen är ett fast säkerhetstak.
             # Takten är skillnaden mellan snittet för den senaste perioden och snittet för
