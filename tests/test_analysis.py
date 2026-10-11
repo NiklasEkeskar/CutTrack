@@ -814,6 +814,186 @@ def test_export_shows_no_python_error_text_when_the_file_cannot_be_written(capsy
     assert "Errno" not in capsys.readouterr().out
 
 
+# N3: exporten skriver först till annaberg_loggar.tmp.csv och byter namn när allt är
+# skrivet, som sparningen av profilen, så att en export som avbryts mitt i inte förstör den
+# förra CSV-kopian. Den temporära filen slutar på .csv, så git ignorerar den om den blir kvar.
+# Beslutat 2026-10-11, se statuslogg.md.
+
+def test_export_leaves_no_temp_file_behind():
+    export_logs_csv(make_profile())
+    assert os.listdir(".") == ["annaberg_loggar.csv"]
+
+
+def test_export_replaces_the_old_file_with_the_new_content():
+    profile = make_profile()
+    export_logs_csv(profile)
+    profile.logs.append(DailyLog("2026-09-03", 69.0, 1900, 110, 8000, True))
+
+    export_logs_csv(profile)
+
+    assert len(read_csv_rows("annaberg_loggar.csv")) == 4  # rubrikraden och tre loggar
+    assert os.listdir(".") == ["annaberg_loggar.csv"]
+
+
+def test_export_overwrites_a_temp_file_left_by_an_earlier_crash():
+    write_text("annaberg_loggar.tmp.csv", "halvskriven rest")
+    assert export_logs_csv(make_profile()) is True
+    assert os.listdir(".") == ["annaberg_loggar.csv"]
+
+
+class FailingWriter:
+    """Skriver rubrikraden och kastar OSError på nästa rad, som en disk som blir full mitt
+    i exporten."""
+
+    def __init__(self, file):
+        self.file = file
+
+    def writerow(self, row):
+        if row[0] != "date":
+            raise OSError("Disken är full")
+        self.file.write(",".join(row) + "\n")
+
+
+def test_export_keeps_the_old_file_when_writing_fails_halfway(monkeypatch, capsys):
+    # Förut öppnades CSV-filen direkt för skrivning, och det tömmer den. Ett fel mitt i
+    # exporten lämnade en halv fil i stället för den förra kopian.
+    export_logs_csv(make_profile())
+    old_content = read_bytes("annaberg_loggar.csv")
+    capsys.readouterr()
+    written_to = []
+
+    def failing_writer(file):
+        written_to.append(file.name)
+        return FailingWriter(file)
+
+    monkeypatch.setattr(analysis.csv, "writer", failing_writer)
+
+    assert export_logs_csv(make_profile()) is False
+
+    assert written_to == ["annaberg_loggar.tmp.csv"]
+    assert read_bytes("annaberg_loggar.csv") == old_content
+    assert os.listdir(".") == ["annaberg_loggar.csv"]  # den halvskrivna filen är borttagen
+    assert "Loggarna kunde inte exporteras: Disken är full" in capsys.readouterr().out
+
+
+def test_export_keeps_the_old_file_when_the_rename_fails(monkeypatch, capsys):
+    export_logs_csv(make_profile())
+    old_content = read_bytes("annaberg_loggar.csv")
+    capsys.readouterr()
+
+    def failing_replace(source, destination):
+        raise OSError("Åtkomst nekad")
+
+    monkeypatch.setattr(analysis.os, "replace", failing_replace)
+    profile = make_profile()
+    profile.logs.append(DailyLog("2026-09-03", 69.0, 1900, 110, 8000, True))
+
+    assert export_logs_csv(profile) is False
+
+    assert read_bytes("annaberg_loggar.csv") == old_content
+    assert os.listdir(".") == ["annaberg_loggar.csv"]
+    assert "Loggarna kunde inte exporteras: Åtkomst nekad" in capsys.readouterr().out
+
+
+def test_export_with_a_filename_writes_through_a_temp_file_next_to_it(monkeypatch):
+    replaced = []
+    real_replace = os.replace
+
+    def recording_replace(source, destination):
+        replaced.append((source, destination))
+        real_replace(source, destination)
+
+    monkeypatch.setattr(analysis.os, "replace", recording_replace)
+
+    export_logs_csv(make_profile(), "min_export.csv")
+
+    assert replaced == [("min_export.tmp.csv", "min_export.csv")]
+    assert os.listdir(".") == ["min_export.csv"]
+
+
+def test_export_reports_it_when_the_temp_file_can_neither_be_written_nor_removed(capsys):
+    export_logs_csv(make_profile())
+    old_content = read_bytes("annaberg_loggar.csv")
+    os.mkdir("annaberg_loggar.tmp.csv")
+    capsys.readouterr()
+
+    assert export_logs_csv(make_profile()) is False
+
+    assert read_bytes("annaberg_loggar.csv") == old_content
+    assert os.path.isdir("annaberg_loggar.tmp.csv")
+    assert "Loggarna kunde inte exporteras:" in capsys.readouterr().out
+
+
+# N3: filen tvingas ut till disken (fsync) innan den byter namn, både vid sparning och export.
+# Annars kan ett strömavbrott strax efter namnbytet ge en tom fil, eftersom datorn kan hålla
+# innehållet i minnet en stund innan det skrivs. Beslutat 2026-10-11.
+
+def record_fsync_and_replace(monkeypatch):
+    """Byter os.fsync och os.replace i analysis mot versioner som gör samma sak men skriver
+    upp i vilken ordning de anropas."""
+    events = []
+    real_fsync = os.fsync
+    real_replace = os.replace
+
+    def recording_fsync(descriptor):
+        events.append("fsync")
+        real_fsync(descriptor)
+
+    def recording_replace(source, destination):
+        events.append("replace")
+        real_replace(source, destination)
+
+    monkeypatch.setattr(analysis.os, "fsync", recording_fsync)
+    monkeypatch.setattr(analysis.os, "replace", recording_replace)
+    return events
+
+
+def test_save_profile_syncs_the_temp_file_before_renaming_it(monkeypatch):
+    events = record_fsync_and_replace(monkeypatch)
+    assert save_profile(make_profile()) is True
+    assert events == ["fsync", "replace"]
+
+
+def test_export_syncs_the_temp_file_before_renaming_it(monkeypatch):
+    events = record_fsync_and_replace(monkeypatch)
+    assert export_logs_csv(make_profile()) is True
+    assert events == ["fsync", "replace"]
+
+
+def test_the_synced_file_already_holds_everything_that_was_written(monkeypatch):
+    # fsync skickar bara det som redan lämnat Pythons buffert. Utan flush() före kan en del
+    # av innehållet ligga kvar i bufferten när fsync körs.
+    sizes = []
+    real_fsync = os.fsync
+
+    def measuring_fsync(descriptor):
+        sizes.append(os.fstat(descriptor).st_size)
+        real_fsync(descriptor)
+
+    monkeypatch.setattr(analysis.os, "fsync", measuring_fsync)
+    save_profile(make_profile())
+    export_logs_csv(make_profile())
+
+    assert sizes == [os.path.getsize("annaberg.json"), os.path.getsize("annaberg_loggar.csv")]
+
+
+def test_save_profile_keeps_the_old_file_when_the_sync_fails(monkeypatch, capsys):
+    save_profile(make_profile())
+    old_content = read_bytes("annaberg.json")
+    capsys.readouterr()
+
+    def failing_fsync(descriptor):
+        raise OSError("In- eller utmatningsfel")
+
+    monkeypatch.setattr(analysis.os, "fsync", failing_fsync)
+
+    assert save_profile(make_profile(with_logs=False)) is False
+
+    assert read_bytes("annaberg.json") == old_content
+    assert os.listdir(".") == ["annaberg.json"]
+    assert "Profilen kunde inte sparas: In- eller utmatningsfel" in capsys.readouterr().out
+
+
 # ---------------------------------------------------------------------------
 # import_logs_csv (F8)
 # ---------------------------------------------------------------------------

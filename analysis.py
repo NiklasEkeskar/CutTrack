@@ -90,6 +90,15 @@ def describe_os_error(error):
     return text
 
 
+def write_to_disk(file):
+    """Tvingar ut det som skrivits till filen till disken innan den byter namn. Annars kan
+    datorn hålla innehållet i minnet en stund, och ett strömavbrott strax efter namnbytet
+    kan ge en tom fil. flush() tömmer först Pythons egen buffert, eftersom fsync bara skickar
+    det som redan lämnat den."""
+    file.flush()
+    os.fsync(file.fileno())
+
+
 def save_profile(profile):
     """Sparar profilen och alla loggar som JSON. Returnerar True om det gick bra."""
     filename = make_filename(profile.name)
@@ -134,6 +143,7 @@ def save_profile(profile):
     try:
         with open(temp_filename, "w", encoding="utf-8") as file:
             json.dump(data, file, ensure_ascii=False, indent=4)
+            write_to_disk(file)
         # os.replace byter ut den gamla filen mot den nya i ett enda steg, och ersätter en
         # fil som redan finns på alla datorer (os.rename kastar FileExistsError på Windows)
         os.replace(temp_filename, filename)
@@ -250,9 +260,15 @@ def export_logs_csv(profile, filename=None):
         print("Det finns inga loggar att exportera.")
         return False
 
+    # Skrivs först till en temporär fil bredvid, som i save_profile, så att en export som
+    # avbryts mitt i inte förstör den förra kopian. Den temporära filen får samma ändelse,
+    # annaberg_loggar.csv blir annaberg_loggar.tmp.csv, så git ignorerar den om den blir kvar.
+    root, extension = os.path.splitext(filename)
+    temp_filename = root + ".tmp" + extension
+
     # newline="" krävs av csv-modulen, annars kan filen få extra tomrader på Windows
     try:
-        with open(filename, "w", newline="", encoding="utf-8") as file:
+        with open(temp_filename, "w", newline="", encoding="utf-8") as file:
             writer = csv.writer(file)
             writer.writerow(CSV_COLUMNS)
 
@@ -265,6 +281,8 @@ def export_logs_csv(profile, filename=None):
 
                 writer.writerow([log.date, log.weight, log.calories, log.protein,
                                  log.steps, log.trained, waist_text])
+            write_to_disk(file)
+        os.replace(temp_filename, filename)
 
         if len(profile.logs) == 1:
             print(f"1 logg exporterades till {filename}.")
@@ -274,6 +292,11 @@ def export_logs_csv(profile, filename=None):
 
     except OSError as error:
         print(f"Loggarna kunde inte exporteras: {describe_os_error(error)}")
+        # Den halvskrivna temporära filen tas bort, som i save_profile
+        try:
+            os.remove(temp_filename)
+        except OSError:
+            pass
         return False
 
 
