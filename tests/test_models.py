@@ -1268,6 +1268,111 @@ def test_check_goals_without_a_weight_assessment_still_sets_another_focus(capsys
     assert "Det som gick att bedöma" not in output
 
 
+# Steg 2: dagar till målvikt, en linjär projektion av aktuell takt. Takten räknas som i
+# check_goals (F24): snittet för den senaste perioden mot snittet för perioden före.
+
+def test_goal_projection_with_a_steady_loss():
+    # Vikten 90.0 - 0.1 * dag, dag 0 till 13. Snitten är 89.0 (dag 7 till 13) och 89.7
+    # (dag 0 till 6), så takten är 0.7 kg per vecka. Kvar till målvikten 80.0: 9.0 kg,
+    # 9.0 / 0.7 = 12.86 veckor, avrundat 13, och 12.86 * 7 = 90 dagar efter senaste loggen
+    # (dag 13 är 2024-01-14), alltså 2024-04-13.
+    profile = make_checked_profile(weights_changing_by(-0.1, count=14))
+    assert profile.goal_projection() == (
+        "Målvikten 80.0 kg: med den här takten om cirka 13 veckor, omkring 2024-04-13. "
+        "En grov uppskattning, takten brukar avta när vikten går ner.")
+
+
+def test_goal_projection_counts_days_when_less_than_a_week_is_left():
+    # Takten 0.7 kg per vecka och 0.5 kg kvar: 0.71 veckor, 5 dagar
+    profile = make_checked_profile(weights_changing_by(-0.1, count=14))
+    profile.goal_weight = 88.5
+    assert profile.goal_projection().startswith(
+        "Målvikten 88.5 kg: med den här takten om cirka 5 dagar, omkring 2024-01-19.")
+
+
+def test_goal_projection_says_one_day_and_one_week_in_the_singular():
+    # 0.1 kg kvar: 0.14 veckor, 1 dag. 0.8 kg kvar: 1.14 veckor, 8 dagar, avrundat 1 vecka.
+    profile = make_checked_profile(weights_changing_by(-0.1, count=14))
+    profile.goal_weight = 88.9
+    assert "om cirka 1 dag, omkring 2024-01-15." in profile.goal_projection()
+    profile.goal_weight = 88.2
+    assert "om cirka 1 vecka, omkring 2024-01-22." in profile.goal_projection()
+
+
+def test_goal_projection_when_the_average_is_at_or_below_the_goal():
+    profile = make_checked_profile(weights_changing_by(-0.1, count=14))
+    profile.goal_weight = 89.0
+    assert profile.goal_projection() == (
+        "Målvikten 89.0 kg: snittet ligger redan på eller under målvikten.")
+
+
+@pytest.mark.parametrize("step", [0.0, 0.1])
+def test_goal_projection_is_none_when_the_weight_does_not_go_down(step):
+    # Oförändrad eller ökande vikt: målet nås inte med den takten, och viktraden säger redan
+    # att underskottet inte räcker
+    profile = make_checked_profile(weights_changing_by(step, count=14))
+    assert profile.goal_projection() is None
+
+
+def test_goal_projection_is_none_during_the_waiting_period():
+    assert waiting_profile(10).goal_projection() is None
+    # Dag 13 med vikten nedåt varje dag: båda perioderna har vägningar och takten skulle gå
+    # att räkna, men väntetiden är inte över och då ska ingen prognos visas
+    profile = make_checked_profile(weights_changing_by(-0.1, count=13))
+    assert profile.waiting_message() is not None
+    assert profile.goal_projection() is None
+
+
+def test_goal_projection_uses_the_chosen_period():
+    # Period 14: vikten 90.0 - 0.3 * dag, dag 0 till 27. Snitten är 83.85 (dag 14 till 27) och
+    # 88.05 (dag 0 till 13), så takten är (88.05 - 83.85) / 14 * 7 = 2.1 kg per vecka. Kvar:
+    # 3.85 kg, 1.83 veckor, avrundat 2, och 12.8 dagar, avrundat 13, efter dag 27
+    # (2024-01-28), alltså 2024-02-10.
+    profile = make_checked_profile(weights_changing_by(-0.3, count=28))
+    assert profile.goal_projection(14).startswith(
+        "Målvikten 80.0 kg: med den här takten om cirka 2 veckor, omkring 2024-02-10.")
+
+
+def test_goal_projection_is_none_for_a_loss_under_50_grams_a_week():
+    # 90.0 i sju dagar, sedan 89.97 i sju: 0.03 kg per vecka räknas som oförändrad vikt
+    profile = make_checked_profile([90.0] * 7 + [89.97] * 7)
+    assert profile.goal_projection() is None
+
+
+def test_goal_projection_never_says_zero_days():
+    # 0.01 kg kvar med 0.7 kg per vecka är 0.1 dag, som avrundas till 0. Det ska bli 1 dag.
+    profile = make_checked_profile(weights_changing_by(-0.1, count=14))
+    profile.goal_weight = 88.99
+    assert "om cirka 1 dag," in profile.goal_projection()
+
+
+def test_goal_projection_says_one_week_for_exactly_seven_days():
+    # 0.7 kg kvar med 0.7 kg per vecka är exakt 7 dagar
+    profile = make_checked_profile(weights_changing_by(-0.1, count=14))
+    profile.goal_weight = 88.3
+    assert "om cirka 1 vecka, omkring 2024-01-21." in profile.goal_projection()
+
+
+def test_goal_projection_counts_from_the_latest_log_by_date_not_by_position():
+    profile = make_checked_profile(weights_changing_by(-0.1, count=14))
+    profile.logs.reverse()  # senaste loggen först i listan
+    assert "omkring 2024-04-13." in profile.goal_projection()
+
+
+def test_check_goals_uses_the_chosen_period_for_the_projection(capsys):
+    profile = make_checked_profile(weights_changing_by(-0.3, count=28))
+    profile.check_goals(14)
+    assert "om cirka 2 veckor, omkring 2024-02-10." in capsys.readouterr().out
+
+
+def test_check_goals_prints_the_projection_after_the_weight_line(capsys):
+    profile = make_checked_profile(weights_changing_by(-0.1, count=14))
+    profile.check_goals()
+    lines = capsys.readouterr().out.splitlines()
+    assert lines[0].startswith("Vikten:")
+    assert lines[1].startswith("Målvikten 80.0 kg: med den här takten om cirka 13 veckor")
+
+
 # F18: midjemåttet jämförs med vikten. Vikt ner och midja ner pekar mot fettförlust, vikt ner
 # och midja oförändrad är en varningssignal. Gränsen 2 cm kommer från mätfelet när man mäter
 # midjan själv hemma (Barrios m.fl. 2016, technical error of measurement 0,76 tum, ungefär

@@ -3,7 +3,7 @@ normalize_date som kontrollerar och skriver om datum, och gränserna för vad so
 rimliga värden.
 Importeras i cuttrack.ipynb med: from models import DailyLog, User, CutProfile"""
 import math
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # Gränser för vad som räknas som rimliga värden. De fångar tangentfel (825 i stället för 82.5,
 # en nolla för mycket i stegen) och är inga hälsoråd: ett värde inom gränsen är inte därmed
@@ -490,6 +490,48 @@ class CutProfile(User):
 
         return None
 
+    def goal_projection(self, days=7):
+        """Hur länge det dröjer till målvikten med nuvarande takt, en linjär projektion (steg
+        2). Takten räknas som i check_goals. Returnerar en text, eller None under väntetiden,
+        när det saknas vägningar och när vikten inte går ner."""
+        if self.waiting_message(days) is not None:
+            return None
+
+        avg_weight = self.average_weight(days)
+        previous_avg_weight = self.average_weight(days, days)
+        if avg_weight is None or previous_avg_weight is None:
+            return None
+
+        if avg_weight <= self.goal_weight:
+            return (f"Målvikten {self.goal_weight} kg: snittet ligger redan på eller under "
+                    "målvikten.")
+
+        # Kilo per vecka, samma uträkning som i check_goals. Under 0,05 kg räknas vikten som
+        # oförändrad där, och då finns ingen takt att räkna med här heller.
+        weekly_loss = -(avg_weight - previous_avg_weight) / days * 7
+        if weekly_loss < 0.05:
+            return None
+
+        weeks_left = (avg_weight - self.goal_weight) / weekly_loss
+        latest_date = None
+        for log in self.logs:
+            log_date = datetime.strptime(log.date, "%Y-%m-%d")
+            if latest_date is None or log_date > latest_date:
+                latest_date = log_date
+        days_left = max(1, round(weeks_left * 7))
+        goal_date = latest_date + timedelta(days=days_left)
+
+        # Under en vecka i dagar, annars i hela veckor
+        if days_left < 7:
+            time_text = days_left_text(days_left).replace(" kvar", "")
+        elif round(weeks_left) == 1:
+            time_text = "1 vecka"
+        else:
+            time_text = f"{round(weeks_left)} veckor"
+        return (f"Målvikten {self.goal_weight} kg: med den här takten om cirka {time_text}, "
+                f"omkring {goal_date.date().isoformat()}. En grov uppskattning, takten "
+                "brukar avta när vikten går ner.")
+
     def waist_comparison(self):
         """Jämför första och senaste midjemåttet med vikten samma dagar (F18). Returnerar en
         text, eller None om inget midjemått är loggat."""
@@ -611,6 +653,12 @@ class CutProfile(User):
                 print("Vikten: för lite data för att bedöma takten.")
                 weight_not_assessed = ("Vikten gick inte att bedöma, eftersom det saknas "
                                        "vägningar i någon av perioderna.")
+
+            # Hur länge till målvikten med den här takten (steg 2). Bara en uppgift, den
+            # påverkar inte fokus.
+            projection_text = self.goal_projection(days)
+            if projection_text is not None:
+                print(projection_text)
 
         # Protein, dagligt mål, ingen skalning behövs
         avg_protein = self.average_protein(days)

@@ -44,6 +44,7 @@ Exemplet kommer från en testperiod på 20 dagar med profilen Testperson: man, 1
 **Efter 14 dagar, första gången full analys är möjlig:**
 ```
 Vikten: minskar med 1.66 procent per vecka (cirka 1.6 kg), över säkerhetsgränsen 1,0 procent (cirka 1.0 kg för dig). Risk för muskelförlust.
+Målvikten 98.0 kg: med den här takten om cirka 4 dagar, omkring 2026-10-04. En grov uppskattning, takten brukar avta när vikten går ner.
 Protein: snitt 211 g mot mål 206 g. Målet nås.
 Träning: 5 av 5 förväntade dagar under perioden. Målet nås.
 Steg: snitt 10160 mot mål 10000. Målet nås.
@@ -60,6 +61,7 @@ Vikten: minskar med 1.54 procent per vecka (cirka 1.5 kg), över säkerhetsgrän
 **Efter 20 dagar:**
 ```
 Vikten: minskar med 1.12 procent per vecka (cirka 1.1 kg), över säkerhetsgränsen 1,0 procent (cirka 1.0 kg för dig). Risk för muskelförlust.
+Målvikten 98.0 kg: med den här takten om cirka 1 dag, omkring 2026-10-07. En grov uppskattning, takten brukar avta när vikten går ner.
 Protein: snitt 213 g mot mål 206 g. Målet nås.
 Träning: 5 av 5 förväntade dagar under perioden. Målet nås.
 Steg: snitt 9953 mot mål 10000. Under målet.
@@ -68,7 +70,7 @@ Midjan: nästan oförändrad sedan 2026-09-17 (-1.8 cm, inom mätfelet på 2 cm)
 Fokusera på: vikt.
 ```
 
-Takten räknas från snitten. Efter 14 dagar jämförs snittet för dag 8 till 14 (99,03 kg) med snittet för dag 1 till 7 (100,67 kg): skillnaden är 1,64 kg på en vecka, och det är 1,66 procent av 99,03 kg. Efter 18 och 20 dagar flyttas båda perioderna framåt, och takten blir 1,54 respektive 1,12 procent per vecka. Den ligger över säkerhetsgränsen vid alla tre tillfällena men minskar i takt med att veckosnittet för vikten planar ut (99,03, 98,26 och 98,13 kg vid de tre tillfällena). Efter 20 dagar ligger stegen under målet, men vikten har företräde i prioriteringen, så fokus ligger kvar på vikt. Utskrifterna visar vad programmet faktiskt skriver ut, inte vad som är sant om testpersonens utveckling.
+Takten räknas från snitten. Efter 14 dagar jämförs snittet för dag 8 till 14 (99,03 kg) med snittet för dag 1 till 7 (100,67 kg): skillnaden är 1,64 kg på en vecka, och det är 1,66 procent av 99,03 kg. Efter 18 och 20 dagar flyttas båda perioderna framåt, och takten blir 1,54 respektive 1,12 procent per vecka. Den ligger över säkerhetsgränsen vid alla tre tillfällena men minskar i takt med att veckosnittet för vikten planar ut (99,03, 98,26 och 98,13 kg vid de tre tillfällena). Efter 20 dagar ligger stegen under målet, men vikten har företräde i prioriteringen, så fokus ligger kvar på vikt. Raden om målvikten är en rak projektion av takten: efter 14 dagar är snittet 99,03 kg, 1,03 kg över målvikten 98 kg, och med 1,64 kg i veckan tar det cirka 4 dagar. Takten brukar avta, så datumet är en grov uppskattning. Utskrifterna visar vad programmet faktiskt skriver ut, inte vad som är sant om testpersonens utveckling.
 
 Programmets kaloriförslag för samma profil blev 2409 kcal per dag. Det faktiska intaget i datan låg på 2300 kcal, 109 kcal under förslaget, vilket enligt 7700-regeln motsvarar cirka 0,1 kg i veckan och alltså inte förklarar nedgången i exemplet. Datan är simulerad och vikten är inte räknad ur intaget, så exemplet visar hur programmet beskriver en given logg, inte hur en kropp reagerar.
 

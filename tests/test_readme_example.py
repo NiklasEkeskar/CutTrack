@@ -52,6 +52,8 @@ WAIST_AFTER_18_AND_20_DAYS = (
 AFTER_14_DAYS = [
     "Vikten: minskar med 1.66 procent per vecka (cirka 1.6 kg), över säkerhetsgränsen "
     "1,0 procent (cirka 1.0 kg för dig). Risk för muskelförlust.",
+    "Målvikten 98.0 kg: med den här takten om cirka 4 dagar, omkring 2026-10-04. "
+    "En grov uppskattning, takten brukar avta när vikten går ner.",
     "Protein: snitt 211 g mot mål 206 g. Målet nås.",
     "Träning: 5 av 5 förväntade dagar under perioden. Målet nås.",
     "Steg: snitt 10160 mot mål 10000. Målet nås.",
@@ -63,6 +65,8 @@ AFTER_14_DAYS = [
 AFTER_18_DAYS = [
     "Vikten: minskar med 1.54 procent per vecka (cirka 1.5 kg), över säkerhetsgränsen "
     "1,0 procent (cirka 1.0 kg för dig). Risk för muskelförlust.",
+    "Målvikten 98.0 kg: med den här takten om cirka 1 dag, omkring 2026-10-05. "
+    "En grov uppskattning, takten brukar avta när vikten går ner.",
     "Protein: snitt 215 g mot mål 206 g. Målet nås.",
     "Träning: 5 av 5 förväntade dagar under perioden. Målet nås.",
     "Steg: snitt 10270 mot mål 10000. Målet nås.",
@@ -74,6 +78,8 @@ AFTER_18_DAYS = [
 AFTER_20_DAYS = [
     "Vikten: minskar med 1.12 procent per vecka (cirka 1.1 kg), över säkerhetsgränsen "
     "1,0 procent (cirka 1.0 kg för dig). Risk för muskelförlust.",
+    "Målvikten 98.0 kg: med den här takten om cirka 1 dag, omkring 2026-10-07. "
+    "En grov uppskattning, takten brukar avta när vikten går ner.",
     "Protein: snitt 213 g mot mål 206 g. Målet nås.",
     "Träning: 5 av 5 förväntade dagar under perioden. Målet nås.",
     "Steg: snitt 9953 mot mål 10000. Under målet.",
