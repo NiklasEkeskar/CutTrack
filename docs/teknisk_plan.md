@@ -135,6 +135,9 @@ Byggd som en egen metod, waiting_message, på CutProfile, inte inbakat i check_g
 
 check_goals anropar waiting_message först. Finns det text att visa skrivs den, vikten bedöms inte, och protein, träning och steg analyseras (F15). Efter en hel period visas också viktens snitt (F16). Först när två perioder har gått (dag 14 för sjudagarsperioden) returnerar waiting_message None och takten bedöms.
 
+### Midjemått (F18)
+waist_comparison i CutProfile jämför första och senaste midjemåttet efter datum, om de ligger minst 14 dagar isär, med vikten samma dagar. En förändring under 2 cm räknas som nästan oförändrad (mätfelet vid självmätning, Barrios m.fl. 2016), och vikten räknas som lägre från 1 kg (satt utan källa). Vikt ner och midja ner ger texten att det pekar mot fettförlust, vikt ner och midja nästan oförändrad ger en varning som också säger att det kan vara mätfel. check_goals skriver raden efter stegen. Den blir aldrig fokusområde, eftersom den är en signal och inte ett mål.
+
 ### Prioritering av råd
 Statusöversikt över alla områden plus en sak att fokusera på. Ordning: vikt, protein, träningsfrekvens, steg.
 

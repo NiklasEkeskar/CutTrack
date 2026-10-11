@@ -32,6 +32,15 @@ DEFAULT_STEP_GOAL = 8000
 DEFAULT_TRAINING_DAYS = 3
 MIN_MENU_PROTEIN_PER_KG = 0.5
 
+# Midjemåttet jämförs med vikten (F18). En förändring av midjan under 2 cm räknas inte, eftersom
+# mätfelet när man mäter sig själv hemma är ungefär så stort: Barrios m.fl. 2016 (BMC Medical
+# Research Methodology 16:49) fann technical error of measurement 0,76 tum, ungefär 1,9 cm. En
+# viktnedgång under 1 kg räknas inte heller, eftersom vikten svänger flera hundra gram från dag
+# till dag. Mätningarna måste ligga minst 14 dagar isär, två sjudagarsperioder som för takten.
+WAIST_CHANGE_CM = 2.0
+WEIGHT_CHANGE_KG = 1.0
+WAIST_MIN_DAYS = 14
+
 DATE_MESSAGE = "Datumet måste skrivas som ÅÅÅÅ-MM-DD, till exempel 2026-10-08."
 
 
@@ -481,6 +490,57 @@ class CutProfile(User):
 
         return None
 
+    def waist_comparison(self):
+        """Jämför första och senaste midjemåttet med vikten samma dagar (F18). Returnerar en
+        text, eller None om inget midjemått är loggat."""
+        measured_logs = []
+        for log in self.logs:
+            if log.waist is not None:
+                measured_logs.append(log)
+
+        if len(measured_logs) == 0:
+            return None
+
+        # Första och senaste mätningen efter datum, inte efter plats i listan
+        first_log = measured_logs[0]
+        last_log = measured_logs[0]
+        for log in measured_logs:
+            if log.date < first_log.date:
+                first_log = log
+            if log.date > last_log.date:
+                last_log = log
+
+        first_date = datetime.strptime(first_log.date, "%Y-%m-%d")
+        last_date = datetime.strptime(last_log.date, "%Y-%m-%d")
+        if (last_date - first_date).days < WAIST_MIN_DAYS:
+            return (f"Midjan: för få mätningar för att jämföra. Det behövs två, med minst "
+                    f"{WAIST_MIN_DAYS} dagar emellan.")
+
+        waist_change = round(last_log.waist - first_log.waist, 1)
+        weight_loss = round(first_log.weight - last_log.weight, 1)
+        weight_went_down = weight_loss >= WEIGHT_CHANGE_KG
+
+        if waist_change <= -WAIST_CHANGE_CM:
+            waist_text = f"Midjan: {abs(waist_change)} cm mindre sedan {first_log.date}"
+            if weight_went_down:
+                return (f"{waist_text}, och vikten {weight_loss} kg lägre. "
+                        "Det pekar mot att det är fett som försvinner.")
+            return waist_text + "."
+
+        if waist_change >= WAIST_CHANGE_CM:
+            return f"Midjan: {waist_change} cm större sedan {first_log.date}."
+
+        # Under 2 cm åt något håll: inom mätfelet, så midjan räknas som nästan oförändrad.
+        # :+.1f skriver talet med tecken och en decimal, till exempel -1.8 eller +0.5.
+        unchanged_text = (f"Midjan: nästan oförändrad sedan {first_log.date} "
+                          f"({waist_change:+.1f} cm, inom mätfelet på "
+                          f"{round(WAIST_CHANGE_CM)} cm)")
+        if weight_went_down:
+            return (f"{unchanged_text}, fast vikten är {weight_loss} kg lägre. Det kan betyda "
+                    "att du tappar muskelmassa i stället för fett, eller bara vara mätfel. Mät "
+                    "på samma ställe och på samma sätt varje gång.")
+        return unchanged_text + "."
+
     def check_goals(self, days=7):
         """Statusöversikt för vald analysperiod (7, 14 eller 30 dagar), plus en sak att
         fokusera på. Prioritetsordning: vikt, protein, träningsfrekvens, steg. Under
@@ -595,6 +655,11 @@ class CutProfile(User):
                 print(f"Steg: snitt {round(avg_steps)} mot mål {self.step_goal}. Målet nås.")
         else:
             print("Steg: för lite data.")
+
+        # Midjan bedöms inte mot något mål och blir aldrig fokusområde, den är en signal (F18)
+        waist_text = self.waist_comparison()
+        if waist_text is not None:
+            print(waist_text)
 
         print()
         if focus_area is None and weight_not_assessed is not None:

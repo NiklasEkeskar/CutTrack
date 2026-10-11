@@ -47,6 +47,7 @@ Vikten: minskar med 1.66 procent per vecka (cirka 1.6 kg), över säkerhetsgrän
 Protein: snitt 211 g mot mål 206 g. Målet nås.
 Träning: 5 av 5 förväntade dagar under perioden. Målet nås.
 Steg: snitt 10160 mot mål 10000. Målet nås.
+Midjan: för få mätningar för att jämföra. Det behövs två, med minst 14 dagar emellan.
 
 Fokusera på: vikt.
 ```
@@ -62,6 +63,7 @@ Vikten: minskar med 1.12 procent per vecka (cirka 1.1 kg), över säkerhetsgrän
 Protein: snitt 213 g mot mål 206 g. Målet nås.
 Träning: 5 av 5 förväntade dagar under perioden. Målet nås.
 Steg: snitt 9953 mot mål 10000. Under målet.
+Midjan: nästan oförändrad sedan 2026-09-17 (-1.8 cm, inom mätfelet på 2 cm), fast vikten är 3.1 kg lägre. Det kan betyda att du tappar muskelmassa i stället för fett, eller bara vara mätfel. Mät på samma ställe och på samma sätt varje gång.
 
 Fokusera på: vikt.
 ```
@@ -70,7 +72,7 @@ Takten räknas från snitten. Efter 14 dagar jämförs snittet för dag 8 till 1
 
 Programmets kaloriförslag för samma profil blev 2409 kcal per dag. Det faktiska intaget i datan låg på 2300 kcal, 109 kcal under förslaget, vilket enligt 7700-regeln motsvarar cirka 0,1 kg i veckan och alltså inte förklarar nedgången i exemplet. Datan är simulerad och vikten är inte räknad ur intaget, så exemplet visar hur programmet beskriver en given logg, inte hur en kropp reagerar.
 
-Midjemåttet loggades tre gånger och sjönk från 90,0 till 88,2 cm. CutTrack sparar det men analyserar det inte än (se Roadmap). Läst för hand pekar en sjunkande midja tillsammans med sjunkande vikt mot att det är fett som försvinner, resonemanget finns i [docs/produktvision.md](docs/produktvision.md).
+Midjemåttet loggades tre gånger och sjönk från 90,0 till 88,2 cm. Efter 14 dagar ligger de två första mätningarna bara en vecka isär, så programmet jämför dem inte. Efter 18 och 20 dagar jämförs första och senaste mätningen, 14 dagar isär: midjan har gått ner 1,8 cm och vikten 3,1 kg. 1,8 cm är mindre än mätfelet när man mäter sig själv hemma, ungefär 2 cm (Barrios m.fl. 2016, se Källor och antaganden), så programmet kan inte säga att midjan har krympt, och varnar för att vikten kan bestå av muskelmassa. Resonemanget om vikt och midja finns i [docs/produktvision.md](docs/produktvision.md).
 
 Diagrammen från samma testperiod: viktdiagrammet står överst på sidan, protein och steg följer här.
 
@@ -179,6 +181,9 @@ CutTrack/
 - Helms ER, Aragon AA, Fitschen PJ. *Evidence-based recommendations for natural bodybuilding contest preparation: nutrition and supplementation.* J Int Soc Sports Nutr. 2014;11:20. https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4033492/
 - Morton RW, Murphy KT, McKellar SR, m.fl. *A systematic review, meta-analysis and meta-regression of the effect of protein supplementation on resistance training-induced gains in muscle mass and strength in healthy adults.* Br J Sports Med. 2018;52(6):376-384. https://pmc.ncbi.nlm.nih.gov/articles/PMC5867436/
 - Jensen MD m.fl. *2013 AHA/ACC/TOS Guideline for the Management of Overweight and Obesity in Adults.* Circulation. 2014;129(25 Suppl 2). https://doi.org/10.1161/01.cir.0000437739.71477.ee
+- Barrios P, Martin-Biggers J, Quick V, Byrd-Bredbenner C. *Reliability and criterion validity of self-measured waist, hip, and neck circumferences.* BMC Med Res Methodol. 2016;16:49. https://doi.org/10.1186/s12874-016-0150-2
+
+**Midjan (`waist_comparison`)** jämförs bara när två mätningar ligger minst 14 dagar isär. En förändring under 2 cm räknas som nästan oförändrad, eftersom mätfelet när man mäter sin egen midja hemma var 0,76 tum, ungefär 1,9 cm, i Barrios m.fl. 2016 (technical error of measurement, mätt med måttband i hemmet). Felet för skillnaden mellan två mätningar är större än för en enda, så 2 cm är en låg gräns, och programmet säger därför att det kan vara mätfel. Studien gällde vuxna i USA som mätte sig själva efter instruktion, inte personer som deffar. Viktnedgången räknas från 1 kg, en gräns jag satt själv utifrån att vikten svänger flera hundra gram från dag till dag. Den är inte hämtad från en källa.
 
 **Basalomsättning (`calculate_bmr`)** räknas enligt Mifflin-St Jeor.
 
@@ -196,7 +201,7 @@ CutTrack/
 - Kaloriförslaget är en uppskattning. 7700-regeln överskattar viktnedgången över tid, så siffran ska justeras efter verkligt utfall efter ett par veckors loggning.
 - Proteinmålet räknas på målvikt eftersom programmet inte känner till kroppsfett.
 - Under väntetiden bedöms inte viktens takt. Efter en hel period visas snittet, och protein, steg och träning analyseras från första dagen, med träningsmålet skalat till dagarna hittills.
-- Midjemåttet sparas men används inte i någon analys än.
+- Midjemåttet jämförs bara mellan första och senaste mätningen, inte över hela perioden, och tröskeln 2 cm bygger på en enda studie av mätfelet.
 - Takten jämför två hela perioder, så vald period styr väntetiden: med 30 dagar krävs 60 dagars data innan takten bedöms.
 - Testerna täcker reglerna, filhanteringen och menyn, inte diagrammen.
 - Menyn sparar profilen efter varje ny logg (val 1), men inte efter en CSV-inläsning (val 5). Det du läst in sparas nästa gång du lägger till en logg med val 1, eftersom hela profilen sparas då, eller med val 6. Avbryter du innan är det inlästa borta, men CSV-filen finns kvar att läsa in igen. Sparningen går via en temporär fil och byter namn när allt är skrivet, men tvingar inte ut filen till disken (`fsync`) först, så ett strömavbrott i fel ögonblick kan ändå ge en förlorad eller trasig fil. En krasch eller ett avbrott mitt i skrivningen kan lämna en `.tmp.json`-fil kvar. CSV-exporten skrivs fortfarande rakt in i målfilen, så en export som avbryts mitt i kan förstöra den förra kopian. Misslyckas sparningen vid val 6 stannar menyn och du kan försöka igen, men det du inte sparat är borta om du avbryter i stället.

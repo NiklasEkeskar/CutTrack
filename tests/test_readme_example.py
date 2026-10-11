@@ -41,12 +41,21 @@ README = ROOT / "README.md"
 #   20 dagar: dag 7 till 13 summerar 694.6, dag 14 till 20 summerar 686.9.
 #             Skillnaden är (694.6 - 686.9) / 7 = 1.10 kg per vecka, 7.7 / 686.9 = 1.12 procent.
 # Säkerhetsgränsen 1,0 procent av snittet (99.03, 98.26 och 98.13 kg) är cirka 1.0 kg.
+# F18: efter 18 och 20 dagar ligger första och senaste midjemåttet 14 dagar isär (2026-09-17 och
+# 2026-10-01). Midjan 90.0 till 88.2 är -1.8 cm, mindre än gränsen 2 cm, och vikten 101.3 till
+# 98.2 är 3.1 kg lägre.
+WAIST_AFTER_18_AND_20_DAYS = (
+    "Midjan: nästan oförändrad sedan 2026-09-17 (-1.8 cm, inom mätfelet på 2 cm), fast vikten "
+    "är 3.1 kg lägre. Det kan betyda att du tappar muskelmassa i stället för fett, eller bara "
+    "vara mätfel. Mät på samma ställe och på samma sätt varje gång.")
+
 AFTER_14_DAYS = [
     "Vikten: minskar med 1.66 procent per vecka (cirka 1.6 kg), över säkerhetsgränsen "
     "1,0 procent (cirka 1.0 kg för dig). Risk för muskelförlust.",
     "Protein: snitt 211 g mot mål 206 g. Målet nås.",
     "Träning: 5 av 5 förväntade dagar under perioden. Målet nås.",
     "Steg: snitt 10160 mot mål 10000. Målet nås.",
+    "Midjan: för få mätningar för att jämföra. Det behövs två, med minst 14 dagar emellan.",
     "",
     "Fokusera på: vikt.",
 ]
@@ -57,6 +66,7 @@ AFTER_18_DAYS = [
     "Protein: snitt 215 g mot mål 206 g. Målet nås.",
     "Träning: 5 av 5 förväntade dagar under perioden. Målet nås.",
     "Steg: snitt 10270 mot mål 10000. Målet nås.",
+    WAIST_AFTER_18_AND_20_DAYS,
     "",
     "Fokusera på: vikt.",
 ]
@@ -67,6 +77,7 @@ AFTER_20_DAYS = [
     "Protein: snitt 213 g mot mål 206 g. Målet nås.",
     "Träning: 5 av 5 förväntade dagar under perioden. Målet nås.",
     "Steg: snitt 9953 mot mål 10000. Under målet.",
+    WAIST_AFTER_18_AND_20_DAYS,
     "",
     "Fokusera på: vikt.",
 ]
