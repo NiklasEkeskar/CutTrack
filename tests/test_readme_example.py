@@ -279,7 +279,9 @@ def test_f24_without_logs_in_the_previous_period_the_rate_is_not_assessed(capsys
     lines = check_goals_lines(profile, capsys)
 
     assert lines[0] == "Vikten: för lite data för att bedöma takten."
-    assert lines[-1] == "Allt ligger inom mål just nu. Fortsätt som du gör."
+    # F17: slutraden sa förut "Allt ligger inom mål just nu", fast vikten inte var bedömd
+    assert lines[-1] == ("Det som gick att bedöma ligger inom mål. Vikten gick inte att bedöma, "
+                         "eftersom det saknas vägningar i någon av perioderna.")
 
 
 # ---------------------------------------------------------------------------

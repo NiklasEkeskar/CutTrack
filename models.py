@@ -475,12 +475,16 @@ class CutProfile(User):
         väntetiden bedöms vikten inte, men protein, träning och steg gör det (F15)."""
         waiting_text = self.waiting_message(days)
         focus_area = None
+        # Säger varför vikten inte bedömdes, när den inte gjorde det. Slutraden använder den, så
+        # att den inte säger att allt ligger inom mål när vikten aldrig bedömdes (F17).
+        weight_not_assessed = None
 
         if waiting_text is not None:
             # Vikten kräver två hela perioder (se waiting_message). Protein, träning och steg
             # kräver bara ett snitt, så de analyseras ändå nedan.
             print(waiting_text)
             print()
+            weight_not_assessed = "Vikten bedöms när väntetiden är över."
             # Efter en hel period finns ett snitt att visa, fast takten inte går att bedöma
             # förrän perioden före också är full (F16). Snittet bedöms inte och blir aldrig
             # fokusområde.
@@ -533,6 +537,8 @@ class CutProfile(User):
                           f"{self.target_rate_percent} procent och inom säkerhetsgränsen.")
             else:
                 print("Vikten: för lite data för att bedöma takten.")
+                weight_not_assessed = ("Vikten gick inte att bedöma, eftersom det saknas "
+                                       "vägningar i någon av perioderna.")
 
         # Protein, dagligt mål, ingen skalning behövs
         avg_protein = self.average_protein(days)
@@ -554,7 +560,8 @@ class CutProfile(User):
         covered_days = min(days, self.days_since_start())
         training_count = self.training_days(days)
         expected_training = round(self.training_goal_days * covered_days / 7)
-        if expected_training == 0:
+        # Ett mål på 0 dagar ger alltid förväntan 0, och det är inte för få dagar utan inget mål
+        if expected_training == 0 and self.training_goal_days > 0:
             print("Träning: för få dagar för att bedöma än.")
         elif training_count < expected_training:
             print(f"Träning: {training_count} av {expected_training} förväntade dagar under "
@@ -578,9 +585,8 @@ class CutProfile(User):
             print("Steg: för lite data.")
 
         print()
-        if focus_area is None and waiting_text is not None:
-            # Vikten är inte bedömd, så slutraden får inte säga att allt ligger inom mål
-            print("Det som gick att bedöma ligger inom mål. Vikten bedöms när väntetiden är över.")
+        if focus_area is None and weight_not_assessed is not None:
+            print(f"Det som gick att bedöma ligger inom mål. {weight_not_assessed}")
         elif focus_area is None:
             print("Allt ligger inom mål just nu. Fortsätt som du gör.")
         else:

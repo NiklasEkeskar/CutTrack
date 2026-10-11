@@ -1223,6 +1223,41 @@ def test_check_goals_during_the_waiting_period_does_not_claim_everything_is_on_t
             in output)
 
 
+def test_check_goals_does_not_claim_everything_is_on_target_without_a_weight_assessment(capsys):
+    # F17: väntetiden är över men fönstret har bara en logg, så takten går inte att bedöma.
+    # Protein, träning och steg nås, och slutraden får ändå inte säga att allt ligger inom mål.
+    # Sju loggar (dag 0 till 6) med träning varje dag, i en profil skapad dag -100. Perioden
+    # före (dag -7 till -1) saknar vägningar.
+    profile = make_profile(created_date=day_text(-100))
+    for day in range(7):
+        profile.logs.append(make_log(day, protein=200))
+    profile.check_goals()
+    output = capsys.readouterr().out
+    assert "Vikten: för lite data för att bedöma takten." in output
+    assert "Allt ligger inom mål" not in output
+    assert ("Det som gick att bedöma ligger inom mål. Vikten gick inte att bedöma, "
+            "eftersom det saknas vägningar i någon av perioderna.") in output
+
+
+def test_a_training_goal_of_zero_days_is_reached_even_on_the_first_day(capsys):
+    # Med målet 0 dagar finns inget att bedöma som "för få dagar". Förväntan är 0 och nås.
+    profile = make_profile(training_goal_days=0)
+    profile.logs.append(make_log(0, trained=False))
+    profile.check_goals()
+    output = capsys.readouterr().out
+    assert "Träning: 0 av 0 förväntade dagar under perioden. Målet nås." in output
+    assert "för få dagar" not in output
+
+
+def test_check_goals_without_a_weight_assessment_still_sets_another_focus(capsys):
+    profile = make_profile(created_date=day_text(-100))
+    profile.logs.append(make_log(0, protein=100))
+    profile.check_goals()
+    output = capsys.readouterr().out
+    assert "Fokusera på: protein." in output
+    assert "Det som gick att bedöma" not in output
+
+
 def test_check_goals_with_one_log_in_the_window_says_too_little_data(capsys):
     # Profilen skapades långt före loggen, så väntetiden är över, men fönstret har bara en logg
     profile = make_profile(created_date=day_text(-100))
