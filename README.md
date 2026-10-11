@@ -20,7 +20,7 @@ Projektet började som slutprojekt i kursen Utveckling med Python, grund, inom Y
 - Dagliga loggar med datum, vikt, kalorier, protein, steg, träning (ja eller nej) och midjemått (valfritt). Datumet kontrolleras och skrivs som ÅÅÅÅ-MM-DD med nollor, så 2026-10-8 sparas som 2026-10-08. En ny logg för ett datum som redan finns ersätter den gamla.
 - Ett personligt kaloriförslag beräknat från profilen, med ett golv som programmet förklarar när det slår i.
 - Analys över 7, 14 eller 30 dagar: viktens takt i procent per vecka, protein, träningsfrekvens och steg, plus en sak att fokusera på.
-- Diagram för vikt (med rullande sjudagarssnitt och målvikt), protein och steg. Menyn visar än så länge bara viktdiagrammet.
+- Diagram för vikt (med rullande sjudagarssnitt och målvikt), protein och steg, alla tre från menyval 3.
 - Export och import av loggar som CSV, med en egen exportfil per användare. Går det fel på hela filen läses ingenting in, och ett meddelande säger vad som är fel. En rad med ogiltiga värden hoppas över i stället för att stoppa hela importen.
 
 ## Så bedömer CutTrack din deff
@@ -198,7 +198,6 @@ CutTrack/
 - Under väntetiden bedöms inte viktens takt. Efter en hel period visas snittet, och protein, steg och träning analyseras från första dagen, med träningsmålet skalat till dagarna hittills.
 - Midjemåttet sparas men används inte i någon analys än.
 - Takten jämför två hela perioder, så vald period styr väntetiden: med 30 dagar krävs 60 dagars data innan takten bedöms.
-- Menyn visar bara viktdiagrammet.
 - Testerna täcker reglerna, filhanteringen och menyn, inte diagrammen.
 - Menyn sparar profilen efter varje ny logg (val 1), men inte efter en CSV-inläsning (val 5). Det du läst in sparas nästa gång du lägger till en logg med val 1, eftersom hela profilen sparas då, eller med val 6. Avbryter du innan är det inlästa borta, men CSV-filen finns kvar att läsa in igen. Sparningen går via en temporär fil och byter namn när allt är skrivet, men tvingar inte ut filen till disken (`fsync`) först, så ett strömavbrott i fel ögonblick kan ändå ge en förlorad eller trasig fil. En krasch eller ett avbrott mitt i skrivningen kan lämna en `.tmp.json`-fil kvar. CSV-exporten skrivs fortfarande rakt in i målfilen, så en export som avbryts mitt i kan förstöra den förra kopian. Misslyckas sparningen vid val 6 stannar menyn och du kan försöka igen, men det du inte sparat är borta om du avbryter i stället.
 - Värdena kontrolleras mot gränser som fångar skrivfel, inte mot vad som är bra för kroppen: vikt över 0 och högst 300 kg, kalorier 0 till 10 000, protein 0 till 1 000 g, steg 0 till 100 000, midjemått 30 till 250 cm, längd 100 till 250 cm och ålder 18 till 100 år. CutTrack är byggt för vuxna, eftersom riktlinjerna bakom kaloriförslaget gäller vuxna. Menyn godtar decimalkomma men inte tusentalsavgränsare: `2,000` läses som 2, inte 2000, och `2.000` likaså. Felmeddelanden för de vanligaste filfelen är på svenska, men ett ovanligt fel visas med operativsystemets egen text.

@@ -1075,7 +1075,7 @@ def test_run_menu_shows_all_six_choices(monkeypatch, capsys):
     main.run_menu()
 
     output = capsys.readouterr().out
-    for choice_text in ["1  Logga dagens data", "2  Visa analys", "3  Visa viktdiagram",
+    for choice_text in ["1  Logga dagens data", "2  Visa analys", "3  Visa diagram",
                         "4  Visa kaloriförslag", "5  Läs in loggar från CSV",
                         "6  Spara och avsluta"]:
         assert choice_text in output
@@ -1205,18 +1205,65 @@ def test_run_menu_choice_2_asks_again_until_the_period_is_valid(monkeypatch, cap
     assert "Välj 7, 14 eller 30." in capsys.readouterr().out
 
 
-def test_run_menu_choice_3_draws_the_weight_chart_for_the_chosen_period(monkeypatch):
+def record_charts(monkeypatch):
+    """Ersätter de tre diagramfunktionerna i menyn med stubbar som bara noterar vilket diagram
+    som ritades, för vem och för vilken period. Inget fönster öppnas."""
     calls = []
+    for chart_name in ["plot_weight", "plot_protein", "plot_steps"]:
+        def fake_plot(profile, days=30, chart_name=chart_name):
+            calls.append((chart_name, profile.name, days))
+        monkeypatch.setattr(main, chart_name, fake_plot)
+    return calls
 
-    def fake_plot_weight(profile, days=30):
-        calls.append((profile.name, days))
 
-    monkeypatch.setattr(main, "plot_weight", fake_plot_weight)
-    type_answers(monkeypatch, NEW_USER + ["3", "7", "6"])
+def test_run_menu_choice_3_draws_the_weight_chart_for_the_chosen_period(monkeypatch):
+    calls = record_charts(monkeypatch)
+    type_answers(monkeypatch, NEW_USER + ["3", "1", "7", "6"])
 
     main.run_menu()
 
-    assert calls == [("Anna Berg", 7)]
+    assert calls == [("plot_weight", "Anna Berg", 7)]
+
+
+# F20: protein- och stegdiagrammen fanns i analysis.py men nåddes inte från menyn
+
+@pytest.mark.parametrize("chart_choice, expected_chart", [
+    ("1", "plot_weight"), ("2", "plot_protein"), ("3", "plot_steps"),
+])
+def test_run_menu_choice_3_draws_the_chosen_chart(monkeypatch, chart_choice, expected_chart):
+    calls = record_charts(monkeypatch)
+    type_answers(monkeypatch, NEW_USER + ["3", chart_choice, "14", "6"])
+
+    main.run_menu()
+
+    assert calls == [(expected_chart, "Anna Berg", 14)]
+
+
+def test_run_menu_choice_3_lists_the_three_charts(monkeypatch, capsys):
+    record_charts(monkeypatch)
+    type_answers(monkeypatch, NEW_USER + ["3", "1", "7", "6"])
+
+    main.run_menu()
+
+    output = capsys.readouterr().out
+    for chart_text in ["1  Vikt", "2  Protein", "3  Steg"]:
+        assert chart_text in output
+
+
+@pytest.mark.parametrize("bad_choice, expected_message", [
+    ("0", "Skriv ett tal mellan 1 och 3."),
+    ("4", "Skriv ett tal mellan 1 och 3."),
+    ("abc", "Skriv ett tal utan decimaler."),
+])
+def test_run_menu_choice_3_asks_again_for_a_chart_that_does_not_exist(
+        monkeypatch, capsys, bad_choice, expected_message):
+    calls = record_charts(monkeypatch)
+    type_answers(monkeypatch, NEW_USER + ["3", bad_choice, "2", "7", "6"])
+
+    main.run_menu()
+
+    assert calls == [("plot_protein", "Anna Berg", 7)]
+    assert expected_message in capsys.readouterr().out
 
 
 def test_run_menu_choice_5_reads_the_default_file_when_the_filename_is_left_empty(

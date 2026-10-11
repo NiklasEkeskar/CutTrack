@@ -309,7 +309,7 @@ Inte använt: statistics (all snittberäkning görs med egna loopar, inte statis
 1. `python main.py` kör main(), som anropar run_menu() och fångar Ctrl+C och Ctrl+D.
 2. show_welcome() visar välkomsttext, riktlinjer och ansvarsfriskrivning.
 3. Fråga efter användarnamn. load_profile(name) laddar profilen om den finns. Finns den inte, frågar create_profile(name) efter längd, ålder, kön, aktivitetsnivå, startvikt, målvikt och önskad takt, och visar ett första kaloriförslag och proteinmål direkt. Finns filen men går den inte att läsa (load_profile ger None i båda fallen, profile_file_exists skiljer dem åt) skriver programmet att det avslutas utan att ändra filen, och ingen ny profil skapas. Efter kaloriförslaget, här och i menyval 4, skriver show_suggestion_note() att förslaget är en startpunkt och visar friskrivningen.
-4. Meny i run_menu(), sex val: logga dagens data, visa analys, visa viktdiagram, visa kaloriförslag, läs in loggar från CSV, spara och avsluta.
+4. Meny i run_menu(), sex val: logga dagens data, visa analys, visa diagram (vikt, protein eller steg), visa kaloriförslag, läs in loggar från CSV, spara och avsluta.
 5. Efter varje ny logg (val 1) sparar save_profile profilen som JSON. Vid avslut (val 6) sparas profilen igen, och bara om det lyckades exporterar export_logs_csv loggarna som CSV till användarens eget filnamn (<namn>_loggar.csv) innan programmet avslutas. Misslyckas sparningen vid val 6 stannar menyn. Det som lästs in från CSV (val 5) sparas inte direkt, utan av nästa ny logg eller av val 6.
 
 Uppslag av livsmedel (search_food) finns inte med i menyn, eftersom Open Food Facts-integrationen inte byggts, se Externt API nedan.

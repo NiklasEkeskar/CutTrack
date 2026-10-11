@@ -12,7 +12,8 @@ from models import (DailyLog, CutProfile, normalize_date, MIN_HEIGHT_CM, MAX_HEI
                     MAX_TRAINING_DAYS, MIN_MENU_PROTEIN_PER_KG, DEFAULT_PROTEIN_PER_KG,
                     DEFAULT_STEP_GOAL, DEFAULT_TRAINING_DAYS)
 from analysis import (make_csv_filename, is_usable_name, save_profile, load_profile,
-                      profile_file_exists, export_logs_csv, import_logs_csv, plot_weight)
+                      profile_file_exists, export_logs_csv, import_logs_csv, plot_weight,
+                      plot_protein, plot_steps)
 
 # Ansvarsfriskrivningen, på ett ställe så att välkomsttexten och texten vid kaloriförslaget
 # alltid säger samma sak (F22)
@@ -297,7 +298,7 @@ def run_menu():
         print("Meny")
         print("  1  Logga dagens data")
         print("  2  Visa analys")
-        print("  3  Visa viktdiagram")
+        print("  3  Visa diagram")
         print("  4  Visa kaloriförslag")
         print("  5  Läs in loggar från CSV")
         print("  6  Spara och avsluta")
@@ -321,8 +322,20 @@ def run_menu():
             period = ask_period()
             profile.check_goals(period)
         elif choice == "3":
+            # Tre diagram under ett menyval, så att menyn behåller sina sex val (F20)
+            print()
+            print("Diagram:")
+            print("  1  Vikt")
+            print("  2  Protein")
+            print("  3  Steg")
+            chart_choice = ask_number("Välj 1 till 3: ", True, 1, 3)
             period = ask_period()
-            plot_weight(profile, period)
+            if chart_choice == 1:
+                plot_weight(profile, period)
+            elif chart_choice == 2:
+                plot_protein(profile, period)
+            else:
+                plot_steps(profile, period)
         elif choice == "4":
             print()
             profile.suggest_calorie_goal()
