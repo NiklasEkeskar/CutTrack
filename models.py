@@ -583,6 +583,30 @@ class CutProfile(User):
                     "på samma ställe och på samma sätt varje gång.")
         return unchanged_text + "."
 
+    def plateau_message(self, days=7):
+        """Text om vikten har stått still i två jämförelser i rad (platå, steg 2), annars None.
+        Varje jämförelse räknas som takten i check_goals: snittet för en period mot snittet
+        för perioden före, i kg per vecka. Två jämförelser kräver tre hela perioder med
+        vägningar."""
+        averages = []
+        for period_number in range(3):
+            avg_weight = self.average_weight(days, period_number * days)
+            if avg_weight is None:
+                return None
+            averages.append(avg_weight)
+
+        # averages[0] är den senaste perioden, averages[2] den äldsta
+        latest_change = (averages[0] - averages[1]) / days * 7
+        earlier_change = (averages[1] - averages[2]) / days * 7
+
+        # Samma gräns som texten oförändrad i check_goals
+        if abs(latest_change) < 0.05 and abs(earlier_change) < 0.05:
+            return ("Platå: vikten har stått still i två jämförelser i rad, alltså de "
+                    f"senaste {days * 3} dagarna. Kontrollera först att allt du äter och "
+                    "dricker loggas. Stämmer loggningen behöver underskottet bli större, se "
+                    "kaloriförslaget.")
+        return None
+
     def check_goals(self, days=7):
         """Statusöversikt för vald analysperiod (7, 14 eller 30 dagar), plus en sak att
         fokusera på. Prioritetsordning: vikt, protein, träningsfrekvens, steg. Under
@@ -628,6 +652,10 @@ class CutProfile(User):
                 if abs(weekly_change) < 0.05:
                     print("Vikten: oförändrad jämfört med perioden före. "
                           "Underskottet räcker inte.")
+                    # Har vikten stått still även i jämförelsen före är det en platå
+                    plateau_text = self.plateau_message(days)
+                    if plateau_text is not None:
+                        print(plateau_text)
                     focus_area = "vikt"
                 elif weekly_change > 0:
                     print(f"Vikten: ökar med {actual_kg} kg per vecka i snitt. "

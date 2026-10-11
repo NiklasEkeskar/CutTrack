@@ -1585,3 +1585,104 @@ def test_training_goal_is_scaled_to_the_period(days, expected_days, capsys):
     profile.check_goals(days)
     expected = f"Träning: 1 av {expected_days} förväntade dagar under perioden. Under målet."
     assert expected in capsys.readouterr().out
+
+
+# Steg 2: platå. Vikten har stått still när takten är oförändrad, under 0,05 kg per vecka
+# (samma gräns som texten oförändrad i check_goals), i två jämförelser i rad. Med
+# sjudagarsperioden krävs då tre hela perioder, 21 dagar. Regeln beslutad 2026-10-11.
+
+PLATEAU_TEXT = ("Platå: vikten har stått still i två jämförelser i rad, alltså de senaste "
+                "21 dagarna. Kontrollera först att allt du äter och dricker loggas. Stämmer "
+                "loggningen behöver underskottet bli större, se kaloriförslaget.")
+
+
+def weekly_weights(*week_weights):
+    """Sju vikter per värde, en vecka i taget från dag 0. Snittet för varje vecka blir
+    då exakt värdet."""
+    weights = []
+    for weight in week_weights:
+        weights.extend([weight] * 7)
+    return weights
+
+
+def test_plateau_after_three_weeks_without_change():
+    profile = make_checked_profile(weekly_weights(90.0, 90.0, 90.0))
+    assert profile.plateau_message() == PLATEAU_TEXT
+
+
+def test_no_plateau_after_only_one_unchanged_comparison():
+    # 14 dagar ger bara en jämförelse
+    profile = make_checked_profile(weekly_weights(90.0, 90.0))
+    assert profile.plateau_message() is None
+
+
+def test_no_plateau_when_the_comparison_before_showed_a_loss():
+    # Vecka 1 till 2: -1.0 kg. Vecka 2 till 3: oförändrad. Bara en jämförelse utan förändring.
+    profile = make_checked_profile(weekly_weights(91.0, 90.0, 90.0))
+    assert profile.plateau_message() is None
+
+
+def test_no_plateau_when_the_latest_comparison_shows_a_loss():
+    profile = make_checked_profile(weekly_weights(90.0, 90.0, 89.5))
+    assert profile.plateau_message() is None
+
+
+def test_no_plateau_when_the_weight_goes_up():
+    profile = make_checked_profile(weekly_weights(90.0, 90.5, 91.0))
+    assert profile.plateau_message() is None
+
+
+@pytest.mark.parametrize("weekly_step, is_plateau", [(0.04, True), (0.06, False), (-0.04, True),
+                                                      (-0.06, False)])
+def test_plateau_uses_the_limit_of_50_grams_a_week(weekly_step, is_plateau):
+    # Snitten ändras med weekly_step kg per vecka i båda jämförelserna
+    profile = make_checked_profile(weekly_weights(90.0, 90.0 + weekly_step,
+                                                  90.0 + 2 * weekly_step))
+    assert (profile.plateau_message() is not None) == is_plateau
+
+
+def test_plateau_follows_the_chosen_period():
+    # Period 14: tre perioder är 42 dagar. 28 dagar räcker inte.
+    profile = make_checked_profile([90.0] * 42)
+    assert "alltså de senaste 42 dagarna." in profile.plateau_message(14)
+    assert make_checked_profile([90.0] * 28).plateau_message(14) is None
+
+
+def test_no_plateau_when_the_third_period_has_no_weigh_ins():
+    # Profilen skapad långt tidigare, så väntetiden är över, men loggarna täcker bara två
+    # perioder
+    profile = make_profile(created_date=day_text(-100))
+    profile.logs.extend(make_logs([90.0] * 14))
+    assert profile.plateau_message() is None
+
+
+def test_check_goals_prints_the_plateau_after_the_unchanged_weight_line(capsys):
+    profile = make_checked_profile(weekly_weights(90.0, 90.0, 90.0))
+    profile.check_goals()
+    output = capsys.readouterr().out
+    assert ("Vikten: oförändrad jämfört med perioden före. Underskottet räcker inte.\n"
+            + PLATEAU_TEXT + "\n") in output
+    assert "Fokusera på: vikt." in output
+
+
+def test_check_goals_prints_no_plateau_after_a_single_unchanged_comparison(capsys):
+    profile = make_checked_profile(weekly_weights(91.0, 90.0, 90.0))
+    profile.check_goals()
+    output = capsys.readouterr().out
+    assert "Vikten: oförändrad jämfört med perioden före." in output
+    assert "Platå" not in output
+
+
+def test_plateau_converts_the_change_to_kg_per_week_for_longer_periods():
+    # Period 14: snitten skiljer 0.08 kg mellan perioderna, alltså 0.08 / 14 * 7 = 0.04 kg
+    # per vecka. Det är under gränsen, fast skillnaden mellan snitten är över 0.05.
+    profile = make_checked_profile([90.0] * 14 + [90.08] * 14 + [90.16] * 14)
+    assert profile.plateau_message(14) is not None
+
+
+def test_check_goals_uses_the_chosen_period_for_the_plateau(capsys):
+    # 42 dagar utan förändring: platå med period 14. Med period 7 vore det också platå, men
+    # texten skulle säga 21 dagar.
+    profile = make_checked_profile([90.0] * 42)
+    profile.check_goals(14)
+    assert "alltså de senaste 42 dagarna." in capsys.readouterr().out
