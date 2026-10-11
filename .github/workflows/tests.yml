@@ -1,0 +1,34 @@
+# Kör alla tester på GitHub vid varje push och pull request, på samma fyra
+# Python-versioner som testerna körs på lokalt. Resultatet syns som en grön eller
+# röd markering vid varje commit och som en bild överst i README.
+name: Tester
+
+on:
+  push:
+  pull_request:
+
+# Workflowen läser bara koden och behöver ingen skrivrätt till repot
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      # Kör färdigt alla versioner även om en misslyckas, så att det syns vilka som går
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
+    env:
+      # Inget fönster finns på GitHubs servrar, så matplotlib ritar utan skärm
+      MPLBACKEND: Agg
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Installera beroenden
+        run: python -m pip install -r requirements-dev.txt
+      - name: Kör testerna
+        # -W error: en varning räknas som ett fel, som när testerna körs lokalt
+        run: python -m pytest -W error
