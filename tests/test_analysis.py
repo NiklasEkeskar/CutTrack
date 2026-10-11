@@ -480,7 +480,8 @@ def test_load_profile_reports_invalid_log_values(capsys):
     data["logs"][0]["weight"] = 0
     write_json("annaberg.json", data)
     assert load_profile("Anna Berg") is None
-    assert "Filen annaberg.json innehåller ogiltiga värden: Vikten" in capsys.readouterr().out
+    assert ("Filen annaberg.json innehåller ogiltiga värden i logg 1 (2026-09-01): Vikten"
+            in capsys.readouterr().out)
 
 
 def test_load_profile_reports_a_log_date_that_is_not_a_real_date(capsys):
@@ -489,7 +490,7 @@ def test_load_profile_reports_a_log_date_that_is_not_a_real_date(capsys):
     data["logs"][1]["date"] = "2026-13-45"
     write_json("annaberg.json", data)
     assert load_profile("Anna Berg") is None
-    assert ("Filen annaberg.json innehåller ogiltiga värden: "
+    assert ("Filen annaberg.json innehåller ogiltiga värden i logg 2 (2026-13-45): "
             "Datumet måste skrivas som ÅÅÅÅ-MM-DD") in capsys.readouterr().out
 
 
@@ -500,7 +501,64 @@ def test_load_profile_reports_a_log_date_that_is_missing(capsys):
     data["logs"][0]["date"] = None
     write_json("annaberg.json", data)
     assert load_profile("Anna Berg") is None
-    assert "Filen annaberg.json innehåller ogiltiga värden: Datumet" in capsys.readouterr().out
+    # Ett datum som inte är text visas inte, bara loggens nummer
+    assert ("Filen annaberg.json innehåller ogiltiga värden i logg 1: Datumet"
+            in capsys.readouterr().out)
+
+
+def test_load_profile_names_the_log_by_its_place_in_the_file(capsys):
+    # En profilfil kan ha hundratals loggar. Numret och datumet säger vilken som ska rättas,
+    # som radnumret i CSV-importen. Numret räknas från 1 i den ordning loggarna står i filen.
+    profile = make_profile()
+    profile.logs.append(DailyLog("2026-09-03", 69.0, 1900, 110, 8000, True))
+    profile.logs.append(DailyLog("2026-09-04", 68.8, 1900, 110, 8000, True))
+    save_profile(profile)
+    data = read_json("annaberg.json")
+    data["logs"][3]["protein"] = -5
+    write_json("annaberg.json", data)
+
+    assert load_profile("Anna Berg") is None
+
+    assert ("Filen annaberg.json innehåller ogiltiga värden i logg 4 (2026-09-04): "
+            "Proteinet") in capsys.readouterr().out
+
+
+def test_load_profile_shows_the_log_date_without_spaces_around_it(capsys):
+    save_profile(make_profile())
+    data = read_json("annaberg.json")
+    data["logs"][1]["date"] = " 2026-09-02 "
+    data["logs"][1]["weight"] = 0
+    write_json("annaberg.json", data)
+
+    assert load_profile("Anna Berg") is None
+
+    assert ("Filen annaberg.json innehåller ogiltiga värden i logg 2 (2026-09-02): Vikten"
+            in capsys.readouterr().out)
+
+
+def test_load_profile_shows_no_date_when_the_date_is_not_text(capsys):
+    save_profile(make_profile())
+    data = read_json("annaberg.json")
+    data["logs"][1]["date"] = 20260902
+    write_json("annaberg.json", data)
+
+    assert load_profile("Anna Berg") is None
+
+    assert ("Filen annaberg.json innehåller ogiltiga värden i logg 2: Datumet"
+            in capsys.readouterr().out)
+
+
+def test_load_profile_does_not_name_a_log_when_a_profile_value_is_invalid(capsys):
+    save_profile(make_profile())
+    data = read_json("annaberg.json")
+    data["start_weight"] = 0
+    write_json("annaberg.json", data)
+
+    assert load_profile("Anna Berg") is None
+
+    output = capsys.readouterr().out
+    assert "Filen annaberg.json innehåller ogiltiga värden: Startvikten" in output
+    assert "logg" not in output
 
 
 def test_load_profile_reports_a_start_date_that_is_not_a_real_date(capsys):
@@ -652,7 +710,7 @@ def test_load_profile_reports_a_log_value_of_the_wrong_type_or_out_of_range(
 
     assert load_profile("Anna Berg") is None
 
-    assert ("Filen annaberg.json innehåller ogiltiga värden: "
+    assert ("Filen annaberg.json innehåller ogiltiga värden i logg 2 (2026-09-02): "
             + expected_start) in capsys.readouterr().out
 
 
@@ -667,7 +725,7 @@ def test_load_profile_rejects_nan_and_infinity_in_a_file(capsys, bad_number):
 
     assert load_profile("Anna Berg") is None
 
-    assert ("Filen annaberg.json innehåller ogiltiga värden: Vikten"
+    assert ("Filen annaberg.json innehåller ogiltiga värden i logg 1 (2026-09-01): Vikten"
             in capsys.readouterr().out)
 
 

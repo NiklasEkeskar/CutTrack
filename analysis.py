@@ -178,12 +178,22 @@ def load_profile(name):
             data["protein_goal_per_kg"], data["step_goal"], data["training_goal_days"]
         )
 
-        for log_data in data["logs"]:
-            log = DailyLog(
-                log_data["date"], log_data["weight"], log_data["calories"],
-                log_data["protein"], log_data["steps"], log_data["trained"],
-                log_data["waist"]
-            )
+        for log_number, log_data in enumerate(data["logs"], start=1):
+            try:
+                log = DailyLog(
+                    log_data["date"], log_data["weight"], log_data["calories"],
+                    log_data["protein"], log_data["steps"], log_data["trained"],
+                    log_data["waist"]
+                )
+            except ValueError as error:
+                # En profilfil kan ha hundratals loggar. Numret och datumet säger vilken som
+                # ska rättas, som radnumret i CSV-importen. Ett datum som inte är text visas
+                # inte, det är ofta själva felet.
+                where = f"logg {log_number}"
+                if isinstance(log_data["date"], str):
+                    where += f" ({log_data['date'].strip()})"
+                print(f"Filen {filename} innehåller ogiltiga värden i {where}: {error}")
+                return None
             profile.logs.append(log)
 
         # Två namn kan ge samma filnamn, till exempel Åke och Äke som båda blir ke.json. Profilen
