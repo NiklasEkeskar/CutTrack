@@ -40,7 +40,9 @@ README = ROOT / "README.md"
 #             Skillnaden är (698.4 - 687.8) / 7 = 1.51 kg per vecka, 10.6 / 687.8 = 1.54 procent.
 #   20 dagar: dag 7 till 13 summerar 694.6, dag 14 till 20 summerar 686.9.
 #             Skillnaden är (694.6 - 686.9) / 7 = 1.10 kg per vecka, 7.7 / 686.9 = 1.12 procent.
-# Säkerhetsgränsen 1,0 procent av snittet (99.03, 98.26 och 98.13 kg) är cirka 1.0 kg.
+# Kilotalen visas med två decimaler (beslut 2026-10-12): 1.64, 1.51 och 1.10 kg per vecka.
+# Säkerhetsgränsen 1,0 procent av snittet (99.03, 98.26 och 98.13 kg) är cirka 0.99, 0.98 och
+# 0.98 kg.
 # F18: efter 18 och 20 dagar ligger första och senaste midjemåttet 14 dagar isär (2026-09-17 och
 # 2026-10-01). Midjan 90.0 till 88.2 är -1.8 cm, mindre än gränsen 2 cm, och vikten 101.3 till
 # 98.2 är 3.1 kg lägre.
@@ -50,8 +52,8 @@ WAIST_AFTER_18_AND_20_DAYS = (
     "vara mätfel. Mät på samma ställe och på samma sätt varje gång.")
 
 AFTER_14_DAYS = [
-    "Vikten: minskar med 1.66 procent per vecka (cirka 1.6 kg), över säkerhetsgränsen "
-    "1,0 procent (cirka 1.0 kg för dig). Risk för muskelförlust.",
+    "Vikten: minskar med 1.66 procent per vecka (cirka 1.64 kg), över säkerhetsgränsen "
+    "1,0 procent (cirka 0.99 kg för dig). Risk för muskelförlust.",
     "Målvikten 98.0 kg: med den här takten om cirka 4 dagar, omkring 2026-10-04. "
     "En grov uppskattning, takten brukar avta när vikten går ner.",
     "Protein: snitt 211 g mot mål 206 g. Målet nås.",
@@ -63,8 +65,8 @@ AFTER_14_DAYS = [
 ]
 
 AFTER_18_DAYS = [
-    "Vikten: minskar med 1.54 procent per vecka (cirka 1.5 kg), över säkerhetsgränsen "
-    "1,0 procent (cirka 1.0 kg för dig). Risk för muskelförlust.",
+    "Vikten: minskar med 1.54 procent per vecka (cirka 1.51 kg), över säkerhetsgränsen "
+    "1,0 procent (cirka 0.98 kg för dig). Risk för muskelförlust.",
     "Målvikten 98.0 kg: med den här takten om cirka 1 dag, omkring 2026-10-05. "
     "En grov uppskattning, takten brukar avta när vikten går ner.",
     "Protein: snitt 215 g mot mål 206 g. Målet nås.",
@@ -76,8 +78,8 @@ AFTER_18_DAYS = [
 ]
 
 AFTER_20_DAYS = [
-    "Vikten: minskar med 1.12 procent per vecka (cirka 1.1 kg), över säkerhetsgränsen "
-    "1,0 procent (cirka 1.0 kg för dig). Risk för muskelförlust.",
+    "Vikten: minskar med 1.12 procent per vecka (cirka 1.10 kg), över säkerhetsgränsen "
+    "1,0 procent (cirka 0.98 kg för dig). Risk för muskelförlust.",
     "Målvikten 98.0 kg: med den här takten om cirka 1 dag, omkring 2026-10-07. "
     "En grov uppskattning, takten brukar avta när vikten går ner.",
     "Protein: snitt 213 g mot mål 206 g. Målet nås.",
@@ -220,7 +222,7 @@ def test_f24_steady_loss_at_the_goal_pace_is_reported_as_on_target(capsys):
     first_line = check_goals_lines(profile, capsys)[0]
 
     assert first_line == (
-        "Vikten: minskar med 0.79 procent per vecka (cirka 0.7 kg), vid eller över ditt mål "
+        "Vikten: minskar med 0.79 procent per vecka (cirka 0.70 kg), vid eller över ditt mål "
         "på 0.7 procent och inom säkerhetsgränsen."
     )
 
@@ -239,7 +241,7 @@ def test_f24_the_same_slope_gives_the_same_kilos_per_week_for_every_period(days,
     first_line = check_goals_lines(profile, capsys, days)[0]
 
     assert first_line == (
-        f"Vikten: minskar med {rate} procent per vecka (cirka 0.7 kg), vid eller över ditt mål "
+        f"Vikten: minskar med {rate} procent per vecka (cirka 0.70 kg), vid eller över ditt mål "
         "på 0.7 procent och inom säkerhetsgränsen."
     )
 
@@ -252,37 +254,85 @@ def test_f24_rising_weight_reports_the_gain_per_week(capsys):
 
     lines = check_goals_lines(profile, capsys)
 
-    assert lines[0] == "Vikten: ökar med 1.4 kg per vecka i snitt. Underskottet räcker inte."
+    assert lines[0] == "Vikten: ökar med 1.40 kg per vecka i snitt. Underskottet räcker inte."
     assert lines[-1] == "Fokusera på: vikt."
 
 
-@pytest.mark.parametrize("latest_weight", [90.0, 89.99, 90.01],
-                         ids=["exakt-lika", "0.01-ner", "0.01-upp"])
-def test_f24_unchanged_weight_gets_its_own_text(latest_weight, capsys):
-    # Perioden före väger 90.0 kg. Är den senaste perioden lika, eller skiljer den mindre än
-    # 0,05 kg, avrundas kilotalet till 0.0 och vikten räknas som oförändrad. Före F24 skrev
-    # koden "minskar med -0.0 procent per vecka" när skillnaden var exakt noll.
+UNCHANGED_LINE = ("Vikten: ingen tydlig förändring jämfört med perioden före. Skillnaden är "
+                  "under 0.25 kg per vecka, inom vågens vanliga variation.")
+
+
+@pytest.mark.parametrize("latest_weight", [90.0, 89.99, 90.01, 89.76, 90.24],
+                         ids=["exakt-lika", "0.01-ner", "0.01-upp", "0.24-ner", "0.24-upp"])
+def test_f24_a_change_within_the_scale_noise_gets_its_own_text(latest_weight, capsys):
+    # Perioden före väger 90.0 kg. Skiljer den senaste perioden mindre än 0,25 kg per vecka
+    # (UNCHANGED_RATE_KG, beslut 2026-10-12) går förändringen inte att skilja från vågens
+    # vanliga variation. Förut var gränsen 0,05 kg, och 0,1 kg per vecka räknades som en
+    # nedgång.
     weights = [90.0] * 7 + [latest_weight] * 7
     profile = make_daily_profile(weights)
 
     lines = check_goals_lines(profile, capsys)
 
-    assert lines[0] == "Vikten: oförändrad jämfört med perioden före. Underskottet räcker inte."
+    assert lines[0] == UNCHANGED_LINE
     assert lines[-1] == "Fokusera på: vikt."
 
 
-def test_f24_a_tenth_of_a_kilo_per_week_is_a_slow_loss_not_unchanged(capsys):
-    # Perioden före väger 90.0 kg och den senaste 89.9 kg: 0.1 kg per vecka, 0.1 / 89.9 = 0.11
-    # procent. Kilotalet avrundas till 0.1 och räknas därför som en nedgång, inte som
-    # oförändrat. Målet på 0,6 procent av 89.9 kg är 0.54 kg, avrundat 0.5.
-    weights = [90.0] * 7 + [89.9] * 7
+def test_f24_a_quarter_of_a_kilo_per_week_is_a_slow_loss(capsys):
+    # Perioden före väger 90.0 kg och den senaste 89.74 kg: 0.26 kg per vecka, över gränsen.
+    # 0.26 / 89.74 = 0.2897, avrundat 0.29 procent. Målet på 0,6 procent av 89.74 kg är
+    # 0.5384, avrundat 0.54 kg.
+    weights = [90.0] * 7 + [89.74] * 7
     profile = make_daily_profile(weights, target_rate_percent=0.6)
 
     first_line = check_goals_lines(profile, capsys)[0]
 
     assert first_line == (
-        "Vikten: minskar med 0.11 procent per vecka (cirka 0.1 kg), långsammare än ditt mål "
-        "på 0.6 procent (cirka 0.5 kg för dig)."
+        "Vikten: minskar med 0.29 procent per vecka (cirka 0.26 kg), långsammare än ditt mål "
+        "på 0.6 procent (cirka 0.54 kg för dig)."
+    )
+
+
+def test_f24_a_rate_shown_as_the_goal_counts_as_reaching_it(capsys):
+    # 100.698 kg i sju dagar, sedan 100.0: 0.698 kg per vecka, 0.698 procent, som visas som
+    # 0.7. Förut jämfördes det oavrundade talet, och raden sa "minskar med 0.7 procent,
+    # långsammare än ditt mål på 0.7 procent". Nu jämförs samma tal som visas.
+    weights = [100.698] * 7 + [100.0] * 7
+    profile = make_daily_profile(weights)
+
+    first_line = check_goals_lines(profile, capsys)[0]
+
+    assert first_line == (
+        "Vikten: minskar med 0.7 procent per vecka (cirka 0.70 kg), vid eller över ditt mål "
+        "på 0.7 procent och inom säkerhetsgränsen."
+    )
+
+
+def test_f24_a_rate_shown_as_the_safety_limit_is_not_over_it(capsys):
+    # 101.004 kg, sedan 100.0: 1.004 procent, som visas som 1.0. Förut stod det "minskar med
+    # 1.0 procent per vecka, över säkerhetsgränsen 1,0 procent".
+    weights = [101.004] * 7 + [100.0] * 7
+    profile = make_daily_profile(weights)
+
+    first_line = check_goals_lines(profile, capsys)[0]
+
+    assert first_line.startswith("Vikten: minskar med 1.0 procent per vecka (cirka 1.00 kg), "
+                                 "vid eller över ditt mål")
+
+
+def test_f24_kilos_with_two_decimals_do_not_contradict_the_comparison(capsys):
+    # Fyndet från den verkliga datan: 0,69 procent mot målet 0,7, men båda kilotalen visades
+    # som "cirka 0.7 kg". Här: 98.68 kg, sedan 98.0, alltså 0.68 kg per vecka och
+    # 0.68 / 98.0 = 0.6939, avrundat 0.69 procent. Målet 0,7 procent av 98.0 kg är 0.686,
+    # avrundat 0.69 kg. 0.68 kg mot 0.69 kg säger samma sak som 0.69 mot 0.7 procent.
+    weights = [98.68] * 7 + [98.0] * 7
+    profile = make_daily_profile(weights)
+
+    first_line = check_goals_lines(profile, capsys)[0]
+
+    assert first_line == (
+        "Vikten: minskar med 0.69 procent per vecka (cirka 0.68 kg), långsammare än ditt mål "
+        "på 0.7 procent (cirka 0.69 kg för dig)."
     )
 
 
@@ -295,10 +345,35 @@ def test_f24_without_logs_in_the_previous_period_the_rate_is_not_assessed(capsys
 
     lines = check_goals_lines(profile, capsys)
 
-    assert lines[0] == "Vikten: för lite data för att bedöma takten."
+    assert lines[0] == ("Vikten: för få vägningar för att bedöma takten, 0 i perioden före och "
+                        "7 i den senaste. Det behövs minst 3 i varje.")
     # F17: slutraden sa förut "Allt ligger inom mål just nu", fast vikten inte var bedömd
     assert lines[-1] == ("Det som gick att bedöma ligger inom mål. Vikten gick inte att bedöma, "
-                         "eftersom det saknas vägningar i någon av perioderna.")
+                         "eftersom det finns för få vägningar i någon av perioderna.")
+
+
+@pytest.mark.parametrize("previous_days, latest_days, assessed", [
+    pytest.param([0, 3], [9, 11], False, id="2-och-3"),
+    pytest.param([0, 3, 6], [10], False, id="3-och-2"),
+    pytest.param([0, 3, 6], [9, 11], True, id="3-och-3"),
+])
+def test_f24_each_period_needs_three_weigh_ins(previous_days, latest_days, assessed, capsys):
+    # MIN_WEIGHINGS_PER_PERIOD = 3 (beslut 2026-10-12). Med en eller två vägningar per period
+    # jämförs i praktiken enstaka dagar, och skillnaden är mest vågens dagsvariation. Dag 13
+    # loggas alltid, så att perioderna är 1 till 7 och 8 till 14 september. Antalet i id:t är
+    # vägningarna i perioden före och i den senaste, dag 13 medräknad.
+    profile = make_daily_profile([])
+    for day in previous_days:
+        profile.logs.append(DailyLog(f"2026-09-{day + 1:02d}", 91.0, 2200, 150, 8000, True))
+    for day in latest_days + [13]:
+        profile.logs.append(DailyLog(f"2026-09-{day + 1:02d}", 90.0, 2200, 150, 8000, True))
+
+    first_line = check_goals_lines(profile, capsys)[0]
+
+    if assessed:
+        assert first_line.startswith("Vikten: minskar med")
+    else:
+        assert first_line.startswith("Vikten: för få vägningar för att bedöma takten")
 
 
 # ---------------------------------------------------------------------------

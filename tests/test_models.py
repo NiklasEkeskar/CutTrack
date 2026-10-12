@@ -1243,10 +1243,10 @@ def test_check_goals_does_not_claim_everything_is_on_target_without_a_weight_ass
         profile.logs.append(make_log(day, protein=200))
     profile.check_goals()
     output = capsys.readouterr().out
-    assert "Vikten: för lite data för att bedöma takten." in output
+    assert "Vikten: för få vägningar för att bedöma takten" in output
     assert "Allt ligger inom mål" not in output
     assert ("Det som gick att bedöma ligger inom mål. Vikten gick inte att bedöma, "
-            "eftersom det saknas vägningar i någon av perioderna.") in output
+            "eftersom det finns för få vägningar i någon av perioderna.") in output
 
 
 def test_a_training_goal_of_zero_days_is_reached_even_on_the_first_day(capsys):
@@ -1333,10 +1333,23 @@ def test_goal_projection_uses_the_chosen_period():
         "Målvikten 80.0 kg: med den här takten om cirka 2 veckor, omkring 2024-02-10.")
 
 
-def test_goal_projection_is_none_for_a_loss_under_50_grams_a_week():
-    # 90.0 i sju dagar, sedan 89.97 i sju: 0.03 kg per vecka räknas som oförändrad vikt
-    profile = make_checked_profile([90.0] * 7 + [89.97] * 7)
+@pytest.mark.parametrize("latest_weight, shown", [(89.76, False), (89.74, True)])
+def test_goal_projection_needs_a_loss_above_the_scale_noise(latest_weight, shown):
+    # 90.0 i sju dagar, sedan 89.76: 0.24 kg per vecka, under UNCHANGED_RATE_KG (0.25), så
+    # check_goals säger ingen tydlig förändring och ingen prognos visas. 89.74 ger 0.26.
+    profile = make_checked_profile([90.0] * 7 + [latest_weight] * 7)
+    assert (profile.goal_projection() is not None) == shown
+
+
+def test_goal_projection_needs_three_weigh_ins_in_each_period():
+    # Profilen skapad långt tidigare. Två vägningar i perioden före och tre i den senaste:
+    # check_goals bedömer inte takten, och då visas ingen prognos heller.
+    profile = make_profile(created_date=day_text(-100))
+    for day, weight in [(0, 91.0), (3, 91.0), (7, 90.0), (10, 90.0), (13, 90.0)]:
+        profile.logs.append(make_log(day, weight))
     assert profile.goal_projection() is None
+    profile.logs.append(make_log(5, 91.0))
+    assert profile.goal_projection() is not None
 
 
 def test_goal_projection_never_says_zero_days():
@@ -1484,12 +1497,13 @@ def test_check_goals_prints_no_waist_line_without_measurements(capsys):
     assert "Midjan" not in capsys.readouterr().out
 
 
-def test_check_goals_with_one_log_in_the_window_says_too_little_data(capsys):
+def test_check_goals_with_one_log_in_the_window_says_too_few_weigh_ins(capsys):
     # Profilen skapades långt före loggen, så väntetiden är över, men fönstret har bara en logg
     profile = make_profile(created_date=day_text(-100))
     profile.logs.append(make_log(0))
     profile.check_goals()
-    assert "Vikten: för lite data för att bedöma takten." in capsys.readouterr().out
+    assert ("Vikten: för få vägningar för att bedöma takten, 0 i perioden före och 1 i den "
+            "senaste. Det behövs minst 3 i varje.") in capsys.readouterr().out
 
 
 def test_rising_weight_is_flagged_and_gets_focus_before_everything_else(capsys):
@@ -1514,11 +1528,12 @@ def test_loss_above_the_safety_limit_is_flagged(capsys):
 
 
 def test_loss_slower_than_the_goal_is_flagged(capsys):
-    # Perioden före väger 90.0 kg och den senaste 89.9 kg: 0,1 kg per vecka, alltså 0,11
-    # procent, långt under målet på 0,6 procent
+    # Perioden före väger 90.0 kg och den senaste 89.6 kg: 0,4 kg per vecka, alltså 0,45
+    # procent, under målet på 0,6 procent. Förut var det 89.9 kg, 0,1 kg per vecka, men det är
+    # sedan 2026-10-12 inom vågens variation (UNCHANGED_RATE_KG).
     weights = weights_changing_by(0.0)  # 14 dagar på 90.0 kg ...
     for day in range(7, 14):
-        weights[day] = 89.9  # ... men den senaste veckan 100 gram lägre
+        weights[day] = 89.6  # ... men den senaste veckan 400 gram lägre
     profile = make_checked_profile(weights)
     profile.check_goals()
     lines = capsys.readouterr().out.splitlines()
@@ -1587,8 +1602,9 @@ def test_training_goal_is_scaled_to_the_period(days, expected_days, capsys):
     assert expected in capsys.readouterr().out
 
 
-# Steg 2: platå. Vikten har stått still när takten är oförändrad, under 0,05 kg per vecka
-# (samma gräns som texten oförändrad i check_goals), i två jämförelser i rad. Med
+# Steg 2: platå. Vikten har stått still när takten är under UNCHANGED_RATE_KG, 0,25 kg per
+# vecka (samma gräns som texten om ingen tydlig förändring i check_goals, höjd från 0,05 den
+# 2026-10-12), i två jämförelser i rad. Med
 # sjudagarsperioden krävs då tre hela perioder, 21 dagar. Regeln beslutad 2026-10-11.
 
 PLATEAU_TEXT = ("Platå: vikten har stått still i två jämförelser i rad, alltså de senaste "
@@ -1632,9 +1648,9 @@ def test_no_plateau_when_the_weight_goes_up():
     assert profile.plateau_message() is None
 
 
-@pytest.mark.parametrize("weekly_step, is_plateau", [(0.04, True), (0.06, False), (-0.04, True),
-                                                      (-0.06, False)])
-def test_plateau_uses_the_limit_of_50_grams_a_week(weekly_step, is_plateau):
+@pytest.mark.parametrize("weekly_step, is_plateau", [(0.24, True), (0.26, False), (-0.24, True),
+                                                      (-0.26, False)])
+def test_plateau_uses_the_scale_noise_limit(weekly_step, is_plateau):
     # Snitten ändras med weekly_step kg per vecka i båda jämförelserna
     profile = make_checked_profile(weekly_weights(90.0, 90.0 + weekly_step,
                                                   90.0 + 2 * weekly_step))
@@ -1646,6 +1662,15 @@ def test_plateau_follows_the_chosen_period():
     profile = make_checked_profile([90.0] * 42)
     assert "alltså de senaste 42 dagarna." in profile.plateau_message(14)
     assert make_checked_profile([90.0] * 28).plateau_message(14) is None
+
+
+def test_no_plateau_when_a_period_has_too_few_weigh_ins():
+    # Tre perioder utan förändring, men den äldsta har bara två vägningar
+    profile = make_profile(created_date=day_text(-100))
+    profile.logs.extend(make_logs([90.0] * 21))
+    profile.logs = [log for log in profile.logs if log.date not in
+                    (day_text(2), day_text(3), day_text(4), day_text(5), day_text(6))]
+    assert profile.plateau_message() is None
 
 
 def test_no_plateau_when_the_third_period_has_no_weigh_ins():
@@ -1660,8 +1685,8 @@ def test_check_goals_prints_the_plateau_after_the_unchanged_weight_line(capsys):
     profile = make_checked_profile(weekly_weights(90.0, 90.0, 90.0))
     profile.check_goals()
     output = capsys.readouterr().out
-    assert ("Vikten: oförändrad jämfört med perioden före. Underskottet räcker inte.\n"
-            + PLATEAU_TEXT + "\n") in output
+    assert ("Vikten: ingen tydlig förändring jämfört med perioden före. Skillnaden är under "
+            "0.25 kg per vecka, inom vågens vanliga variation.\n" + PLATEAU_TEXT + "\n") in output
     assert "Fokusera på: vikt." in output
 
 
@@ -1669,14 +1694,14 @@ def test_check_goals_prints_no_plateau_after_a_single_unchanged_comparison(capsy
     profile = make_checked_profile(weekly_weights(91.0, 90.0, 90.0))
     profile.check_goals()
     output = capsys.readouterr().out
-    assert "Vikten: oförändrad jämfört med perioden före." in output
+    assert "Vikten: ingen tydlig förändring jämfört med perioden före." in output
     assert "Platå" not in output
 
 
 def test_plateau_converts_the_change_to_kg_per_week_for_longer_periods():
-    # Period 14: snitten skiljer 0.08 kg mellan perioderna, alltså 0.08 / 14 * 7 = 0.04 kg
-    # per vecka. Det är under gränsen, fast skillnaden mellan snitten är över 0.05.
-    profile = make_checked_profile([90.0] * 14 + [90.08] * 14 + [90.16] * 14)
+    # Period 14: snitten skiljer 0.48 kg mellan perioderna, alltså 0.48 / 14 * 7 = 0.24 kg
+    # per vecka. Det är under gränsen, fast skillnaden mellan snitten är över 0.25.
+    profile = make_checked_profile([90.0] * 14 + [90.48] * 14 + [90.96] * 14)
     assert profile.plateau_message(14) is not None
 
 

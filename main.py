@@ -153,7 +153,9 @@ def ask_period():
     valid_periods = [7, 14, 30]
     period = 0
     while period not in valid_periods:
-        period = ask_number("Analysperiod i dagar (7, 14 eller 30): ", True)
+        # 14 rekommenderas: med 7 dagar och några vägningar i veckan är bruset i takten
+        # nästan lika stort som takten själv (statuslogg.md, Beslut 2026-10-12)
+        period = ask_number("Analysperiod i dagar (7, 14 eller 30, 14 rekommenderas): ", True)
         if period not in valid_periods:
             print("Välj 7, 14 eller 30.")
     return period

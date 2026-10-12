@@ -29,7 +29,7 @@ Projektet började som slutprojekt i kursen Utveckling med Python, grund, inom Y
 
 | Område | Så bedöms det |
 | --- | --- |
-| Vikt | Takten räknas som procent av kroppsvikten per vecka, från skillnaden mellan snittet för den senaste perioden och snittet för perioden före. Går det långsammare än ditt eget mål flaggas det. Går det över 1,0 procent per vecka flaggas det alltid, oavsett ditt mål, eftersom risken för muskelförlust ökar. Ökar vikten, eller står den still (mindre än 0,05 kg per vecka), flaggas det också. |
+| Vikt | Takten räknas som procent av kroppsvikten per vecka, från skillnaden mellan snittet för den senaste perioden och snittet för perioden före. Går det långsammare än ditt eget mål flaggas det. Går det över 1,0 procent per vecka flaggas det alltid, oavsett ditt mål, eftersom risken för muskelförlust ökar. Ökar vikten, eller är förändringen mindre än 0,25 kg per vecka, så liten att den inte går att skilja från vågens vanliga variation, flaggas det också. Varje period måste ha minst tre vägningar för att takten ska bedömas. |
 | Protein | Dagligt snitt mot ett mål på 1,9 gram per kilo målvikt. |
 | Träning | Antal träningsdagar mot ditt mål, standard tre per vecka, omräknat till vald period. |
 | Steg | Dagligt snitt mot ditt stegmål, standard 8 000. |
@@ -45,7 +45,7 @@ Exemplet kommer från en testperiod på 20 dagar med profilen Testperson: man, 1
 
 **Efter 14 dagar, första gången full analys är möjlig:**
 ```
-Vikten: minskar med 1.66 procent per vecka (cirka 1.6 kg), över säkerhetsgränsen 1,0 procent (cirka 1.0 kg för dig). Risk för muskelförlust.
+Vikten: minskar med 1.66 procent per vecka (cirka 1.64 kg), över säkerhetsgränsen 1,0 procent (cirka 0.99 kg för dig). Risk för muskelförlust.
 Målvikten 98.0 kg: med den här takten om cirka 4 dagar, omkring 2026-10-04. En grov uppskattning, takten brukar avta när vikten går ner.
 Protein: snitt 211 g mot mål 206 g. Målet nås.
 Träning: 5 av 5 förväntade dagar under perioden. Målet nås.
@@ -57,12 +57,12 @@ Fokusera på: vikt.
 
 **Efter 18 dagar (bara viktraden visas här):**
 ```
-Vikten: minskar med 1.54 procent per vecka (cirka 1.5 kg), över säkerhetsgränsen 1,0 procent (cirka 1.0 kg för dig). Risk för muskelförlust.
+Vikten: minskar med 1.54 procent per vecka (cirka 1.51 kg), över säkerhetsgränsen 1,0 procent (cirka 0.98 kg för dig). Risk för muskelförlust.
 ```
 
 **Efter 20 dagar:**
 ```
-Vikten: minskar med 1.12 procent per vecka (cirka 1.1 kg), över säkerhetsgränsen 1,0 procent (cirka 1.0 kg för dig). Risk för muskelförlust.
+Vikten: minskar med 1.12 procent per vecka (cirka 1.10 kg), över säkerhetsgränsen 1,0 procent (cirka 0.98 kg för dig). Risk för muskelförlust.
 Målvikten 98.0 kg: med den här takten om cirka 1 dag, omkring 2026-10-07. En grov uppskattning, takten brukar avta när vikten går ner.
 Protein: snitt 213 g mot mål 206 g. Målet nås.
 Träning: 5 av 5 förväntade dagar under perioden. Målet nås.
@@ -157,7 +157,7 @@ CutTrack/
 
 **Kontroll av värden.** `DailyLog`, `User` och `CutProfile` kontrollerar själva att varje värde är ett tal av rätt sort inom rimliga gränser, och kastar `ValueError` med ett svenskt meddelande annars. Gränserna står som konstanter överst i `models.py`. Eftersom kontrollen ligger i klasserna gäller den lika för menyn, CSV-filer och profilfiler. Menyn frågar om längd, ålder och namn direkt när svaret är fel, godtar decimalkomma, och tolkar j, ja, n och nej på träningsfrågan.
 
-**Takten jämför två perioder.** `check_goals` räknar medelvikten för den senaste perioden och för perioden före. Ett snitt ligger mitt i sin period, så de två snitten hör till tidpunkter som ligger lika många dagar isär som perioden är lång. Skillnaden delas därför med periodens längd och multipliceras med sju, vilket ger kilo per vecka, och procenttalet räknas på det senaste snittet. Då ger en och samma nedgång per vecka samma kilotal för 7, 14 och 30 dagar, och en enskild vägning är bara en av många i snittet. Är skillnaden under 0,05 kg per vecka avrundas den till 0,0 kg, och vikten får texten oförändrad i stället för "minskar med 0.0 kg". Saknas vägningar i någon av perioderna står det att det är för lite data.
+**Takten jämför två perioder.** `check_goals` räknar medelvikten för den senaste perioden och för perioden före. Ett snitt ligger mitt i sin period, så de två snitten hör till tidpunkter som ligger lika många dagar isär som perioden är lång. Skillnaden delas därför med periodens längd och multipliceras med sju, vilket ger kilo per vecka, och procenttalet räknas på det senaste snittet. Då ger en och samma nedgång per vecka samma kilotal för 7, 14 och 30 dagar, och en enskild vägning är bara en av många i snittet. Är skillnaden under 0,25 kg per vecka säger raden att det inte finns någon tydlig förändring, eftersom en så liten skillnad inte går att skilja från vågens vanliga variation. Har någon av perioderna färre än tre vägningar bedöms takten inte alls. Procenttalet avrundas till två decimaler innan det jämförs med målet, och kilotalen visas med två decimaler, så att texten och jämförelsen alltid säger samma sak. Gränserna kommer från en enda riktig deff, se Begränsningar.
 
 **Saknade värden.** `None` betyder att ett värde saknas, 0 betyder att det mättes till noll. Ett midjemått som inte mätts är `None`, och kontrollen görs med `is not None` eftersom 0 och `None` annars behandlas lika i ett vanligt if-test.
 
@@ -191,7 +191,7 @@ CutTrack/
 
 **Midjan (`waist_comparison`)** jämförs bara när två mätningar ligger minst 14 dagar isär. En förändring under 2 cm räknas som nästan oförändrad, eftersom mätfelet när man mäter sin egen midja hemma var 0,76 tum, ungefär 1,9 cm, i Barrios m.fl. 2016 (technical error of measurement, mätt med måttband i hemmet). Felet för skillnaden mellan två mätningar är större än för en enda, så 2 cm är en låg gräns, och programmet säger därför att det kan vara mätfel. Studien gällde vuxna i USA som mätte sig själva efter instruktion, inte personer som deffar. Viktnedgången räknas från 1 kg, en gräns jag satt själv utifrån att vikten svänger flera hundra gram från dag till dag. Den är inte hämtad från en källa.
 
-**Platå (`plateau_message`)** betyder att vikten har stått still i två jämförelser i rad: snitten för de tre senaste perioderna skiljer sig mindre än 0,05 kg per vecka åt, både mellan den senaste och perioden före och mellan perioden före och den äldsta. Med sjudagarsperioden blir det tre veckor. Jag hittade ingen vetenskaplig källa för hur länge vikten ska stå still innan det räknas som platå, bara råd på kommersiella sidor om två till tre veckor, så gränsen är ett val och inte ett forskningsresultat. Raden föreslår att först kontrollera att allt som äts loggas, eftersom personer som inte gick ner trots ett lågt rapporterat intag i Lichtman m.fl. 1992 i själva verket åt mer än de rapporterade, och sedan ett större underskott. Studien gällde personer med fetma som sa att de inte gick ner i vikt, inte personer som deffar.
+**Platå (`plateau_message`)** betyder att vikten har stått still i två jämförelser i rad: snitten för de tre senaste perioderna skiljer sig mindre än 0,25 kg per vecka åt, både mellan den senaste och perioden före och mellan perioden före och den äldsta. Med sjudagarsperioden blir det tre veckor. Jag hittade ingen vetenskaplig källa för hur länge vikten ska stå still innan det räknas som platå, bara råd på kommersiella sidor om två till tre veckor, så gränsen är ett val och inte ett forskningsresultat. Raden föreslår att först kontrollera att allt som äts loggas, eftersom personer som inte gick ner trots ett lågt rapporterat intag i Lichtman m.fl. 1992 i själva verket åt mer än de rapporterade, och sedan ett större underskott. Studien gällde personer med fetma som sa att de inte gick ner i vikt, inte personer som deffar.
 
 **Basalomsättning (`calculate_bmr`)** räknas enligt Mifflin-St Jeor.
 
@@ -205,7 +205,7 @@ CutTrack/
 
 ## Begränsningar
 
-- Vikttakten bygger på att det finns vägningar i båda perioderna, men programmet kräver bara en vägning per period. En period med få vägningar ger ett snitt som är nästan lika osäkert som en enskild vägning. Luckor i loggningen gör dessutom att avståndet mellan de två snitten inte är exakt lika långt som perioden, så takten blir mindre exakt ju fler dagar som saknas. Loggar du de flesta dagar är felet litet.
+- Vikttakten kräver minst tre vägningar per period, och en förändring under 0,25 kg per vecka räknas som ingen tydlig förändring. Båda gränserna är satta efter en enda riktig deff på åtta veckor, där bruset i takten var cirka 0,4 kg per vecka med 7 dagars period och cirka 0,13 med 14 dagar. De är inte prövade på fler personer. Med 7 dagar och några vägningar i veckan är bruset nästan lika stort som takten själv, och därför rekommenderar programmet 14 dagar. Luckor i loggningen gör dessutom att avståndet mellan de två snitten inte är exakt lika långt som perioden, så takten blir mindre exakt ju fler dagar som saknas. Loggar du de flesta dagar är felet litet.
 - Kaloriförslaget är en uppskattning. 7700-regeln överskattar viktnedgången över tid, så siffran ska justeras efter verkligt utfall efter ett par veckors loggning.
 - Proteinmålet räknas på målvikt eftersom programmet inte känner till kroppsfett.
 - Under väntetiden bedöms inte viktens takt. Efter en hel period visas snittet, och protein, steg och träning analyseras från första dagen, med träningsmålet skalat till dagarna hittills.

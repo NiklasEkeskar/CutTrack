@@ -400,6 +400,15 @@ def test_ask_period_asks_again_after_a_number_that_is_not_a_valid_period(
     assert "Välj 7, 14 eller 30." in capsys.readouterr().out
 
 
+def test_ask_period_recommends_14_days(monkeypatch, capsys):
+    # Med 7 dagar och några vägningar i veckan var bruset i takten nästan lika stort som
+    # takten själv, med 14 dagar ungefär en tredjedel (statuslogg.md, Beslut 2026-10-12).
+    # 14 dagar rekommenderas i frågan, men alla tre perioderna går att välja.
+    type_answers(monkeypatch, ["7"])
+    assert main.ask_period() == 7
+    assert "Analysperiod i dagar (7, 14 eller 30, 14 rekommenderas): " in capsys.readouterr().out
+
+
 def test_ask_period_asks_again_after_text(monkeypatch, capsys):
     type_answers(monkeypatch, ["vecka", "7"])
     assert main.ask_period() == 7

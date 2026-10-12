@@ -41,6 +41,16 @@ WAIST_CHANGE_CM = 2.0
 WEIGHT_CHANGE_KG = 1.0
 WAIST_MIN_DAYS = 14
 
+# Vågens dagsvariation (beslut 2026-10-12). Preliminära värden, provade mot en enda riktig
+# deff på 34 vägningar under åtta veckor, ingen källa. Där avvek dagsvikten i snitt cirka 0,5 kg
+# från en rak linje, och bruset i takten blev cirka 0,4 kg per vecka med sjudagarsperioden och
+# cirka 0,13 med fjortondagarsperioden (en standardavvikelse). UNCHANGED_RATE_KG är ungefär
+# två sådana standardavvikelser med 14 dagar: en mindre skillnad går inte att skilja från
+# vågens variation. Med färre än MIN_WEIGHINGS_PER_PERIOD vägningar jämförs i praktiken enstaka
+# dagar.
+MIN_WEIGHINGS_PER_PERIOD = 3
+UNCHANGED_RATE_KG = 0.25
+
 DATE_MESSAGE = "Datumet måste skrivas som ÅÅÅÅ-MM-DD, till exempel 2026-10-08."
 
 
@@ -490,6 +500,14 @@ class CutProfile(User):
 
         return None
 
+    def has_enough_weighings(self, days, period_count):
+        """Säger om var och en av de period_count senaste perioderna har minst
+        MIN_WEIGHINGS_PER_PERIOD vägningar. Takten (två perioder) och platån (tre) kräver det."""
+        for period_number in range(period_count):
+            if len(self.get_logs(days, period_number * days)) < MIN_WEIGHINGS_PER_PERIOD:
+                return False
+        return True
+
     def goal_projection(self, days=7):
         """Hur länge det dröjer till målvikten med nuvarande takt, en linjär projektion (steg
         2). Takten räknas som i check_goals. Returnerar en text, eller None under väntetiden,
@@ -497,19 +515,23 @@ class CutProfile(User):
         if self.waiting_message(days) is not None:
             return None
 
+        # Samma krav som takten i check_goals, annars visas en prognos för en takt som
+        # check_goals inte bedömer
+        if not self.has_enough_weighings(days, 2):
+            return None
+
         avg_weight = self.average_weight(days)
         previous_avg_weight = self.average_weight(days, days)
-        if avg_weight is None or previous_avg_weight is None:
-            return None
 
         if avg_weight <= self.goal_weight:
             return (f"Målvikten {self.goal_weight} kg: snittet ligger redan på eller under "
                     "målvikten.")
 
-        # Kilo per vecka, samma uträkning som i check_goals. Under 0,05 kg räknas vikten som
-        # oförändrad där, och då finns ingen takt att räkna med här heller.
+        # Kilo per vecka, samma uträkning som i check_goals. Under UNCHANGED_RATE_KG säger
+        # check_goals att det inte finns någon tydlig förändring, och då finns ingen takt att
+        # räkna med här heller.
         weekly_loss = -(avg_weight - previous_avg_weight) / days * 7
-        if weekly_loss < 0.05:
+        if weekly_loss < UNCHANGED_RATE_KG:
             return None
 
         weeks_left = (avg_weight - self.goal_weight) / weekly_loss
@@ -588,19 +610,19 @@ class CutProfile(User):
         Varje jämförelse räknas som takten i check_goals: snittet för en period mot snittet
         för perioden före, i kg per vecka. Två jämförelser kräver tre hela perioder med
         vägningar."""
+        if not self.has_enough_weighings(days, 3):
+            return None
+
         averages = []
         for period_number in range(3):
-            avg_weight = self.average_weight(days, period_number * days)
-            if avg_weight is None:
-                return None
-            averages.append(avg_weight)
+            averages.append(self.average_weight(days, period_number * days))
 
         # averages[0] är den senaste perioden, averages[2] den äldsta
         latest_change = (averages[0] - averages[1]) / days * 7
         earlier_change = (averages[1] - averages[2]) / days * 7
 
-        # Samma gräns som texten oförändrad i check_goals
-        if abs(latest_change) < 0.05 and abs(earlier_change) < 0.05:
+        # Samma gräns som texten om ingen tydlig förändring i check_goals
+        if abs(latest_change) < UNCHANGED_RATE_KG and abs(earlier_change) < UNCHANGED_RATE_KG:
             return ("Platå: vikten har stått still i två jämförelser i rad, alltså de "
                     f"senaste {days * 3} dagarna. Kontrollera först att allt du äter och "
                     "dricker loggas. Stämmer loggningen behöver underskottet bli större, se "
@@ -638,20 +660,24 @@ class CutProfile(User):
             # tidpunkter som ligger days dagar från varandra (med loggar de flesta dagar, luckor
             # gör takten mindre exakt). Skillnaden delas därför med days och multipliceras med 7,
             # annars blir en förändring över 30 dagar feltolkad som en veckotakt.
-            avg_weight = self.average_weight(days)
-            previous_avg_weight = self.average_weight(days, days)
-            if avg_weight is not None and previous_avg_weight is not None and avg_weight > 0:
+            if self.has_enough_weighings(days, 2):
+                avg_weight = self.average_weight(days)
+                previous_avg_weight = self.average_weight(days, days)
                 weekly_change = (avg_weight - previous_avg_weight) / days * 7
-                rate_percent = -weekly_change / avg_weight * 100
-                actual_kg = round(abs(weekly_change), 1)
-                safety_kg = round(avg_weight * 1.0 / 100, 1)
-                target_kg = round(avg_weight * self.target_rate_percent / 100, 1)
+                # Procenttalet avrundas en gång och används både i texten och i jämförelserna,
+                # så att raden aldrig säger "0.7 procent, långsammare än ditt mål på 0.7".
+                # Kilotalen visas med två decimaler av samma skäl.
+                rate_percent = round(-weekly_change / avg_weight * 100, 2)
+                actual_kg = f"{abs(weekly_change):.2f}"
+                safety_kg = f"{avg_weight * 1.0 / 100:.2f}"
+                target_kg = f"{avg_weight * self.target_rate_percent / 100:.2f}"
 
-                # Under 0,05 kg per vecka avrundas kilotalet till 0.0. Då vore "minskar med 0.0
-                # kg" missvisande, så vikten räknas som oförändrad
-                if abs(weekly_change) < 0.05:
-                    print("Vikten: oförändrad jämfört med perioden före. "
-                          "Underskottet räcker inte.")
+                # En skillnad under UNCHANGED_RATE_KG går inte att skilja från vågens vanliga
+                # variation mellan dagar
+                if abs(weekly_change) < UNCHANGED_RATE_KG:
+                    print("Vikten: ingen tydlig förändring jämfört med perioden före. "
+                          f"Skillnaden är under {UNCHANGED_RATE_KG} kg per vecka, inom vågens "
+                          "vanliga variation.")
                     # Har vikten stått still även i jämförelsen före är det en platå
                     plateau_text = self.plateau_message(days)
                     if plateau_text is not None:
@@ -662,24 +688,28 @@ class CutProfile(User):
                           "Underskottet räcker inte.")
                     focus_area = "vikt"
                 elif rate_percent > 1.0:
-                    print(f"Vikten: minskar med {round(rate_percent, 2)} procent per vecka "
+                    print(f"Vikten: minskar med {rate_percent} procent per vecka "
                           f"(cirka {actual_kg} kg), över säkerhetsgränsen 1,0 procent "
                           f"(cirka {safety_kg} kg för dig). Risk för muskelförlust.")
                     if focus_area is None:
                         focus_area = "vikt"
                 elif rate_percent < self.target_rate_percent:
-                    print(f"Vikten: minskar med {round(rate_percent, 2)} procent per vecka "
+                    print(f"Vikten: minskar med {rate_percent} procent per vecka "
                           f"(cirka {actual_kg} kg), långsammare än ditt mål på "
                           f"{self.target_rate_percent} procent (cirka {target_kg} kg för dig).")
                     if focus_area is None:
                         focus_area = "vikt"
                 else:
-                    print(f"Vikten: minskar med {round(rate_percent, 2)} procent per vecka "
+                    print(f"Vikten: minskar med {rate_percent} procent per vecka "
                           f"(cirka {actual_kg} kg), vid eller över ditt mål på "
                           f"{self.target_rate_percent} procent och inom säkerhetsgränsen.")
             else:
-                print("Vikten: för lite data för att bedöma takten.")
-                weight_not_assessed = ("Vikten gick inte att bedöma, eftersom det saknas "
+                previous_count = len(self.get_logs(days, days))
+                latest_count = len(self.get_logs(days))
+                print(f"Vikten: för få vägningar för att bedöma takten, {previous_count} i "
+                      f"perioden före och {latest_count} i den senaste. Det behövs minst "
+                      f"{MIN_WEIGHINGS_PER_PERIOD} i varje.")
+                weight_not_assessed = ("Vikten gick inte att bedöma, eftersom det finns för få "
                                        "vägningar i någon av perioderna.")
 
             # Hur länge till målvikten med den här takten (steg 2). Bara en uppgift, den

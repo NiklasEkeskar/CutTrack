@@ -96,7 +96,8 @@ Två olika gränser med olika syften, inte ett gemensamt fast intervall:
 Konsekvens: sätter någon sitt mål till 0,3 procent och når exakt det, räknas det som rätt takt, inte som för långsamt. Sätter någon sitt mål till 1,0 och landar på 1,3, flaggas det ändå, trots att de själva bad om en snabb takt.
 
 - vikten ökar: underskottet räcker inte, flaggas alltid
-- vikten är oförändrad (skillnaden under 0,05 kg per vecka): underskottet räcker inte, flaggas alltid, med en egen text
+- ingen tydlig förändring (skillnaden under `UNCHANGED_RATE_KG`, 0,25 kg per vecka, sedan 2026-10-12, förut 0,05): flaggas alltid, med en egen text som säger att skillnaden är inom vågens vanliga variation
+- för få vägningar (färre än `MIN_WEIGHINGS_PER_PERIOD`, 3, i någon av perioderna, sedan 2026-10-12): takten bedöms inte, och raden säger hur många vägningar det finns
 - under eget mål men inom säkerhetstaket: långsammare än önskat, flaggas
 - vid eller över eget mål och inom säkerhetstaket: rätt takt
 - över 1,0 procent: över säkerhetsgränsen, flaggas alltid, oavsett eget mål
@@ -116,7 +117,7 @@ Räknas med `training_days(days)` på User, som loopar över loggarna i fönstre
 ### Trend och tidsfönster
 Sjudagarssnittet räknas på de sju senaste kalenderdagarna, inte de sju senaste loggarna. Skälet är att trend handlar om tid. Sju loggar utspridda över en månad är inte ett veckosnitt.
 
-Avsikten var att kräva minst fyra loggar inom fönstret innan ett snitt används. Så är det inte byggt: `average_weight` kräver minst en logg, och takten bedöms när båda perioderna har minst en vägning.
+Avsikten var att kräva minst fyra loggar inom fönstret innan ett snitt används. Sedan 2026-10-12 krävs tre (`MIN_WEIGHINGS_PER_PERIOD`) i varje period, kontrollerat av `has_enough_weighings(days, period_count)`, som takten i `check_goals`, `goal_projection` (två perioder) och `plateau_message` (tre perioder) använder. Siffran valdes efter den första verkliga datan: med 3 fick 27 av 30 analysdagar en bedömning med 7 dagars period, med 4 bara 13. `average_weight` kräver fortfarande bara en logg, eftersom snittet under väntetiden (F16) också använder den. Samtidigt avrundas procenttalet till två decimaler innan det jämförs, och kilotalen visas med två decimaler (`:.2f`), så att texten och jämförelsen alltid bygger på samma tal.
 
 **Hur takten räknas.** Takten är skillnaden mellan snittet för den senaste perioden och snittet för perioden före, `(average_weight(days) - average_weight(days, days)) / days * 7`, alltså kilo per vecka, och procenttalet räknas på det senaste snittet. Ett snitt över `days` kalenderdagar ligger mitt i sin period, så de två snitten hör till tidpunkter som ligger `days` dagar isär. Därför delas skillnaden med `days` och multipliceras med sju, och samma nedgång per vecka ger samma kilotal för 7, 14 och 30 dagars period. Perioden före hämtas med `get_logs(days, offset_days)`, som hoppar över de `offset_days` senaste dagarna med samma kalenderdagsregel som alla andra urval. En enskild vägning är en av många i ett snitt: i exemplet i README flyttar 200 gram mer eller mindre på sista vägningen takten från 1,66 till 1,63 respektive 1,69 procent per vecka. Skillnader under 0,05 kg per vecka, det som avrundas till 0.0 kg i utskriften, räknas som oförändrad vikt och får en egen text, så att programmet aldrig skriver "minskar med 0.0 kg" eller "-0.0 procent". Saknas vägningar i någon av perioderna skrivs att det är för lite data.
 
