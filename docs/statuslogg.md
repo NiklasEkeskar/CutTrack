@@ -230,6 +230,7 @@ Alla står med direktlänkar i README under Källor och antaganden. Nyanser att 
 ## Senaste uppdateringar
 (fylls på löpande, senaste överst)
 
+- 2026-10-12, ordningen för resten av förhören bestämd: de små punkterna först (väntetexterna, slutraden F17, loggnumret, målen i profilen F23, diagrammen i menyn F20, importens sammanfattning, beslutet om `weight_change`), sedan F15, F16, midjan F18, tusentalsavgränsarna, fsync och exporten och GitHub Actions, sedan brusfixarna och notebooken (N7) sist. Du skrev "jag följer din rekomendtion". Frågorna för F15 är redan ställda i chatten och tas med bland de mellanstora.
 - 2026-10-12, steg 1 punkt 8 (friskrivningen vid kaloriförslaget, F22) bockad efter förhöret. Kravspec F22 och den här loggen är ändrade.
 - 2026-10-12, steg 1 punkt 7 (namn och profilfil, F4) bockad efter förhöret. Kravspec F4 och den här loggen är ändrade.
 - 2026-10-12, steg 1 punkt 6 (menyns inmatning, F2, F7, N1) bockad efter förhöret. Kravspec F2, F7, N1 och den här loggen är ändrade.
