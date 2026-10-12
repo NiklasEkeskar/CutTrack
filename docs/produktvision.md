@@ -78,11 +78,15 @@ Version 1 byggde kärnan. Kärnlogiken (klasser, beräkningar, regler) hålls se
 - korrelation mellan protein, steg, träning och viktförändring vecka för vecka, ett naturligt försteg till feature-tänk inom maskininlärning utan att bygga någon modell
 - midjemått jämfört med vikt över hela perioden (avgjord 2026-10-11 som täckt av midjejämförelsen F18), inte bara senaste mätningen, en starkare varningssignal om de två divergerar över flera veckor
 
+**Styrka, ny data som mäter det produkten lovar:**
+- en enkel styrkelogg för ett fåtal baslyft, ett värde per övning och pass. Visionen är att banta utan att tappa muskelmassa, men vikt, kalorier, protein, steg och träning ja eller nej visar inte om musklerna bevaras. Styrka som håller sig medan vikten sjunker är den bästa signal en användare utan kroppssammansättningsmätning kan få. Först visas bara trenden, ett råd kommer när en källa stödjer regeln. Kräver att en logg kan sparas utan vikt (F27, F28). Beslutat 2026-10-12.
+- en trendlinje för vikten som prövas mot verklig data innan den ersätter jämförelsen av två snitt. Den måste räkna i kalenderdagar och inte i loggar, så att den tål dagar utan vägning.
+
 **Arkitekturen, redan förberedd men inte byggd:**
 - lägen för deff, muskelbygge och viktbalans, byggda som nya barnklasser till User (BulkProfile med kaloriöverskott, MaintenanceProfile utan viktmål) utan att koden i User behöver ändras
 - en roll för coach eller PT, en klass som kan läsa en användares check_goals-utskrift utan att äga eller kunna ändra loggarna
 
 **Mer datainsamling och annat gränssnitt:**
 - automatisk inläsning av steg från telefon eller klocka, löser den svagaste länken i datainsamlingen, att manuell inmatning av steg är trögt och lätt att sluta med
-- ett enkelt webbgränssnitt ovanpå samma User- och CutProfile-klasser, möjligt just för att input och output redan hålls separat från kärnlogiken
+- ett enkelt webbgränssnitt ovanpå samma User- och CutProfile-klasser, möjligt när beräkning och utskrift är åtskilda, vilket inmatningen redan är men utskrifterna inte är (se statuslogg.md, Steg 2)
 - veckorapporter, integration med hälso- och träningsappar
