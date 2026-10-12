@@ -71,7 +71,7 @@ Status är Klart, Delvis eller Ej byggt.
 | ID | Krav | Status |
 | --- | --- | --- |
 | F19 | Diagram över viktutvecklingen med rullande sjudagarssnitt och målvikt. | Klart. Sedan 2026-10-11 (genomgånget 2026-10-12) räknas sjudagarssnittet i kalenderdagar, som övriga snitt (D3), i stället för på de sju senaste loggarna. |
-| F20 | Diagram för protein och steg med rullande sjudagarssnitt och mållinje. | Klart, men menydelen byggd 2026-10-11 och inte genomgången. Menyval 3 heter Visa diagram och frågar vilket av de tre diagrammen som ska ritas, sedan perioden. |
+| F20 | Diagram för protein och steg med rullande sjudagarssnitt och mållinje. | Klart. Menydelen byggd 2026-10-11, genomgången 2026-10-12. Menyval 3 heter Visa diagram och frågar vilket av de tre diagrammen som ska ritas, sedan perioden. |
 
 ### Gränssnitt och information
 
