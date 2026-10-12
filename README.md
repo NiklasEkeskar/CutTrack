@@ -35,13 +35,13 @@ Projektet började som slutprojekt i kursen Utveckling med Python, grund, inom Y
 | Steg | Dagligt snitt mot ditt stegmål, standard 8 000. |
 | Prioritering | Alla fyra områden visas, sedan lyfts en sak fram att fokusera på: vikt först, därefter protein, träning och steg. |
 
-Av målen frågar menyn bara efter målvikt och takt. Standardvärdena för protein, steg och träning ligger i koden och kan ändras i profilens JSON-fil.
+När profilen skapas frågar menyn efter målvikt och takt, och efter mål för protein, steg och träning. Trycker du Enter på de tre sista används standardvärdena.
 
 Programmet väntar med bedömningen. En vald period (7, 14 eller 30 dagar) krävs för att visa ett snitt och två perioder för att bedöma takten, eftersom takten jämför snittet för den senaste perioden med snittet för perioden före. Med sjudagarsperiod börjar full analys på dag 14, med 14 dagars period på dag 28 och med 30 dagar på dag 60. Under väntetiden skriver programmet en förklaring och hur många dagar som återstår för vikten, och bedömer sedan protein, träning och steg, som bara kräver ett snitt.
 
 ## Exempel
 
-Exemplet kommer från en testperiod på 20 dagar med profilen Testperson: man, 189 cm, 39 år, startvikt 101,5 kg, målvikt 98 kg, önskad takt 0,6 procent per vecka, proteinmål 2,1 gram per kilo målvikt, stegmål 10 000 och fem träningsdagar i veckan. Loggarna är simulerade, inte en logg förd dag för dag, och finns i [data/exempel_loggar.csv](data/exempel_loggar.csv). Utskrifterna visar analysen över de senaste sju dagarna, jämförd med de sju dagarna före.
+Exemplet kommer från en testperiod på 20 dagar med profilen Testperson: man, 176 cm, 31 år, startvikt 101,5 kg, målvikt 98 kg, önskad takt 0,6 procent per vecka, proteinmål 2,1 gram per kilo målvikt, stegmål 10 000 och fem träningsdagar i veckan. Loggarna är simulerade, inte en logg förd dag för dag, och finns i [data/exempel_loggar.csv](data/exempel_loggar.csv). Utskrifterna visar analysen över de senaste sju dagarna, jämförd med de sju dagarna före.
 
 **Efter 14 dagar, första gången full analys är möjlig:**
 ```
@@ -74,7 +74,7 @@ Fokusera på: vikt.
 
 Takten räknas från snitten. Efter 14 dagar jämförs snittet för dag 8 till 14 (99,03 kg) med snittet för dag 1 till 7 (100,67 kg): skillnaden är 1,64 kg på en vecka, och det är 1,66 procent av 99,03 kg. Efter 18 och 20 dagar flyttas båda perioderna framåt, och takten blir 1,54 respektive 1,12 procent per vecka. Den ligger över säkerhetsgränsen vid alla tre tillfällena men minskar i takt med att veckosnittet för vikten planar ut (99,03, 98,26 och 98,13 kg vid de tre tillfällena). Efter 20 dagar ligger stegen under målet, men vikten har företräde i prioriteringen, så fokus ligger kvar på vikt. Raden om målvikten är en rak projektion av takten: efter 14 dagar är snittet 99,03 kg, 1,03 kg över målvikten 98 kg, och med 1,64 kg i veckan tar det cirka 4 dagar. Takten brukar avta, så datumet är en grov uppskattning. Utskrifterna visar vad programmet faktiskt skriver ut, inte vad som är sant om testpersonens utveckling.
 
-Programmets kaloriförslag för samma profil blev 2409 kcal per dag. Det faktiska intaget i datan låg på 2300 kcal, 109 kcal under förslaget, vilket enligt 7700-regeln motsvarar cirka 0,1 kg i veckan och alltså inte förklarar nedgången i exemplet. Datan är simulerad och vikten är inte räknad ur intaget, så exemplet visar hur programmet beskriver en given logg, inte hur en kropp reagerar.
+Programmets kaloriförslag för samma profil blev 2345 kcal per dag. Det faktiska intaget i datan låg på 2300 kcal, 45 kcal under förslaget, vilket enligt 7700-regeln motsvarar cirka 0,04 kg i veckan och alltså inte förklarar nedgången i exemplet. Datan är simulerad och vikten är inte räknad ur intaget, så exemplet visar hur programmet beskriver en given logg, inte hur en kropp reagerar.
 
 Midjemåttet loggades tre gånger och sjönk från 90,0 till 88,2 cm. Efter 14 dagar ligger de två första mätningarna bara en vecka isär, så programmet jämför dem inte. Efter 18 och 20 dagar jämförs första och senaste mätningen, 14 dagar isär: midjan har gått ner 1,8 cm och vikten 3,1 kg. 1,8 cm är mindre än mätfelet när man mäter sig själv hemma, ungefär 2 cm (Barrios m.fl. 2016, se Källor och antaganden), så programmet kan inte säga att midjan har krympt, och varnar för att vikten kan bestå av muskelmassa. Resonemanget om vikt och midja finns i [docs/produktvision.md](docs/produktvision.md).
 
@@ -171,7 +171,7 @@ CutTrack/
 
 **Beroenden.** Det programmet behöver står i `requirements.txt` och det som bara behövs för att utveckla i `requirements-dev.txt`, så att den som bara vill köra programmet slipper installera pytest. Varje rad anger en lägsta och en högsta version, till exempel `matplotlib>=3.11,<4`. Den lägsta är den första utgåvan som är provad, och den högsta utesluter nästa huvudversion, som kan ändra hur biblioteket fungerar.
 
-**Gränssnittet är separat från logiken.** All inmatning och utskrift ligger i `main.py`, skilda från klasserna i `models.py` och filhanteringen i `analysis.py`, så att menyn kan bytas mot ett annat gränssnitt utan att röra beräkningarna.
+**Gränssnittet är bara delvis separat från logiken.** Menyn och all inmatning ligger i `main.py`, skilda från klasserna i `models.py` och filhanteringen i `analysis.py`. Utskrifterna är inte separerade: `check_goals` och några andra metoder i `models.py` och filfunktionerna i `analysis.py` skriver ut sina resultat med `print()` i stället för att returnera dem. Ett annat gränssnitt skulle därför behöva ändra i de filerna, och testerna av råden läser utskriven text. Att låta beräkningarna returnera data och skriva ut dem i `main.py` är en punkt i roadmappen.
 
 **Kaloriberäkningen visuellt.** Diagrammet nedan visar hela kedjan i `suggest_calorie_goal` och `check_goals`, från TDEE till det slutliga kaloriförslaget, med ett fristående räkneexempel (inte samma profil som i exemplet ovan). Det är en illustration som förklarar golvlogiken, inte en skärmdump från CutTrack.
 

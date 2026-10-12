@@ -94,7 +94,7 @@ AFTER_20_DAYS = [
 def make_readme_profile(log_count, created_date="2026-09-17"):
     """Profilen Testperson från README, med de första log_count loggarna ur exempelfilen.
     Utan created_date skapas profilen samma dag som den första loggen."""
-    profile = CutProfile("Testperson", 189, 39, "man", 1.55, 101.5, created_date,
+    profile = CutProfile("Testperson", 176, 31, "man", 1.55, 101.5, created_date,
                          goal_weight=98.0, target_rate_percent=0.6,
                          protein_goal_per_kg=2.1, step_goal=10000, training_goal_days=5)
     import_logs_csv(profile, str(EXAMPLE_CSV))
@@ -142,14 +142,14 @@ def test_example_file_has_the_twenty_logs_the_readme_describes():
 
 
 def test_calorie_suggestion_matches_the_readme_text(capsys):
-    # README: "Programmets kaloriförslag för samma profil blev 2409 kcal per dag"
+    # README: "Programmets kaloriförslag för samma profil blev 2345 kcal per dag"
     # Aktuell vikt är 98.0 kg.
-    # BMR  = 980 + 6.25 * 189 - 5 * 39 + 5 = 1971.25
-    # TDEE = 1971.25 * 1.55 = 3055.4375
+    # BMR  = 980 + 6.25 * 176 - 5 * 31 + 5 = 1930.0
+    # TDEE = 1930.0 * 1.55 = 2991.5
     # Underskott = 98 * 0.6 / 100 = 0.588 kg per vecka, 0.588 * 7700 / 7 = 646.8 kcal per dag
-    # Förslag = 3055.4375 - 646.8 = 2408.6375, avrundat 2409
+    # Förslag = 2991.5 - 646.8 = 2344.7, avrundat 2345
     profile = make_readme_profile(20)
-    assert profile.suggest_calorie_goal() == 2409
+    assert profile.suggest_calorie_goal() == 2345
 
 
 def test_waist_measurements_match_the_readme_text():

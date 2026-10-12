@@ -73,10 +73,10 @@ CutTrack innehåller ingen AI-modell och behöver inte göra det för att funger
 Version 1 byggde kärnan. Kärnlogiken (klasser, beräkningar, regler) hålls separat från in- och utmatning så den går att återanvända, och är uppdelad i models.py och analysis.py, redo att importeras av andra gränssnitt. Blocken nedan står i den ordning de bör byggas: först mer räkning på det som redan loggas, sedan arkitekturen, sist ny datainsamling och nya gränssnitt. Det visionen ovan redan beskriver men koden ännu inte gör står som Ej byggt eller Delvis i kravspec.md och tas före blocken nedan.
 
 **Mer räkning på redan loggad data, ingen ny datainsamling:**
-- platådetektion, jämför flera sjudagarssnitt i rad för att upptäcka att vikten stått still trots rätt underskott, den vanligaste frustrationen vid en deff
-- dagar-till-mål, en enkel linjär projektion av aktuell takt mot goal_weight. Konkret exempel på var CutTracks regelbaserade logik slutar och statistisk prognos börjar, samma typ av trendförlängning som ligger till grund för tidsserieprognoser inom AI
+- platådetektion (byggd 2026-10-11, F26), jämför flera sjudagarssnitt i rad för att upptäcka att vikten stått still trots rätt underskott, den vanligaste frustrationen vid en deff
+- dagar-till-mål (byggd 2026-10-11, F25), en enkel linjär projektion av aktuell takt mot goal_weight. Konkret exempel på var CutTracks regelbaserade logik slutar och statistisk prognos börjar, samma typ av trendförlängning som ligger till grund för tidsserieprognoser inom AI
 - korrelation mellan protein, steg, träning och viktförändring vecka för vecka, ett naturligt försteg till feature-tänk inom maskininlärning utan att bygga någon modell
-- midjemått jämfört med vikt över hela perioden, inte bara senaste mätningen, en starkare varningssignal om de två divergerar över flera veckor
+- midjemått jämfört med vikt över hela perioden (avgjord 2026-10-11 som täckt av midjejämförelsen F18), inte bara senaste mätningen, en starkare varningssignal om de två divergerar över flera veckor
 
 **Arkitekturen, redan förberedd men inte byggd:**
 - lägen för deff, muskelbygge och viktbalans, byggda som nya barnklasser till User (BulkProfile med kaloriöverskott, MaintenanceProfile utan viktmål) utan att koden i User behöver ändras

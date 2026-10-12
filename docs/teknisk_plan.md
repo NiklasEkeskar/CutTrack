@@ -198,7 +198,7 @@ calculate_trend är struken ur listan. average_weight och weight_change på User
 - log_today och create_profile, ValueError vid ogiltig inmatning eller orimliga värden, även ett ogiltigt datum och ett träningssvar som inte är j, ja, n eller nej
 - DailyLog, User och CutProfile, ValueError med svensk text för värden av fel sort eller utanför gränserna. load_profile visar det som att filen innehåller ogiltiga värden, och gäller det en logg också vilken, till exempel "i logg 4 (2026-09-04)": numret räknas från 1 i filens ordning och datumet visas när det är text. Felet för en logg fångas i loopen över loggarna, där numret finns, och resten av ValueError i det yttre blocket. CSV-inläsningen hoppar över raden
 - main, KeyboardInterrupt och EOFError. Inget annat fångas, så ett riktigt fel syns som Python-fel och döljs inte av ett vänligt meddelande
-- save_profile och export_logs_csv, OSError vid skrivproblem. save_profile tar dessutom bort den halvskrivna temporära filen och returnerar `False`, och run_menu läser svaret (se Spara och läsa profilen). export_logs_csv skriver direkt i CSV-filen, utan temporär fil
+- save_profile och export_logs_csv, OSError vid skrivproblem. save_profile tar dessutom bort den halvskrivna temporära filen och returnerar `False`, och run_menu läser svaret (se Spara och läsa profilen). export_logs_csv skriver sedan 2026-10-11 på samma sätt via en temporär fil och tar bort den om skrivningen misslyckas
 - API-anrop (om Open Food Facts byggs), nätverksfel och timeout
 
 Alla fem krascherna som hittades 2026-10-08 är rättade 2026-10-10. Tre rättades i inläsningen av CSV-filer: ett ogiltigt datum (`DailyLog` avvisar datumet, så `import_logs_csv` hoppar över raden och `load_profile` säger att filen innehåller ogiltiga värden), en CSV-rad med för få kolumner och en CSV-fil som inte är UTF-8. Två rättades i `load_profile`, tillsammans med skyddet mot överskrivning i avsnittet Spara och läsa profilen: en profilfil med fel uppbyggnad (`TypeError`) och en profilfil som inte går att läsa som fil (`OSError`). De hörde inte till den första punkten, eftersom en krasch i `load_profile` lämnar profilfilen orörd, men ett `None` i stället för kraschen skulle ha fått `run_menu` att skapa en ny tom profil som menyval 6 skriver över filen med.
@@ -330,7 +330,7 @@ Inte använt: statistics (all snittberäkning görs med egna loopar, inte statis
 Uppslag av livsmedel (search_food) finns inte med i menyn, eftersom Open Food Facts-integrationen inte byggts, se Externt API nedan.
 
 ## Filstruktur
-Håll input() och print() i egna funktioner, separat från klasserna och beräkningslogiken, så att CLI kan bytas mot en app senare utan att röra kärnlogiken.
+Håll input() och print() i egna funktioner, separat från klasserna och beräkningslogiken, så att CLI kan bytas mot en app senare utan att röra kärnlogiken. Det gäller i dag bara input(): `check_goals`, `suggest_calorie_goal`, `add_log` och flera andra metoder i models.py, och filfunktionerna i analysis.py, skriver ut med print(). Att skilja beräkning och utskrift åt är en punkt i roadmappen (statuslogg.md, Steg 2).
 
 Koden är uppdelad i fyra filer, i samma mapp:
 - `models.py`: DailyLog, User, CutProfile, normalize_date
@@ -344,7 +344,7 @@ Beroendena ligger i `requirements.txt` (körning) och `requirements-dev.txt` (te
 
 Licensen ligger i `LICENSE` i rotmappen: MIT, `Copyright (c) 2026 Niklas Ekeskär`, standardtexten från choosealicense.com. GitHub känner igen en licens genom att jämföra filen mot kända licenstexter, så texten ändras inte annat än i copyright-raden. README har ett avsnitt Licens, och skälen till valet står i statuslogg.md under Beslut.
 
-Testerna ligger i mappen `tests/`, fyra filer, och `pytest.ini` i rotmappen anger hur de hittar `models.py`, `analysis.py` och `main.py` (se Tester).
+Testerna ligger i mappen `tests/`, fem filer (`test_models.py`, `test_analysis.py`, `test_main.py`, `test_readme_example.py` och `test_charts.py`), och `pytest.ini` i rotmappen anger hur de hittar `models.py`, `analysis.py` och `main.py` (se Tester).
 
 Notebooken måste ligga i samma mapp som models.py, analysis.py och main.py för att importen ska fungera. Ändras något i en av .py-filerna medan notebooken är öppen måste kerneln startas om (Restart) innan ändringen syns, Python läser bara in en modul en gång per körning. Det är den praktiska konsekvensen av uppdelningen.
 
