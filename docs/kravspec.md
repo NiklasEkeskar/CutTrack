@@ -78,7 +78,7 @@ Status är Klart, Delvis eller Ej byggt.
 | ID | Krav | Status |
 | --- | --- | --- |
 | F21 | Textmeny med val för att logga, visa analys, visa diagram, visa kaloriförslag, läsa in CSV samt spara och avsluta. | Delvis. Klart och genomgånget, startas med `python main.py`. Menyn ändrades 2026-10-10 (N3), genomgånget 2026-10-12: profilen sparas efter varje ny logg, menyn stannar med ett meddelande när profilfilen finns men inte går att läsa, och val 6 avslutar bara när sparningen lyckades. |
-| F22 | Ansvarsfriskrivningen visas i README, vid start och i samband med kaloriberäkningen. Kaloriförslaget presenteras som en startpunkt som ska justeras efter ett par veckors utfall. | Klart, men byggt och inte genomgånget. Sedan 2026-10-10 visar `show_suggestion_note` i `main.py` en rad om att förslaget är en startpunkt och friskrivningen direkt efter kaloriförslaget, både när profilen skapas och i menyval 4. Friskrivningen står i listan `DISCLAIMER_LINES` och används av både välkomsttexten och noten. |
+| F22 | Ansvarsfriskrivningen visas i README, vid start och i samband med kaloriberäkningen. Kaloriförslaget presenteras som en startpunkt som ska justeras efter ett par veckors utfall. | Klart. Byggt 2026-10-10, genomgånget 2026-10-12. Sedan 2026-10-10 visar `show_suggestion_note` i `main.py` en rad om att förslaget är en startpunkt och friskrivningen direkt efter kaloriförslaget, både när profilen skapas och i menyval 4. Friskrivningen står i listan `DISCLAIMER_LINES` och används av både välkomsttexten och noten. |
 
 ## Datakrav
 
