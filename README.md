@@ -50,7 +50,7 @@ Målvikten 98.0 kg: med den här takten om cirka 4 dagar, omkring 2026-10-04. En
 Protein: snitt 211 g mot mål 206 g. Målet nås.
 Träning: 5 av 5 förväntade dagar under perioden. Målet nås.
 Steg: snitt 10160 mot mål 10000. Målet nås.
-Midjan: för få mätningar för att jämföra. Det behövs två, med minst 14 dagar emellan.
+Midjan: för få mätningar för att jämföra. Det behövs minst 3 mätningar, med minst 14 dagar mellan den första och den sista.
 
 Fokusera på: vikt.
 ```
@@ -67,7 +67,7 @@ Målvikten 98.0 kg: med den här takten om cirka 1 dag, omkring 2026-10-07. En g
 Protein: snitt 213 g mot mål 206 g. Målet nås.
 Träning: 5 av 5 förväntade dagar under perioden. Målet nås.
 Steg: snitt 9953 mot mål 10000. Under målet.
-Midjan: nästan oförändrad sedan 2026-09-17 (-1.8 cm, inom mätfelet på 2 cm), fast vikten är 3.1 kg lägre. Det kan betyda att du tappar muskelmassa i stället för fett, eller bara vara mätfel. Mät på samma ställe och på samma sätt varje gång.
+Midjan: nästan oförändrad sedan 2026-09-17 (-1.8 cm, inom mätfelet på 3 cm), fast vikten är 3.1 kg lägre. Det kan betyda att du tappar muskelmassa i stället för fett, eller bara vara mätfel. Mät på samma ställe och på samma sätt varje gång.
 
 Fokusera på: vikt.
 ```
@@ -76,7 +76,7 @@ Takten räknas från snitten. Efter 14 dagar jämförs snittet för dag 8 till 1
 
 Programmets kaloriförslag för samma profil blev 2345 kcal per dag. Det faktiska intaget i datan låg på 2300 kcal, 45 kcal under förslaget, vilket enligt 7700-regeln motsvarar cirka 0,04 kg i veckan och alltså inte förklarar nedgången i exemplet. Datan är simulerad och vikten är inte räknad ur intaget, så exemplet visar hur programmet beskriver en given logg, inte hur en kropp reagerar.
 
-Midjemåttet loggades tre gånger och sjönk från 90,0 till 88,2 cm. Efter 14 dagar ligger de två första mätningarna bara en vecka isär, så programmet jämför dem inte. Efter 18 och 20 dagar jämförs första och senaste mätningen, 14 dagar isär: midjan har gått ner 1,8 cm och vikten 3,1 kg. 1,8 cm är mindre än mätfelet när man mäter sig själv hemma, ungefär 2 cm (Barrios m.fl. 2016, se Källor och antaganden), så programmet kan inte säga att midjan har krympt, och varnar för att vikten kan bestå av muskelmassa. Resonemanget om vikt och midja finns i [docs/produktvision.md](docs/produktvision.md).
+Midjemåttet loggades tre gånger och sjönk från 90,0 till 88,2 cm. Programmet räknar med ett värde per tillfälle, medelvärdet av tre mätningar. Efter 14 dagar finns bara två tillfällen, så programmet jämför dem inte. Efter 18 och 20 dagar jämförs första och senaste tillfället, 14 dagar isär: midjan har gått ner 1,8 cm och vikten 3,1 kg. 1,8 cm är mindre än mätfelet för ett sådant medelvärde när man mäter sig själv hemma, ungefär 3 cm (Barrios m.fl. 2016, se Källor och antaganden). Programmet kan därför inte säga att midjan har krympt, och varnar för att vikten kan bestå av muskelmassa. Resonemanget om vikt och midja finns i [docs/produktvision.md](docs/produktvision.md).
 
 Diagrammen från samma testperiod: viktdiagrammet står överst på sidan, protein och steg följer här.
 
@@ -189,7 +189,7 @@ CutTrack/
 - Lichtman SW, Pisarska K, Berman ER, m.fl. *Discrepancy between self-reported and actual caloric intake and exercise in obese subjects.* N Engl J Med. 1992;327(27):1893-1898. https://pubmed.ncbi.nlm.nih.gov/1454084/
 - Barrios P, Martin-Biggers J, Quick V, Byrd-Bredbenner C. *Reliability and criterion validity of self-measured waist, hip, and neck circumferences.* BMC Med Res Methodol. 2016;16:49. https://doi.org/10.1186/s12874-016-0150-2
 
-**Midjan (`waist_comparison`)** jämförs bara när två mätningar ligger minst 14 dagar isär. En förändring under 2 cm räknas som nästan oförändrad, eftersom mätfelet när man mäter sin egen midja hemma var 0,76 tum, ungefär 1,9 cm, i Barrios m.fl. 2016 (technical error of measurement, mätt med måttband i hemmet). Felet för skillnaden mellan två mätningar är större än för en enda, så 2 cm är en låg gräns, och programmet säger därför att det kan vara mätfel. Studien gällde vuxna i USA som mätte sig själva efter instruktion, inte personer som deffar. Viktnedgången räknas från 1 kg, en gräns jag satt själv utifrån att vikten svänger flera hundra gram från dag till dag. Den är inte hämtad från en källa.
+**Midjan (`waist_comparison`)** jämförs först när det finns tre tillfällen med midjemått och minst 14 dagar mellan första och sista. Varje tillfälle är medelvärdet av tre mätningar. En förändring under 3,1 cm räknas som nästan oförändrad. Gränsen bygger på mätfelet när man mäter sin egen midja hemma: Barrios m.fl. 2016 fann technical error of measurement 0,76 tum, ungefär 1,93 cm, för en mätning. Medelvärdet av tre mätningar har ett fel på 1,93 delat med roten ur 3, och skillnaden mellan två sådana medelvärden har roten ur 2 gånger det. Med 1,96 gånger det får man 3,1 cm, med 95 procent. Att använda TEM som standardavvikelse på det här sättet är min egen härledning, under antagandet att felen är oberoende. Gränsen är en nedre gräns, eftersom dubbelmätningarna gjordes samma dag och inte fångar hur midjan varierar från dag till dag. Studien gällde vuxna i USA som mätte sig själva efter instruktion, inte personer som deffar. Tre tillfällen och 14 dagar är egna val, inte siffror från studien. Viktnedgången räknas från 1 kg, en gräns jag satt själv utifrån att vikten svänger flera hundra gram från dag till dag. Den är inte hämtad från en källa.
 
 **Platå (`plateau_message`)** betyder att vikten har stått still i två jämförelser i rad: snitten för de tre senaste perioderna skiljer sig mindre än 0,25 kg per vecka åt, både mellan den senaste och perioden före och mellan perioden före och den äldsta. Med sjudagarsperioden blir det tre veckor. Jag hittade ingen vetenskaplig källa för hur länge vikten ska stå still innan det räknas som platå, bara råd på kommersiella sidor om två till tre veckor, så gränsen är ett val och inte ett forskningsresultat. Raden föreslår att först kontrollera att allt som äts loggas, eftersom personer som inte gick ner trots ett lågt rapporterat intag i Lichtman m.fl. 1992 i själva verket åt mer än de rapporterade, och sedan ett större underskott. Studien gällde personer med fetma som sa att de inte gick ner i vikt, inte personer som deffar.
 
@@ -209,7 +209,7 @@ CutTrack/
 - Kaloriförslaget är en uppskattning. 7700-regeln överskattar viktnedgången över tid, så siffran ska justeras efter verkligt utfall efter ett par veckors loggning.
 - Proteinmålet räknas på målvikt eftersom programmet inte känner till kroppsfett.
 - Under väntetiden bedöms inte viktens takt. Efter en hel period visas snittet, och protein, steg och träning analyseras från första dagen, med träningsmålet skalat till dagarna hittills.
-- Midjemåttet jämförs mellan första och senaste mätningen, och tröskeln 2 cm bygger på en enda studie av mätfelet.
+- Midjemåttet jämförs mellan första och senaste tillfället. Tröskeln 3,1 cm bygger på en enda studies mätfel och på en egen härledning, och felet kan vara större i praktiken.
 - Platån har ingen källa för antalet veckor. Den är satt till två jämförelser i rad utan förändring, tre veckor med sjudagarsperioden.
 - Takten jämför två hela perioder, så vald period styr väntetiden: med 30 dagar krävs 60 dagars data innan takten bedöms.
 - Testerna kontrollerar vad diagrammen ritar, men inte hur de ser ut: färger, storlek och att texten får plats prövas bara genom att titta.

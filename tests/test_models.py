@@ -1353,14 +1353,21 @@ def test_check_goals_prints_the_projection_after_the_weight_line(capsys):
 
 
 # F18: midjemåttet jämförs med vikten. Vikt ner och midja ner pekar mot fettförlust, vikt ner
-# och midja oförändrad är en varningssignal. Gränsen 2 cm kommer från mätfelet när man mäter
-# midjan själv hemma (Barrios m.fl. 2016, technical error of measurement 0,76 tum, ungefär
-# 1,9 cm). En mindre skillnad kan vara mätfel.
+# och midja oförändrad är en varningssignal. Gränsen 3,1 cm kommer från mätfelet vid självmätning
+# av ett medelvärde av tre mätningar (Barrios m.fl. 2016, technical error of measurement 0,76 tum,
+# ungefär 1,93 cm). Jämförelsen kräver tre tillfällen med minst 14 dagar mellan första och sista.
+
+TOO_FEW_WAIST_MEASUREMENTS = ("Midjan: för få mätningar för att jämföra. Det behövs minst 3 "
+                              "mätningar, med minst 14 dagar mellan den första och den sista.")
+
 
 def waist_profile(first_weight, last_weight, first_waist, last_waist, days_apart=14):
-    """Profil skapad dag 0 med två loggar med midjemått: dag 0 och dag days_apart."""
+    """Profil skapad dag 0 med tre loggar med midjemått: dag 0, mitt emellan och dag
+    days_apart. Mittenloggen används inte i jämförelsen, som bara tar första och sista."""
     profile = make_profile()
     profile.logs.append(make_log(0, weight=first_weight, waist=first_waist))
+    profile.logs.append(make_log(days_apart // 2, weight=(first_weight + last_weight) / 2,
+                                 waist=(first_waist + last_waist) / 2))
     profile.logs.append(make_log(days_apart, weight=last_weight, waist=last_waist))
     return profile
 
@@ -1371,41 +1378,48 @@ def test_waist_comparison_is_none_without_waist_measurements():
     assert profile.waist_comparison() is None
 
 
-def test_waist_comparison_needs_two_measurements(capsys):
+def test_waist_comparison_needs_three_measurements():
     profile = make_profile()
     profile.logs.append(make_log(0, waist=95.0))
-    assert profile.waist_comparison() == (
-        "Midjan: för få mätningar för att jämföra. Det behövs två, med minst 14 dagar emellan.")
+    assert profile.waist_comparison() == TOO_FEW_WAIST_MEASUREMENTS
+
+
+def test_two_measurements_14_days_apart_are_not_enough():
+    profile = make_profile()
+    profile.logs.append(make_log(0, waist=95.0))
+    profile.logs.append(make_log(14, waist=91.9))
+    assert profile.waist_comparison() == TOO_FEW_WAIST_MEASUREMENTS
 
 
 def test_waist_comparison_needs_14_days_between_the_measurements():
+    # Tre tillfällen, men första och sista ligger bara 13 dagar isär
     profile = waist_profile(90.0, 88.0, 95.0, 92.0, days_apart=13)
-    assert profile.waist_comparison().startswith("Midjan: för få mätningar")
+    assert profile.waist_comparison() == TOO_FEW_WAIST_MEASUREMENTS
 
 
 def test_weight_down_and_waist_down_points_to_fat_loss():
-    # Vikten 90.0 till 88.0 (2.0 kg ner), midjan 95.0 till 92.0 (3.0 cm ner)
-    profile = waist_profile(90.0, 88.0, 95.0, 92.0)
+    # Vikten 90.0 till 88.0 (2.0 kg ner), midjan 95.0 till 91.9 (3.1 cm ner)
+    profile = waist_profile(90.0, 88.0, 95.0, 91.9)
     assert profile.waist_comparison() == (
-        "Midjan: 3.0 cm mindre sedan 2024-01-01, och vikten 2.0 kg lägre. "
+        "Midjan: 3.1 cm mindre sedan 2024-01-01, och vikten 2.0 kg lägre. "
         "Det pekar mot att det är fett som försvinner.")
 
 
 def test_weight_down_and_waist_unchanged_is_a_warning_signal():
-    # Vikten 2.0 kg ner, midjan bara 1.0 cm, mindre än mätfelet 2 cm
+    # Vikten 2.0 kg ner, midjan bara 1.0 cm, mindre än mätfelet 3 cm
     profile = waist_profile(90.0, 88.0, 95.0, 94.0)
     text = profile.waist_comparison()
     assert text.startswith("Midjan: nästan oförändrad sedan 2024-01-01 (-1.0 cm, inom mätfelet "
-                           "på 2 cm), fast vikten är 2.0 kg lägre.")
+                           "på 3 cm), fast vikten är 2.0 kg lägre.")
     assert "muskelmassa" in text
     assert "mätfel" in text
 
 
 @pytest.mark.parametrize("last_waist, expected_start", [
-    (93.0, "Midjan: 2.0 cm mindre"),     # exakt 2 cm räknas som en förändring
-    (93.1, "Midjan: nästan oförändrad"),  # 1.9 cm räknas inte
+    (91.9, "Midjan: 3.1 cm mindre"),      # exakt 3.1 cm räknas som en förändring
+    (92.0, "Midjan: nästan oförändrad"),  # 3.0 cm räknas inte
 ])
-def test_the_waist_threshold_is_2_cm(last_waist, expected_start):
+def test_the_waist_threshold_is_3_1_cm(last_waist, expected_start):
     profile = waist_profile(90.0, 88.0, 95.0, last_waist)
     assert profile.waist_comparison().startswith(expected_start)
 
@@ -1413,48 +1427,50 @@ def test_the_waist_threshold_is_2_cm(last_waist, expected_start):
 @pytest.mark.parametrize("last_weight", [89.1, 90.0, 91.0])
 def test_without_a_clear_weight_loss_the_waist_change_is_only_reported(last_weight):
     # Under 1 kg ner är inom de dagliga svängningarna, så ingen slutsats dras
-    profile = waist_profile(90.0, last_weight, 95.0, 92.0)
-    assert profile.waist_comparison() == "Midjan: 3.0 cm mindre sedan 2024-01-01."
+    profile = waist_profile(90.0, last_weight, 95.0, 91.9)
+    assert profile.waist_comparison() == "Midjan: 3.1 cm mindre sedan 2024-01-01."
 
 
 def test_exactly_1_kg_lower_counts_as_weight_loss():
-    profile = waist_profile(90.0, 89.0, 95.0, 92.0)
+    profile = waist_profile(90.0, 89.0, 95.0, 91.9)
     assert profile.waist_comparison().endswith("Det pekar mot att det är fett som försvinner.")
 
 
 def test_the_waist_change_is_rounded_to_one_decimal():
-    # 93.1 - 95.3 blir -2.1999999999999886 i en dator, avrundat -2.2
-    profile = waist_profile(90.0, 88.0, 95.3, 93.1)
-    assert profile.waist_comparison().startswith("Midjan: 2.2 cm mindre sedan 2024-01-01")
+    # 92.2 - 95.3 blir -3.0999999999999943 i en dator. Utan avrundning hade det inte räknats
+    profile = waist_profile(90.0, 88.0, 95.3, 92.2)
+    assert profile.waist_comparison().startswith("Midjan: 3.1 cm mindre sedan 2024-01-01")
 
 
 def test_an_unchanged_waist_without_weight_loss_is_only_reported():
     profile = waist_profile(90.0, 90.0, 95.0, 95.5)
     assert profile.waist_comparison() == (
-        "Midjan: nästan oförändrad sedan 2024-01-01 (+0.5 cm, inom mätfelet på 2 cm).")
+        "Midjan: nästan oförändrad sedan 2024-01-01 (+0.5 cm, inom mätfelet på 3 cm).")
 
 
 def test_a_bigger_waist_is_reported_as_bigger():
-    profile = waist_profile(90.0, 90.0, 95.0, 97.0)
-    assert profile.waist_comparison() == "Midjan: 2.0 cm större sedan 2024-01-01."
+    profile = waist_profile(90.0, 90.0, 95.0, 98.1)
+    assert profile.waist_comparison() == "Midjan: 3.1 cm större sedan 2024-01-01."
 
 
 def test_waist_comparison_uses_the_first_and_latest_measurement_by_date():
     profile = make_profile()
-    profile.logs.append(make_log(20, weight=88.0, waist=92.0))   # senaste först i listan
+    profile.logs.append(make_log(20, weight=88.0, waist=91.9))   # senaste först i listan
     profile.logs.append(make_log(10, weight=89.0, waist=93.5))   # mellan, används inte
     profile.logs.append(make_log(0, weight=90.0, waist=95.0))
-    assert profile.waist_comparison().startswith("Midjan: 3.0 cm mindre sedan 2024-01-01")
+    assert profile.waist_comparison().startswith("Midjan: 3.1 cm mindre sedan 2024-01-01")
 
 
 def test_check_goals_prints_the_waist_comparison_without_setting_the_focus(capsys):
-    # Femton dagar (dag 0 till 14), vikten 90.0 till 88.6, midjan 95.0 till 92.0
+    # Femton dagar (dag 0 till 14), vikten 90.0 till 88.6, midjan 95.0 till 91.9, och en
+    # mätning mitt emellan så att det finns tre tillfällen
     profile = make_checked_profile(weights_changing_by(-0.1, count=15))
     profile.logs[0].waist = 95.0
-    profile.logs[14].waist = 92.0
+    profile.logs[7].waist = 93.5
+    profile.logs[14].waist = 91.9
     profile.check_goals()
     output = capsys.readouterr().out
-    assert "Midjan: 3.0 cm mindre sedan 2024-01-01, och vikten 1.4 kg lägre." in output
+    assert "Midjan: 3.1 cm mindre sedan 2024-01-01, och vikten 1.4 kg lägre." in output
     assert "Fokusera på" not in output
 
 

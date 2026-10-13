@@ -32,12 +32,19 @@ DEFAULT_STEP_GOAL = 8000
 DEFAULT_TRAINING_DAYS = 3
 MIN_MENU_PROTEIN_PER_KG = 0.5
 
-# Midjemåttet jämförs med vikten (F18). En förändring av midjan under 2 cm räknas inte, eftersom
-# mätfelet när man mäter sig själv hemma är ungefär så stort: Barrios m.fl. 2016 (BMC Medical
-# Research Methodology 16:49) fann technical error of measurement 0,76 tum, ungefär 1,9 cm. En
-# viktnedgång under 1 kg räknas inte heller, eftersom vikten svänger flera hundra gram från dag
-# till dag. Mätningarna måste ligga minst 14 dagar isär, två sjudagarsperioder som för takten.
-WAIST_CHANGE_CM = 2.0
+# Midjemåttet jämförs med vikten (F18). Menyn ber om medelvärdet av tre mätningar per tillfälle,
+# och en förändring måste vara minst 3,1 cm för att räknas. Gränsen kommer från mätfelet vid
+# självmätning: Barrios m.fl. 2016 (BMC Medical Research Methodology 16:49) fann technical error
+# of measurement 0,76 tum, ungefär 1,93 cm, för en enda mätning. Medelvärdet av tre mätningar
+# har felet 1,93 delat med roten ur 3, och skillnaden mellan två sådana medelvärden har roten
+# ur 2 gånger det. Gränsen är 1,96 gånger det, ungefär 3,1 cm, med 95 procent. Det är en
+# nedre gräns, eftersom dubbelmätningarna i studien gjordes samma dag. Att räkna med TEM som
+# standardavvikelse är en egen härledning, under antagandet att felen är oberoende. En
+# viktnedgång under 1 kg räknas inte, eftersom vikten svänger flera hundra gram från dag till
+# dag. Tre tillfällen med minst 14 dagar mellan första och sista är egna val, inte siffror
+# från studien.
+WAIST_CHANGE_CM = 3.1
+WAIST_MIN_MEASUREMENTS = 3
 WEIGHT_CHANGE_KG = 1.0
 WAIST_MIN_DAYS = 14
 
@@ -533,7 +540,8 @@ class CutProfile(User):
                 "brukar avta när vikten går ner.")
 
     def waist_comparison(self):
-        """Jämför första och senaste midjemåttet med vikten samma dagar (F18). Returnerar en
+        """Jämför första och senaste midjemåttet med vikten samma dagar (F18). Kräver tre
+        tillfällen med midjemått och minst 14 dagar mellan första och sista. Returnerar en
         text, eller None om inget midjemått är loggat."""
         measured_logs = []
         for log in self.logs:
@@ -554,9 +562,11 @@ class CutProfile(User):
 
         first_date = datetime.strptime(first_log.date, "%Y-%m-%d")
         last_date = datetime.strptime(last_log.date, "%Y-%m-%d")
-        if (last_date - first_date).days < WAIST_MIN_DAYS:
-            return (f"Midjan: för få mätningar för att jämföra. Det behövs två, med minst "
-                    f"{WAIST_MIN_DAYS} dagar emellan.")
+        if (len(measured_logs) < WAIST_MIN_MEASUREMENTS
+                or (last_date - first_date).days < WAIST_MIN_DAYS):
+            return (f"Midjan: för få mätningar för att jämföra. Det behövs minst "
+                    f"{WAIST_MIN_MEASUREMENTS} mätningar, med minst {WAIST_MIN_DAYS} dagar "
+                    "mellan den första och den sista.")
 
         waist_change = round(last_log.waist - first_log.waist, 1)
         weight_loss = round(first_log.weight - last_log.weight, 1)
@@ -572,7 +582,7 @@ class CutProfile(User):
         if waist_change >= WAIST_CHANGE_CM:
             return f"Midjan: {waist_change} cm större sedan {first_log.date}."
 
-        # Under 2 cm åt något håll: inom mätfelet, så midjan räknas som nästan oförändrad.
+        # Mindre än gränsen åt något håll: inom mätfelet, så midjan räknas som nästan oförändrad.
         # :+.1f skriver talet med tecken och en decimal, till exempel -1.8 eller +0.5.
         unchanged_text = (f"Midjan: nästan oförändrad sedan {first_log.date} "
                           f"({waist_change:+.1f} cm, inom mätfelet på "

@@ -44,10 +44,10 @@ README = ROOT / "README.md"
 # Säkerhetsgränsen 1,0 procent av snittet (99.03, 98.26 och 98.13 kg) är cirka 0.99, 0.98 och
 # 0.98 kg.
 # F18: efter 18 och 20 dagar ligger första och senaste midjemåttet 14 dagar isär (2026-09-17 och
-# 2026-10-01). Midjan 90.0 till 88.2 är -1.8 cm, mindre än gränsen 2 cm, och vikten 101.3 till
+# 2026-10-01). Midjan 90.0 till 88.2 är -1.8 cm, mindre än gränsen 3,1 cm, och vikten 101.3 till
 # 98.2 är 3.1 kg lägre.
 WAIST_AFTER_18_AND_20_DAYS = (
-    "Midjan: nästan oförändrad sedan 2026-09-17 (-1.8 cm, inom mätfelet på 2 cm), fast vikten "
+    "Midjan: nästan oförändrad sedan 2026-09-17 (-1.8 cm, inom mätfelet på 3 cm), fast vikten "
     "är 3.1 kg lägre. Det kan betyda att du tappar muskelmassa i stället för fett, eller bara "
     "vara mätfel. Mät på samma ställe och på samma sätt varje gång.")
 
@@ -59,7 +59,8 @@ AFTER_14_DAYS = [
     "Protein: snitt 211 g mot mål 206 g. Målet nås.",
     "Träning: 5 av 5 förväntade dagar under perioden. Målet nås.",
     "Steg: snitt 10160 mot mål 10000. Målet nås.",
-    "Midjan: för få mätningar för att jämföra. Det behövs två, med minst 14 dagar emellan.",
+    "Midjan: för få mätningar för att jämföra. Det behövs minst 3 "
+    "mätningar, med minst 14 dagar mellan den första och den sista.",
     "",
     "Fokusera på: vikt.",
 ]
