@@ -234,6 +234,17 @@ def create_profile(name):
             print("Försök igen.")
 
 
+def show_waist_instructions():
+    """Visar hur midjemåttet mäts (F29), så att mätningarna blir jämförbara från dag till dag."""
+    print()
+    print("Så mäter du midjan:")
+    print("  Mät mitt emellan understa revbenet och höftbenets övre kant, strax ovanför")
+    print("  navelhöjd. Måttbandet ska vara vågrätt och lagom spänt, utan att dra åt.")
+    print("  Ta ett djupt andetag och andas ut precis innan du läser av.")
+    print("  Mät två gånger i följd. Skiljer de sig med mer än 1 cm, mät en gång till.")
+    print("  Skriv in medelvärdet av mätningarna.")
+
+
 def log_today(user):
     """Frågar användaren om dagens värden och lägger till en DailyLog på user. Ger True om
     loggen lades till och False om inmatningen var fel, så att anroparen vet om det finns
@@ -266,6 +277,7 @@ def log_today(user):
                 f"Träning måste besvaras med j eller n, men du skrev '{trained_answer}'."
             )
 
+        show_waist_instructions()
         waist_text = input("Midjemått i cm (lämna tomt om du inte mätt): ")
         if waist_text.strip() == "":
             waist = None

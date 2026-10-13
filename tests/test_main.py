@@ -893,6 +893,19 @@ def test_log_today_treats_a_blank_waist_answer_as_a_missing_waist(monkeypatch, b
     assert profile.logs[0].waist is None
 
 
+def test_log_today_shows_how_to_measure_the_waist_before_asking(monkeypatch, capsys):
+    # F29: instruktionen visas innan midjefrågan, så att mätningarna blir jämförbara
+    profile = make_profile()
+    type_answers(monkeypatch, list(LOG_ANSWERS.values()))
+
+    main.log_today(profile)
+
+    output = capsys.readouterr().out
+    assert "Så mäter du midjan:" in output
+    assert output.index("Så mäter du midjan:") < output.index("Midjemått i cm")
+    assert "Skiljer de sig med mer än 1 cm, mät en gång till." in output
+
+
 def test_log_today_ignores_spaces_around_the_date(monkeypatch, capsys):
     profile = make_profile()
     type_answers(monkeypatch, answers_with(LOG_ANSWERS, {"date": " 2026-09-01 "}))
