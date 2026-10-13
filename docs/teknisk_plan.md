@@ -22,7 +22,7 @@ Vad som återstår, och var koden avviker från visionen, står i kravspec.md oc
 ### User (basklass)
 Attribut: name, height_cm, age, sex, activity_level, start_weight, created_date (kontrolleras och skrivs som ÅÅÅÅ-MM-DD med nollor av `normalize_date`), logs (lista med DailyLog).
 Validerar i `__init__` att namnet är en text med 1 till 50 tecken (mellanslag runt namnet tas bort), att längden är 100 till 250 cm, att åldern är ett heltal mellan 18 och 100, att kön är exakt `man` eller `kvinna`, att aktivitetsnivån är 1,0 till 2,5 och att startvikten är över 0 och högst 300 kg. Gränserna står som konstanter överst i models.py.
-Metoder: add_log, get_logs(days, offset_days=0), average_weight(days, offset_days=0), weight_change(days), training_days(days).
+Metoder: add_log, get_logs(days, offset_days=0), average_weight(days, offset_days=0), average_protein(days), average_steps(days), training_days(days). `weight_change(days)` togs bort 2026-10-13, se Vad metoden ersatte.
 
 ### CutProfile(User), barnklass
 Extra attribut: goal_weight, calorie_goal, protein_goal_per_kg, step_goal, target_rate_percent, training_goal_days (standard 3).
@@ -48,7 +48,7 @@ Två regler:
 Konstruktionen är enkel men lätt att göra fel på, därför ska de två reglerna ovan följas överallt där `waist` används.
 
 ## Metoder som returnerar None respektive noll
-`average_weight` och `weight_change` returnerar `None` när underlaget är för tunt, inga loggar alls respektive färre än två. Skälet är samma som för `waist`: 0 skulle betyda att vikten inte ändrades, vilket är ett annat påstående än att det saknas underlag.
+`average_weight` returnerar `None` när det inte finns några loggar i perioden. Skälet är samma som för `waist`: 0 skulle vara ett påstått värde, vilket är ett annat påstående än att det saknas underlag.
 
 `training_days` returnerar däremot 0 när det inte finns några loggar, eftersom noll träningsdagar är ett korrekt svar och inte ett saknat värde.
 
@@ -121,11 +121,11 @@ Avsikten var att kräva minst fyra loggar inom fönstret innan ett snitt använd
 
 **Hur takten räknas.** Takten är skillnaden mellan snittet för den senaste perioden och snittet för perioden före, `(average_weight(days) - average_weight(days, days)) / days * 7`, alltså kilo per vecka, och procenttalet räknas på det senaste snittet. Ett snitt över `days` kalenderdagar ligger mitt i sin period, så de två snitten hör till tidpunkter som ligger `days` dagar isär. Därför delas skillnaden med `days` och multipliceras med sju, och samma nedgång per vecka ger samma kilotal för 7, 14 och 30 dagars period. Perioden före hämtas med `get_logs(days, offset_days)`, som hoppar över de `offset_days` senaste dagarna med samma kalenderdagsregel som alla andra urval. En enskild vägning är en av många i ett snitt: i exemplet i README flyttar 200 gram mer eller mindre på sista vägningen takten från 1,66 till 1,63 respektive 1,69 procent per vecka. Skillnader under 0,05 kg per vecka, det som avrundas till 0.0 kg i utskriften, räknas som oförändrad vikt och får en egen text, så att programmet aldrig skriver "minskar med 0.0 kg" eller "-0.0 procent". Saknas vägningar i någon av perioderna skrivs att det är för lite data.
 
-**Vad metoden ersatte, och dess gränser.** Före F24 (byggt 2026-10-10) räknade `check_goals` takten från `weight_change(days)`, sista minus första loggade vikt i fönstret, med `raw_change / days * 7`. Det hade två svagheter. Första: en enskild vägning flyttade resultatet märkbart, i exemplet gav 200 gram på sista vägningen 1,11 respektive 1,52 procent per vecka i stället för 1,31. Andra: divisionen skedde på periodens längd i stället för på antalet dagar mellan första och sista vägningen, så takten blev ungefär 14 procent för låg på sjudagarsperioden. `weight_change` finns kvar men används inte längre av `check_goals`. Den nya metoden har egna gränser. Den kräver bara en vägning per period, så en period med få vägningar ger ett snitt som är nästan lika osäkert som en enskild vägning, och luckor i loggningen gör att avståndet mellan snitten avviker från `days`. Två perioder krävs för alla periodlängder, eftersom takten jämför två hela perioder, så takten bedöms först efter 14, 28 eller 60 dagar (kravspec.md F24 och statuslogg.md, Beslut).
+**Vad metoden ersatte, och dess gränser.** Före F24 (byggt 2026-10-10) räknade `check_goals` takten från `weight_change(days)`, sista minus första loggade vikt i fönstret, med `raw_change / days * 7`. Det hade två svagheter. Första: en enskild vägning flyttade resultatet märkbart, i exemplet gav 200 gram på sista vägningen 1,11 respektive 1,52 procent per vecka i stället för 1,31. Andra: divisionen skedde på periodens längd i stället för på antalet dagar mellan första och sista vägningen, så takten blev ungefär 14 procent för låg på sjudagarsperioden. `weight_change` användes sedan inte av programmet och togs bort 2026-10-13, med sina fem tester, eftersom död kod som räknar på det sätt F24 valde bort är förvirrande (statuslogg.md, Beslut). Den nya metoden har egna gränser. Den kräver bara en vägning per period, så en period med få vägningar ger ett snitt som är nästan lika osäkert som en enskild vägning, och luckor i loggningen gör att avståndet mellan snitten avviker från `days`. Två perioder krävs för alla periodlängder, eftersom takten jämför två hela perioder, så takten bedöms först efter 14, 28 eller 60 dagar (kravspec.md F24 och statuslogg.md, Beslut).
 
 Kräver `datetime` från standardbiblioteket för att göra om datumsträngar till datumobjekt som kan jämföras.
 
-Urvalet ligger i `get_logs(days, offset_days=0)`, som anropas av `average_weight`, `weight_change` och `training_days`. Regeln finns därmed på ett enda ställe och behöver bara ändras där.
+Urvalet ligger i `get_logs(days, offset_days=0)`, som anropas av `average_weight`, `average_protein`, `average_steps` och `training_days`. Regeln finns därmed på ett enda ställe och behöver bara ändras där.
 
 ### Väntetexter
 Dag 1 till 6 och dag 7 till 13 visar programmet en kort förklaring av varför vikten inte bedöms än, plus hur många dagar som återstår. Två till tre meningar, inte mer. Dag böjs rätt: "1 dag kvar" och "1 dags data", annars "dagar kvar" och "dagars data" (funktionerna days_left_text och days_data_text i models.py).
@@ -189,7 +189,7 @@ Byggda:
 Inte byggd:
 - search_food(name), Open Food Facts API, se avsnittet Externt API nedan.
 
-calculate_trend är struken ur listan. average_weight och weight_change på User gör redan det jobbet, rullande medelvikt över kalenderdagar, via get_logs. En separat calculate_trend hade gjort samma sak två gånger.
+calculate_trend är struken ur listan. average_weight på User gör redan det jobbet, medelvikt över kalenderdagar, via get_logs. En separat calculate_trend hade gjort samma sak två gånger.
 
 ## Felhantering
 - load_profile, sex skilda except-block i den här ordningen: json.JSONDecodeError (trasig fil), UnicodeDecodeError (filen är inte UTF-8), KeyError (saknat fält), TypeError (fel uppbyggnad: en lista i stället för ett objekt, `null` där en lista med loggar skulle stå, tal som text), ValueError (ogiltiga värden) och OSError (filen går inte att öppna eller läsa, till exempel en mapp med profilfilens namn). JSONDecodeError och UnicodeDecodeError är båda sorters ValueError och måste därför stå före den, annars når de aldrig fram. Alla ger ett svenskt meddelande och `None`
@@ -249,7 +249,7 @@ Datum skrivs alltid som ÅÅÅÅ-MM-DD med nollor, till exempel 2026-09-15. Sort
 
 `strptime` godtar månad och dag utan inledande nolla (`2026-10-8`). `normalize_date` skriver om ett sådant datum (`2026-10-08`) i stället för att avvisa det, eftersom det bara kan betyda en dag och det inte finns något att gissa (statuslogg.md, Beslut). `DailyLog.__init__` och `User.__init__` anropar funktionen, så ett objekt kan inte skapas med ett ogiltigt datum, oavsett om det kommer från menyn, en CSV-fil eller en JSON-fil. `log_today` anropar den också, först av allt, så att ett fel datum stoppar innan användaren har skrivit in resten. `isoformat()` valdes framför `strftime("%Y-%m-%d")`, eftersom `strftime` skriver år före 1000 olika på olika Python-versioner (år 26 blir `26` på Python 3.11 till 3.13 och `0026` på 3.14, provat på Linux 2026-10-10) medan `isoformat()` alltid ger fyra siffror.
 
-Att formatet sorteras rätt som text används i `weight_change` och `current_weight`, som hittar tidigaste eller senaste logg genom att jämföra datumsträngarna direkt i en loop, utan att sortera listan. Det är säkert eftersom alla datum skrivs med nollor av `normalize_date`. `get_logs` och `days_since_start` räknar i stället med `datetime`.
+Att formatet sorteras rätt som text används i `current_weight`, som hittar senaste logg genom att jämföra datumsträngarna direkt i en loop, utan att sortera listan. Det är säkert eftersom alla datum skrivs med nollor av `normalize_date`. `get_logs` och `days_since_start` räknar i stället med `datetime`.
 
 Funktionen kontrollerar att datumet finns och har rätt format, inte att det är rimligt. Ett datum i framtiden eller med fel år godtas (kravspec.md D1, statuslogg.md, Luckor). Mellanslag före och efter datumet tas bort med `strip()` före `strptime`, mellanslag inuti avvisas.
 

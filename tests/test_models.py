@@ -730,40 +730,6 @@ def test_average_weight_can_be_taken_over_the_period_before():
     assert user.average_weight(7, 30) is None  # inga loggar så långt bak
 
 
-def test_weight_change_is_last_minus_first_so_loss_is_negative():
-    user = make_user()
-    user.logs.extend([make_log(0, weight=90.0), make_log(3, weight=88.5)])
-    assert user.weight_change(7) == pytest.approx(-1.5)
-
-
-def test_weight_change_is_positive_when_weight_goes_up():
-    user = make_user()
-    user.logs.extend([make_log(0, weight=90.0), make_log(3, weight=91.0)])
-    assert user.weight_change(7) == pytest.approx(1.0)
-
-
-def test_weight_change_picks_first_and_last_by_date_not_by_position():
-    user = make_user()
-    user.logs.extend([make_log(3, weight=88.5), make_log(0, weight=90.0)])
-    assert user.weight_change(7) == pytest.approx(-1.5)
-
-
-def test_weight_change_is_right_when_a_date_was_typed_without_a_zero():
-    # D1: 2026-10-8 är före 2026-10-10, men som text kommer den efter. Vikten gick upp 5 kg
-    # från den 8:e till den 10:e. Jämförd som text hade förändringen blivit -5.0.
-    user = make_user()
-    user.logs.extend([DailyLog("2026-10-10", 90.0, 2200, 150, 8000, True),
-                      DailyLog("2026-10-8", 85.0, 2200, 150, 8000, True)])
-    assert user.weight_change(7) == pytest.approx(5.0)
-
-
-def test_weight_change_needs_two_logs():
-    user = make_user()
-    assert user.weight_change(7) is None
-    user.logs.append(make_log(0))
-    assert user.weight_change(7) is None
-
-
 def test_training_days_counts_trained_logs():
     user = make_user()
     user.logs.extend([make_log(0, trained=True), make_log(1, trained=False),

@@ -283,28 +283,6 @@ class User:
 
         return total_steps / len(selected_logs)
 
-    def weight_change(self, days):
-        """Viktförändring i kg över perioden. Negativt tal betyder att vikten gått ner.
-        Returnerar None om det finns färre än två loggar."""
-        selected_logs = self.get_logs(days)
-
-        # Minst två loggar krävs, annars finns ingen förändring att mäta
-        if len(selected_logs) < 2:
-            return None
-
-        # Hittar tidigaste och senaste loggen genom att jämföra datumsträngarna
-        # direkt, utan att sortera listan. Fungerar eftersom DailyLog skriver alla datum som
-        # ÅÅÅÅ-MM-DD med nollor, och det formatet sorteras rätt även som text.
-        first_log = selected_logs[0]
-        last_log = selected_logs[0]
-        for log in selected_logs:
-            if log.date < first_log.date:
-                first_log = log
-            if log.date > last_log.date:
-                last_log = log
-
-        return last_log.weight - first_log.weight
-
     def training_days(self, days):
         """Antal dagar med träning under perioden."""
         selected_logs = self.get_logs(days)
