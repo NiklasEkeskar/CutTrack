@@ -903,7 +903,8 @@ def test_log_today_shows_how_to_measure_the_waist_before_asking(monkeypatch, cap
     output = capsys.readouterr().out
     assert "Så mäter du midjan:" in output
     assert output.index("Så mäter du midjan:") < output.index("Midjemått i cm")
-    assert "Skiljer de sig med mer än 1 cm, mät en gång till." in output
+    assert "Mät tre gånger i följd" in output
+    assert "Skriv in medelvärdet av de tre mätningarna." in output
 
 
 def test_log_today_ignores_spaces_around_the_date(monkeypatch, capsys):

@@ -241,8 +241,8 @@ def show_waist_instructions():
     print("  Mät mitt emellan understa revbenet och höftbenets övre kant, strax ovanför")
     print("  navelhöjd. Måttbandet ska vara vågrätt och lagom spänt, utan att dra åt.")
     print("  Ta ett djupt andetag och andas ut precis innan du läser av.")
-    print("  Mät två gånger i följd. Skiljer de sig med mer än 1 cm, mät en gång till.")
-    print("  Skriv in medelvärdet av mätningarna.")
+    print("  Mät tre gånger i följd, och lägg av och på måttbandet mellan mätningarna.")
+    print("  Skriv in medelvärdet av de tre mätningarna.")
 
 
 def log_today(user):
