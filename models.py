@@ -41,12 +41,14 @@ MIN_MENU_PROTEIN_PER_KG = 0.5
 # nedre gräns, eftersom dubbelmätningarna i studien gjordes samma dag. Att räkna med TEM som
 # standardavvikelse är en egen härledning, under antagandet att felen är oberoende. En
 # viktnedgång under 1 kg räknas inte, eftersom vikten svänger flera hundra gram från dag till
-# dag. Tre tillfällen med minst 14 dagar mellan första och sista är egna val, inte siffror
-# från studien.
+# dag. Vikten jämförs som medelvärde av vägningarna inom WEIGHT_AROUND_WAIST_DAYS dagar före och
+# efter varje midjemätning, så att en enstaka vägning inte avgör. Tre tillfällen med minst 14
+# dagar mellan första och sista är egna val, inte siffror från studien.
 WAIST_CHANGE_CM = 3.1
 WAIST_MIN_MEASUREMENTS = 3
 WEIGHT_CHANGE_KG = 1.0
 WAIST_MIN_DAYS = 14
+WEIGHT_AROUND_WAIST_DAYS = 3
 
 # Vågens dagsvariation (beslut 2026-10-12). Preliminära värden, provade mot en enda riktig
 # deff på 34 vägningar under åtta veckor, ingen källa. Där avvek dagsvikten i snitt cirka 0,5 kg
@@ -539,10 +541,27 @@ class CutProfile(User):
                 f"omkring {goal_date.date().isoformat()}. En grov uppskattning, takten "
                 "brukar avta när vikten går ner.")
 
+    def weight_around(self, center_date):
+        """Medelvikt för vägningarna högst WEIGHT_AROUND_WAIST_DAYS dagar före eller efter
+        center_date. Returnerar None om det finns färre än MIN_WEIGHINGS_PER_PERIOD vägningar,
+        så att ett enstaka extremvärde inte kan avgöra jämförelsen."""
+        total_weight = 0
+        weighing_count = 0
+        for log in self.logs:
+            log_date = datetime.strptime(log.date, "%Y-%m-%d")
+            if abs((log_date - center_date).days) <= WEIGHT_AROUND_WAIST_DAYS:
+                total_weight = total_weight + log.weight
+                weighing_count = weighing_count + 1
+
+        if weighing_count < MIN_WEIGHINGS_PER_PERIOD:
+            return None
+        return total_weight / weighing_count
+
     def waist_comparison(self):
-        """Jämför första och senaste midjemåttet med vikten samma dagar (F18). Kräver tre
-        tillfällen med midjemått och minst 14 dagar mellan första och sista. Returnerar en
-        text, eller None om inget midjemått är loggat."""
+        """Jämför första och senaste midjemåttet med vikten runt samma dagar (F18). Kräver tre
+        tillfällen med midjemått och minst 14 dagar mellan första och sista. Vikten är
+        medelvärdet av vägningarna runt varje mätning, se weight_around. Returnerar en text,
+        eller None om inget midjemått är loggat."""
         measured_logs = []
         for log in self.logs:
             if log.waist is not None:
@@ -568,8 +587,15 @@ class CutProfile(User):
                     f"{WAIST_MIN_MEASUREMENTS} mätningar, med minst {WAIST_MIN_DAYS} dagar "
                     "mellan den första och den sista.")
 
+        first_weight = self.weight_around(first_date)
+        last_weight = self.weight_around(last_date)
+        if first_weight is None or last_weight is None:
+            return ("Midjan: för få vägningar för att jämföra vikten. Det behövs minst "
+                    f"{MIN_WEIGHINGS_PER_PERIOD} vägningar inom {WEIGHT_AROUND_WAIST_DAYS} dagar "
+                    "före eller efter varje midjemätning.")
+
         waist_change = round(last_log.waist - first_log.waist, 1)
-        weight_loss = round(first_log.weight - last_log.weight, 1)
+        weight_loss = round(first_weight - last_weight, 1)
         weight_went_down = weight_loss >= WEIGHT_CHANGE_KG
 
         if waist_change <= -WAIST_CHANGE_CM:

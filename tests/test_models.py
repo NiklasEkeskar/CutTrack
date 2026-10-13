@@ -19,7 +19,7 @@ Testerna av check_goals kontrollerar vilken gren som väljs, med data som ligger
 gränserna. De exakta taktsiffrorna, och allt annat som beror på hur takten räknas (F24),
 ligger i test_readme_example.py.
 """
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 import pytest
 
@@ -1359,16 +1359,28 @@ def test_check_goals_prints_the_projection_after_the_weight_line(capsys):
 
 TOO_FEW_WAIST_MEASUREMENTS = ("Midjan: för få mätningar för att jämföra. Det behövs minst 3 "
                               "mätningar, med minst 14 dagar mellan den första och den sista.")
+TOO_FEW_WEIGHINGS_AROUND_WAIST = ("Midjan: för få vägningar för att jämföra vikten. Det behövs "
+                                  "minst 3 vägningar inom 3 dagar före eller efter varje "
+                                  "midjemätning.")
 
 
 def waist_profile(first_weight, last_weight, first_waist, last_waist, days_apart=14):
-    """Profil skapad dag 0 med tre loggar med midjemått: dag 0, mitt emellan och dag
-    days_apart. Mittenloggen används inte i jämförelsen, som bara tar första och sista."""
+    """Profil med en logg per dag från dag 0 till days_apart. Midjemått på dag 0, mitt emellan
+    och dag days_apart, och mittenloggen används inte i jämförelsen. Vikten är flat runt de två
+    midjemätningarna, så att fönstret på sju dagar (tre dagar på varje sida) ger just
+    first_weight och last_weight."""
     profile = make_profile()
-    profile.logs.append(make_log(0, weight=first_weight, waist=first_waist))
-    profile.logs.append(make_log(days_apart // 2, weight=(first_weight + last_weight) / 2,
-                                 waist=(first_waist + last_waist) / 2))
-    profile.logs.append(make_log(days_apart, weight=last_weight, waist=last_waist))
+    middle_day = days_apart // 2
+    waists = {0: first_waist, middle_day: (first_waist + last_waist) / 2,
+              days_apart: last_waist}
+    for day in range(days_apart + 1):
+        if day <= 3:
+            weight = first_weight
+        elif day >= days_apart - 3:
+            weight = last_weight
+        else:
+            weight = (first_weight + last_weight) / 2
+        profile.logs.append(make_log(day, weight=weight, waist=waists.get(day)))
     return profile
 
 
@@ -1458,19 +1470,66 @@ def test_waist_comparison_uses_the_first_and_latest_measurement_by_date():
     profile.logs.append(make_log(20, weight=88.0, waist=91.9))   # senaste först i listan
     profile.logs.append(make_log(10, weight=89.0, waist=93.5))   # mellan, används inte
     profile.logs.append(make_log(0, weight=90.0, waist=95.0))
-    assert profile.waist_comparison().startswith("Midjan: 3.1 cm mindre sedan 2024-01-01")
+    # Vägningar runt dag 0 och dag 20, så att varje fönster har tre vägningar
+    for day in (1, 2, 3):
+        profile.logs.append(make_log(day, weight=90.0))
+    for day in (17, 18, 19):
+        profile.logs.append(make_log(day, weight=88.0))
+    assert profile.waist_comparison() == (
+        "Midjan: 3.1 cm mindre sedan 2024-01-01, och vikten 2.0 kg lägre. "
+        "Det pekar mot att det är fett som försvinner.")
+
+
+def test_weight_around_uses_three_days_on_each_side():
+    profile = make_profile()
+    weights = [90.0] * 11
+    weights[2] = 110.0    # tre dagar före dag 5, ingår
+    weights[9] = 200.0    # fyra dagar efter dag 5, ingår inte
+    profile.logs.extend(make_logs(weights))
+    # Dag 2 till 8 är sju vägningar: en på 110.0 och sex på 90.0
+    assert profile.weight_around(datetime(2024, 1, 6)) == pytest.approx(650 / 7)
+
+
+def test_weight_around_returns_none_with_fewer_than_three_weighings():
+    profile = make_profile()
+    profile.logs.append(make_log(0))
+    profile.logs.append(make_log(1))
+    assert profile.weight_around(datetime(2024, 1, 1)) is None
+
+
+def test_a_single_extreme_weighing_does_not_decide_the_weight_verdict():
+    # Vikten 90.0 vid första och 89.6 vid sista midjemätningen, alltså 0.4 kg ner, under gränsen.
+    # En enda vägning på dag 0 är 1.4 kg för hög. Den gamla jämförelsen med enstaka dagar hade
+    # därför räknat 1.8 kg ner och sagt att vikten gick ner. Medelvärdet av de fyra vägningarna
+    # runt dag 0 blir 90.35, så vikten räknas fortfarande som oförändrad.
+    profile = waist_profile(90.0, 89.6, 95.0, 94.0)
+    profile.logs[0].weight = 91.4
+    assert profile.waist_comparison() == (
+        "Midjan: nästan oförändrad sedan 2024-01-01 (-1.0 cm, inom mätfelet på 3 cm).")
+
+
+def test_too_few_weighings_around_a_waist_measurement_is_reported():
+    # Tre midjemätningar på dag 0, 7 och 14, men bara en vägning vid varje
+    profile = make_profile()
+    profile.logs.append(make_log(0, weight=90.0, waist=95.0))
+    profile.logs.append(make_log(7, weight=89.0, waist=93.5))
+    profile.logs.append(make_log(14, weight=88.0, waist=91.9))
+    assert profile.waist_comparison() == TOO_FEW_WEIGHINGS_AROUND_WAIST
 
 
 def test_check_goals_prints_the_waist_comparison_without_setting_the_focus(capsys):
     # Femton dagar (dag 0 till 14), vikten 90.0 till 88.6, midjan 95.0 till 91.9, och en
-    # mätning mitt emellan så att det finns tre tillfällen
+    # mätning mitt emellan så att det finns tre tillfällen. Fönstren runt dag 0 och dag 14 är
+    # ensidiga, eftersom loggarna börjar och slutar där: dag 0 till 3 ger 89.85 och dag 11 till
+    # 14 ger 88.75, alltså 1.1 kg. Vikten har sjunkit 1.4 kg, så de ensidiga kanterna gör att
+    # jämförelsen visar en mindre nedgång än verkligheten.
     profile = make_checked_profile(weights_changing_by(-0.1, count=15))
     profile.logs[0].waist = 95.0
     profile.logs[7].waist = 93.5
     profile.logs[14].waist = 91.9
     profile.check_goals()
     output = capsys.readouterr().out
-    assert "Midjan: 3.1 cm mindre sedan 2024-01-01, och vikten 1.4 kg lägre." in output
+    assert "Midjan: 3.1 cm mindre sedan 2024-01-01, och vikten 1.1 kg lägre." in output
     assert "Fokusera på" not in output
 
 
