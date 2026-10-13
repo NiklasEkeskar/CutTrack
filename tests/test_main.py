@@ -65,7 +65,10 @@ LOG_ANSWERS = {
     "protein": "110",
     "steps": "9000",
     "trained": "j",
+    # Midjemätningarna (F29): tre svar. Den första kan lämnas tom, då frågas inget mer.
     "waist": "71.5",
+    "waist_2": "71.5",
+    "waist_3": "71.5",
 }
 
 # En ny användare: namnet, sedan profilfrågorna
@@ -815,6 +818,59 @@ def test_log_today_saves_a_missing_waist_as_none_not_zero(monkeypatch):
     assert profile.logs[0].waist is None
 
 
+def test_log_today_stores_the_average_of_the_three_waist_measurements(monkeypatch, capsys):
+    # (96 + 95 + 95) / 3 = 95.33, som avrundas till en decimal
+    profile = make_profile()
+    answers = answers_with(LOG_ANSWERS, {"waist": "96", "waist_2": "95", "waist_3": "95"})
+    type_answers(monkeypatch, answers)
+
+    assert main.log_today(profile) is True
+
+    assert profile.logs[0].waist == 95.3
+    assert "Medelvärdet av de tre mätningarna blir 95.3 cm." in capsys.readouterr().out
+
+
+def test_log_today_accepts_decimal_commas_in_the_waist_measurements(monkeypatch):
+    # (96,5 + 95 + 95,5) / 3 = 95.67, som avrundas till 95.7
+    profile = make_profile()
+    answers = answers_with(LOG_ANSWERS, {"waist": "96,5", "waist_2": "95", "waist_3": "95,5"})
+    type_answers(monkeypatch, answers)
+
+    assert main.log_today(profile) is True
+
+    assert profile.logs[0].waist == 95.7
+
+
+@pytest.mark.parametrize("field", ["waist_2", "waist_3"])
+def test_log_today_needs_all_three_waist_measurements_once_the_first_is_filled_in(
+        monkeypatch, capsys, field):
+    profile = make_profile()
+    type_answers(monkeypatch, answers_with(LOG_ANSWERS, {field: ""}))
+
+    assert main.log_today(profile) is False
+
+    assert profile.logs == []
+    output = capsys.readouterr().out
+    assert "Loggen sparades inte." in output
+    assert "fyll i alla tre mätningarna, eller lämna den första tom." in output
+
+
+@pytest.mark.parametrize("field, bad_answer", [
+    ("waist_2", "0"),
+    ("waist_3", "251"),
+])
+def test_log_today_rejects_one_waist_measurement_out_of_range(
+        monkeypatch, capsys, field, bad_answer):
+    # En felaktig mätning får inte jämnas ut i medelvärdet av de andra två
+    profile = make_profile()
+    type_answers(monkeypatch, answers_with(LOG_ANSWERS, {field: bad_answer}))
+
+    assert main.log_today(profile) is False
+
+    assert profile.logs == []
+    assert "Midjemåttet måste vara mellan 30 och 250 cm" in capsys.readouterr().out
+
+
 def test_log_today_accepts_decimals_for_weight_calories_and_protein(monkeypatch):
     profile = make_profile()
     answers = answers_with(LOG_ANSWERS,
@@ -902,9 +958,9 @@ def test_log_today_shows_how_to_measure_the_waist_before_asking(monkeypatch, cap
 
     output = capsys.readouterr().out
     assert "Så mäter du midjan:" in output
-    assert output.index("Så mäter du midjan:") < output.index("Midjemått i cm")
+    assert output.index("Så mäter du midjan:") < output.index("Midjemått, mätning 1 av 3")
     assert "Mät tre gånger i följd" in output
-    assert "Skriv in medelvärdet av de tre mätningarna." in output
+    assert "Skriv sedan in de tre värdena, så räknar programmet ut medelvärdet." in output
 
 
 def test_log_today_ignores_spaces_around_the_date(monkeypatch, capsys):
@@ -962,9 +1018,9 @@ def test_log_today_saves_nothing_when_a_value_is_not_valid(
     ("protein", "1001", "Proteinet måste vara ett rimligt tal"),
     ("steps", "-1", "Stegen måste vara ett heltal mellan 0 och 100000"),
     ("steps", "100001", "Stegen måste vara ett heltal mellan 0 och 100000"),
-    ("waist", "0", "Midjemåttet måste vara ett rimligt tal"),
-    ("waist", "29", "Midjemåttet måste vara ett rimligt tal"),
-    ("waist", "251", "Midjemåttet måste vara ett rimligt tal"),
+    ("waist", "0", "Midjemåttet måste vara mellan 30 och 250 cm"),
+    ("waist", "29", "Midjemåttet måste vara mellan 30 och 250 cm"),
+    ("waist", "251", "Midjemåttet måste vara mellan 30 och 250 cm"),
 ])
 def test_log_today_shows_why_a_value_out_of_range_was_rejected(
         monkeypatch, capsys, field, bad_answer, expected_message):

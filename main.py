@@ -11,10 +11,13 @@ from datetime import datetime
 from models import (DailyLog, CutProfile, normalize_date, MIN_HEIGHT_CM, MAX_HEIGHT_CM,
                     MIN_AGE, MAX_AGE, MAX_NAME_LENGTH, MAX_STEPS, MAX_PROTEIN_PER_KG,
                     MAX_TRAINING_DAYS, MIN_MENU_PROTEIN_PER_KG, DEFAULT_PROTEIN_PER_KG,
-                    DEFAULT_STEP_GOAL, DEFAULT_TRAINING_DAYS)
+                    DEFAULT_STEP_GOAL, DEFAULT_TRAINING_DAYS, MIN_WAIST_CM, MAX_WAIST_CM)
 from analysis import (make_csv_filename, is_usable_name, save_profile, load_profile,
                       profile_file_exists, export_logs_csv, import_logs_csv, plot_weight,
                       plot_protein, plot_steps)
+
+# Antal midjemätningar per tillfälle (F29). Menyn räknar ut medelvärdet av dem.
+WAIST_READINGS = 3
 
 # Ansvarsfriskrivningen, på ett ställe så att välkomsttexten och texten vid kaloriförslaget
 # alltid säger samma sak (F22)
@@ -242,7 +245,42 @@ def show_waist_instructions():
     print("  navelhöjd. Måttbandet ska vara vågrätt och lagom spänt, utan att dra åt.")
     print("  Ta ett djupt andetag och andas ut precis innan du läser av.")
     print("  Mät tre gånger i följd, och lägg av och på måttbandet mellan mätningarna.")
-    print("  Skriv in medelvärdet av de tre mätningarna.")
+    print("  Skriv sedan in de tre värdena, så räknar programmet ut medelvärdet.")
+
+
+def ask_waist():
+    """Frågar efter de tre midjemätningarna (F29) och ger medelvärdet i cm, avrundat till en
+    decimal. Lämnas den första mätningen tom ger funktionen None och inget mer frågas. Då är
+    midjemåttet inte loggat, och det blir inte 0. Fylls den första i måste alla tre vara med,
+    annars kastar funktionen ValueError, som log_today visar."""
+    first_question = (f"Midjemått, mätning 1 av {WAIST_READINGS} i cm "
+                      "(lämna tomt om du inte mätt): ")
+    first_text = input(first_question)
+    if first_text.strip() == "":
+        return None
+
+    readings = [to_waist_reading(first_text)]
+    for reading_number in range(2, WAIST_READINGS + 1):
+        reading_text = input(f"Midjemått, mätning {reading_number} av {WAIST_READINGS} i cm: ")
+        if reading_text.strip() == "":
+            raise ValueError("Midjemått: fyll i alla tre mätningarna, eller lämna den första "
+                             "tom.")
+        readings.append(to_waist_reading(reading_text))
+
+    average = round(sum(readings) / WAIST_READINGS, 1)
+    print(f"Medelvärdet av de tre mätningarna blir {average} cm.")
+    return average
+
+
+def to_waist_reading(text):
+    """Gör om en midjemätning till ett tal i cm och kontrollerar att den ligger mellan
+    MIN_WAIST_CM och MAX_WAIST_CM. Kontrollen görs per mätning, eftersom ett fel värde annars
+    kan jämnas ut i medelvärdet: 0, 0 och 300 ger 100."""
+    reading = to_number(text, "Midjemått")
+    if not (MIN_WAIST_CM <= reading <= MAX_WAIST_CM):
+        raise ValueError(f"Midjemåttet måste vara mellan {MIN_WAIST_CM} och {MAX_WAIST_CM} cm, "
+                         f"men du skrev '{text}'.")
+    return reading
 
 
 def log_today(user):
@@ -278,11 +316,7 @@ def log_today(user):
             )
 
         show_waist_instructions()
-        waist_text = input("Midjemått i cm (lämna tomt om du inte mätt): ")
-        if waist_text.strip() == "":
-            waist = None
-        else:
-            waist = to_number(waist_text, "Midjemått")
+        waist = ask_waist()
 
         new_log = DailyLog(date_text, weight, calories, protein, steps, trained, waist)
         user.add_log(new_log)
