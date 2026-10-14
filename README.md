@@ -67,7 +67,7 @@ Målvikten 98.0 kg: med den här takten om cirka 1 dag, omkring 2026-10-07. En g
 Protein: snitt 213 g mot mål 206 g. Målet nås.
 Träning: 5 av 5 förväntade dagar under perioden. Målet nås.
 Steg: snitt 9953 mot mål 10000. Under målet.
-Midjan: nästan oförändrad sedan 2026-09-17 (-1.8 cm, inom mätfelet på 3 cm), fast vikten är 2.7 kg lägre. Det kan betyda att du tappar muskelmassa i stället för fett, eller bara vara mätfel. Mät på samma ställe och på samma sätt varje gång.
+Midjan: nästan oförändrad sedan 2026-09-17 (-1.8 cm, inom mätfelet på 3 cm). Vikten är 2.7 kg lägre, men midjemåttet räcker inte för att avgöra om det är fett eller muskler som går förlorade. Mät på samma ställe och på samma sätt varje gång, och titta igen efter fler veckor.
 
 Fokusera på: vikt.
 ```

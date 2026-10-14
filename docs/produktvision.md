@@ -34,7 +34,7 @@ Andra personer som vill deffa och behålla muskelmassa, inte bara jag själv. Va
 Vad av detta som är byggt står i kravspec.md.
 
 ## Varför midjemått
-Vikt ensam kan inte skilja fettförlust från muskelförlust. Två personer som tappar ett kilo i veckan ser identiska ut i datan, oavsett vad kilot bestod av. Midjan krymper när fett försvinner men i princip inte när muskler gör det. Vikt ner plus midja ner pekar mot fettförlust. Vikt ner plus midja oförändrad är en varningssignal. Det är en proxy, inte en mätning, men det är det bästa som går att få utan mätverktyg.
+Vikt ensam kan inte skilja fettförlust från muskelförlust. Två personer som tappar ett kilo i veckan ser identiska ut i datan, oavsett vad kilot bestod av. Midjan krymper när fett försvinner men i princip inte när muskler gör det. Vikt ner plus midja ner pekar mot fettförlust. Vikt ner plus midja oförändrad är en osäker signal, inte en varning. Midjan kan inte skilja fett från muskler inom mätfelet, så programmet säger det öppet. Det är en proxy, inte en mätning, men det är det bästa som går att få utan mätverktyg.
 
 ## Varför träning loggas som ja eller nej
 Det som bevarar muskelmassa under en deff är att stimulansen finns kvar regelbundet, inte hur länge varje pass varar. Ett långt pass med mycket vila ger inte mer signal än ett kort och fokuserat. Frekvens går dessutom att bedöma mot en tydlig regel, antal dagar per vecka, medan minuter kräver ett godtyckligt tröskelvärde.

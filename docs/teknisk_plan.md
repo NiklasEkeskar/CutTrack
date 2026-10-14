@@ -162,7 +162,7 @@ Viktjämförelsen använder medelvärdet av vägningarna tre dagar före och eft
 
 Texterna:
 - midjan mindre och vikten lägre: "Det pekar mot att det är fett som försvinner."
-- midjan nästan oförändrad men vikten lägre: en varning om att det kan vara mätfel
+- midjan nästan oförändrad men vikten lägre: en osäker notering om att midjemåttet inte räcker för att avgöra om det är fett eller muskler, ingen varning (ändrat 2026-10-14)
 - midjan mindre eller större utan viktnedgång, eller nästan oförändrad: bara uppgiften
 - för få mätningar: en text som säger vad som krävs
 

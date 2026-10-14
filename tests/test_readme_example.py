@@ -49,9 +49,10 @@ README = ROOT / "README.md"
 # som snitt 100.975 kg (ingen vägning finns före 17 september, så fönstret är ensidigt), och
 # 2026-10-01 ger sju vägningar som snitt 98.257 kg. Skillnaden är 2.7 kg.
 WAIST_AFTER_18_AND_20_DAYS = (
-    "Midjan: nästan oförändrad sedan 2026-09-17 (-1.8 cm, inom mätfelet på 3 cm), fast vikten "
-    "är 2.7 kg lägre. Det kan betyda att du tappar muskelmassa i stället för fett, eller bara "
-    "vara mätfel. Mät på samma ställe och på samma sätt varje gång.")
+    "Midjan: nästan oförändrad sedan 2026-09-17 (-1.8 cm, inom mätfelet på 3 cm). Vikten är "
+    "2.7 kg lägre, men midjemåttet räcker inte för att avgöra om det är fett eller muskler som "
+    "går förlorade. Mät på samma ställe och på samma sätt varje gång, och titta igen efter "
+    "fler veckor.")
 
 AFTER_14_DAYS = [
     "Vikten: minskar med 1.66 procent per vecka (cirka 1.64 kg), över säkerhetsgränsen "

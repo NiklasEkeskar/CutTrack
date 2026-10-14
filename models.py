@@ -614,9 +614,10 @@ class CutProfile(User):
                           f"({waist_change:+.1f} cm, inom mätfelet på "
                           f"{round(WAIST_CHANGE_CM)} cm)")
         if weight_went_down:
-            return (f"{unchanged_text}, fast vikten är {weight_loss} kg lägre. Det kan betyda "
-                    "att du tappar muskelmassa i stället för fett, eller bara vara mätfel. Mät "
-                    "på samma ställe och på samma sätt varje gång.")
+            return (f"{unchanged_text}. Vikten är {weight_loss} kg lägre, men midjemåttet räcker "
+                    "inte för att avgöra om det är fett eller muskler som går förlorade. Mät "
+                    "på samma ställe och på samma sätt varje gång, och titta igen efter "
+                    "fler veckor.")
         return unchanged_text + "."
 
     def plateau_message(self, days=7):

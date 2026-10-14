@@ -1353,7 +1353,7 @@ def test_check_goals_prints_the_projection_after_the_weight_line(capsys):
 
 
 # F18: midjemåttet jämförs med vikten. Vikt ner och midja ner pekar mot fettförlust, vikt ner
-# och midja oförändrad är en varningssignal. Gränsen 3,1 cm kommer från mätfelet vid självmätning
+# och midja oförändrad ger en osäker notering, inte en varning. Gränsen 3,1 cm kommer från mätfelet vid självmätning
 # av ett medelvärde av tre mätningar (Barrios m.fl. 2016, technical error of measurement 0,76 tum,
 # ungefär 1,93 cm). Jämförelsen kräver tre tillfällen med minst 14 dagar mellan första och sista.
 
@@ -1417,14 +1417,14 @@ def test_weight_down_and_waist_down_points_to_fat_loss():
         "Det pekar mot att det är fett som försvinner.")
 
 
-def test_weight_down_and_waist_unchanged_is_a_warning_signal():
+def test_weight_down_and_waist_unchanged_is_an_uncertain_note_not_a_warning():
     # Vikten 2.0 kg ner, midjan bara 1.0 cm, mindre än mätfelet 3 cm
     profile = waist_profile(90.0, 88.0, 95.0, 94.0)
-    text = profile.waist_comparison()
-    assert text.startswith("Midjan: nästan oförändrad sedan 2024-01-01 (-1.0 cm, inom mätfelet "
-                           "på 3 cm), fast vikten är 2.0 kg lägre.")
-    assert "muskelmassa" in text
-    assert "mätfel" in text
+    assert profile.waist_comparison() == (
+        "Midjan: nästan oförändrad sedan 2024-01-01 (-1.0 cm, inom mätfelet på 3 cm). "
+        "Vikten är 2.0 kg lägre, men midjemåttet räcker inte för att avgöra om det är fett "
+        "eller muskler som går förlorade. Mät på samma ställe och på samma sätt varje gång, "
+        "och titta igen efter fler veckor.")
 
 
 @pytest.mark.parametrize("last_waist, expected_start", [
