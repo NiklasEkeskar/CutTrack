@@ -333,12 +333,36 @@ def test_to_number_rejects_a_thousands_separator_also_for_whole_numbers(answer):
 
 
 @pytest.mark.parametrize("answer, expected", [
-    ("2000", 2000.0), ("82,5", 82.5), ("82.55", 82.55), ("2000,5", 2000.5),
-    ("2,0000", 2.0),   # fyra decimaler kan inte vara en tusentalsavgränsare
-    ("1234.567", 1234.567),  # fyra siffror före avgränsaren kan inte heller vara det
+    ("2000", 2000.0), ("82,5", 82.5), ("82.55", 82.55), ("82,55", 82.55), ("2000,5", 2000.5),
+    ("0,01", 0.01),
 ])
-def test_to_number_still_reads_numbers_that_cannot_be_thousands(answer, expected):
+def test_to_number_reads_numbers_with_at_most_two_decimals(answer, expected):
     assert main.to_number(answer, "Vikt") == expected
+
+
+# Högst två decimaler (beslutat 2026-10-14, alternativ A). Tre eller fler avvisas, även när talet
+# inte kan vara en tusentalsavgränsare, som 2000.000 eller 1234.567. Tal med en till tre siffror
+# före och tre decimaler är tusentalsavgränsare och fångas redan av kontrollen ovan.
+
+DECIMALS_MESSAGE = ("Kalorier: decimaler skrivs med högst två siffror, till exempel 82,5. "
+                    "Du skrev '{answer}'.")
+
+
+@pytest.mark.parametrize("answer", [
+    "2,0000", "0.1234", "82,5555", " 82,5555 ", "1234.567", "2000.000", "-2000.000",
+])
+def test_to_number_rejects_more_than_two_decimals_with_its_own_message(answer):
+    with pytest.raises(ValueError) as caught:
+        main.to_number(answer, "Kalorier")
+    assert str(caught.value) == DECIMALS_MESSAGE.format(answer=answer)
+
+
+@pytest.mark.parametrize("answer", ["8.0001", "2000.000", "1234.567"])
+def test_to_number_checks_whole_numbers_with_the_whole_number_message(answer):
+    # Ett heltal har inga decimaler att kontrollera, så det är int() som säger nej
+    with pytest.raises(ValueError) as caught:
+        main.to_number(answer, "Steg", True)
+    assert str(caught.value) == f"Steg måste vara ett heltal, men du skrev '{answer}'."
 
 
 def test_log_today_does_not_save_2_kcal_for_2_000(monkeypatch, capsys):
@@ -347,6 +371,14 @@ def test_log_today_does_not_save_2_kcal_for_2_000(monkeypatch, capsys):
     assert main.log_today(profile) is False
     assert profile.logs == []
     assert "skriv talet utan tusentalsavgränsare" in capsys.readouterr().out
+
+
+def test_log_today_does_not_save_2000_kcal_for_2000_000(monkeypatch, capsys):
+    profile = make_profile()
+    type_answers(monkeypatch, answers_with(LOG_ANSWERS, {"calories": "2000.000"}))
+    assert main.log_today(profile) is False
+    assert profile.logs == []
+    assert "decimaler skrivs med högst två siffror" in capsys.readouterr().out
 
 
 # ---------------------------------------------------------------------------

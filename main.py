@@ -74,6 +74,10 @@ def show_suggestion_note():
 # punkt, komma eller mellanslag mellan, till exempel 2,000, 2.000 eller 10 000.
 THOUSANDS_PATTERN = re.compile(r"\s*-?\d{1,3}([.,]\d{3})+\s*|\s*-?\d{1,3}( \d{3})+\s*")
 
+# Ett decimaltal med tre eller fler decimaler, till exempel 2,0000 eller 1234.567. Gäller bara
+# decimaltal, eftersom ett heltal inte har några decimaler att kontrollera.
+DECIMAL_PATTERN = re.compile(r"\s*-?\d+[.,]\d{3,}\s*")
+
 
 def to_number(answer, label, is_integer=False):
     """Gör om svaret på en fråga till ett tal. Både punkt och komma godtas som decimaltecken,
@@ -86,6 +90,11 @@ def to_number(answer, label, is_integer=False):
     if THOUSANDS_PATTERN.fullmatch(answer):
         raise ValueError(f"{label}: skriv talet utan tusentalsavgränsare, till exempel 2000. "
                          "Decimaler skrivs med högst två siffror, till exempel 82,5. "
+                         f"Du skrev '{answer}'.")
+
+    # Högst två decimaler. Förut godtogs till exempel 2,0000 som 2.0 utan att användaren fick veta.
+    if not is_integer and DECIMAL_PATTERN.fullmatch(answer):
+        raise ValueError(f"{label}: decimaler skrivs med högst två siffror, till exempel 82,5. "
                          f"Du skrev '{answer}'.")
 
     # Mellanslag runt svaret behöver inte tas bort, float() och int() godtar dem redan
