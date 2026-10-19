@@ -1728,7 +1728,7 @@ def test_main_function_handles_end_of_input_in_the_real_menu(monkeypatch, capsys
     "show_welcome", "ask_number", "ask_period", "create_profile", "log_today", "run_menu",
 ])
 def test_notebook_imports_exist_in_main(name):
-    # cuttrack.ipynb gör: from main import (show_welcome, ask_number, ask_period,
+    # cuttrack_referens.ipynb gör: from main import (show_welcome, ask_number, ask_period,
     # create_profile, log_today, run_menu). Byter en funktion namn går notebooken sönder.
     assert callable(getattr(main, name))
 

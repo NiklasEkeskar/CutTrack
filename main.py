@@ -1,7 +1,7 @@
 """Textmenyn för CutTrack. All inmatning och utskrift ligger här, skilt från klasserna
 i models.py och filhanteringen i analysis.py.
 Startas från terminalen med: python main.py
-Importeras i cuttrack.ipynb med:
+Importeras i cuttrack_referens.ipynb med:
 from main import (show_welcome, ask_number, ask_period,
                   create_profile, log_today, run_menu)"""
 import math

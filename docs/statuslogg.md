@@ -7,7 +7,7 @@ Ett moment bockas av först när alla tre stämmer:
 3. jag kan förklara den för en annan utvecklare utan att läsa innantill
 
 ## Nuläge, 2026-10-14
-Version 1 är klar: tre klasser med arv (DailyLog, User, CutProfile), JSON för profiler och CSV för loggar, analys över valbar period med väntetid, tre diagram och en textmeny. Koden är uppdelad i models.py, analysis.py och main.py. Programmet startas med `python main.py`. Beroendena installeras med `requirements.txt` för körning och `requirements-dev.txt` för testerna. cuttrack.ipynb importerar koden för att förklara och provköra den, men kör inte menyn. Repot är publikt och har en MIT-licens i filen `LICENSE`.
+Version 1 är klar: tre klasser med arv (DailyLog, User, CutProfile), JSON för profiler och CSV för loggar, analys över valbar period med väntetid, tre diagram och en textmeny. Koden är uppdelad i models.py, analysis.py och main.py. Programmet startas med `python main.py`. Beroendena installeras med `requirements.txt` för körning och `requirements-dev.txt` för testerna. cuttrack_referens.ipynb importerar koden för att förklara och provköra den, men kör inte menyn. Repot är publikt och har en MIT-licens i filen `LICENSE`.
 
 Projektet började som kursprojekt och är sedan 2026-10-08 ett portfolioprojekt. Den version som lämnades in i kursen finns bevarad i git-taggen `v1.0-course-submission`.
 
@@ -231,6 +231,8 @@ Visionens första block, och sedan 2026-10-12 styrkan, som är ny data. Ordning:
 
 - 2026-10-14: Risken att namnbytet förloras vid ett strömavbrott direkt efter namnbytet accepteras, både för profilfilen och för CSV-exporten, och fsync görs inte på mappen efter namnbytet. Skäl: extra synkning av mappen är krångligare och ger begränsat extra skydd, och på Windows är den svårare. Genomgånget 2026-10-14 på förhöret. Beslutet ändrar inte beslutet 2026-10-11 om fsync på filen.
 
+- 2026-10-19: Referensnotebooken heter `cuttrack_referens.ipynb`. `cuttrack.ipynb` i repot byter namn till det, och projektets kopi skrivs över med repots version. Det ändrar det som stod 2026-10-12, att namnet behölls med avsikt. Skäl: projektets regel säger det namnet, och repot och projektet ska ha samma namn på referensen. Ingen logik ändras, bara namn i kommentarer, dokumentation och notebooken.
+
 ## Källor, verifierade
 Alla står med direktlänkar i README under Källor och antaganden. Nyanser att komma ihåg:
 - [x] Mifflin-St Jeor 1990, formeln stämmer exakt mot koden.
@@ -242,6 +244,7 @@ Alla står med direktlänkar i README under Källor och antaganden. Nyanser att 
 ## Senaste uppdateringar
 (fylls på löpande, senaste överst)
 
+- 2026-10-19, referensnotebooken bytt namn från `cuttrack.ipynb` till `cuttrack_referens.ipynb` (Beslut 2026-10-19). Repot, README, teknisk_plan, den här loggen och projektets kopi av notebooken är ändrade. Ingen logik är ändrad. Inte committat.
 - 2026-10-14, Luckor uppdaterade: rättningar som bockats i steg 1 och 2 har fått genomgångsdatum i stället för "byggt men inte genomgånget". Det gäller bara texterna, inga beslut är ändrade.
 - 2026-10-14, decimalregeln och midjetexten genomgångna på förhöret. Beslut 2026-10-14, F18 i steg 1, kravspec F18 och N1 är ändrade. Öppet: texten visar 3 cm mot en gräns på 3,1 cm, se Luckor. Kvar i steg 1: notebooken (N7).
 - 2026-10-14, CSV-exporten med fsync bockad efter förhöret. Du förklarade varför `flush()` kommer före `fsync` och varför den temporära filen slutar på `.csv`. Risken vid namnbytet accepteras, se Beslut 2026-10-14. Statuslogg och kravspec N3 är ändrade. Kvar i steg 1: notebooken (N7).

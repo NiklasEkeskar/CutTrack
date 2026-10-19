@@ -6,7 +6,7 @@ Ett verktyg för dig som deffar. Du loggar vikt, kalorier, protein, steg och tr�
 
 ![Viktutveckling](resultat_diagram.png)
 
-Status: version 1 fungerar och byggs vidare. Gränssnittet är en textmeny som startas från terminalen med `python main.py`, och notebooken `cuttrack.ipynb` förklarar och provar koden. Skrivet i Python, med matplotlib för diagram.
+Status: version 1 fungerar och byggs vidare. Gränssnittet är en textmeny som startas från terminalen med `python main.py`, och notebooken `cuttrack_referens.ipynb` förklarar och provar koden. Skrivet i Python, med matplotlib för diagram.
 
 ## Varför CutTrack finns
 
@@ -108,7 +108,7 @@ Diagrammen från samma testperiod: viktdiagrammet står överst på sidan, prote
    ```
    Menyn frågar efter ditt namn och skapar en profil åt dig första gången. Avsluta med val 6, Spara och avsluta. Varje ny logg som du lägger till med val 1 sparas direkt i profilfilen, så den finns kvar även om du avbryter med Ctrl+C eller Ctrl+D eller stänger terminalen. Det du läst in från en CSV-fil med val 5 sparas inte direkt, utan nästa gång du lägger till en logg med val 1 eller med val 6.
 
-Notebooken `cuttrack.ipynb` går igenom koden steg för steg och provar den med exempeldata. Öppna den i VS Code (med tillägget Jupyter) eller i Jupyter, välj den virtuella miljön som kernel och kör cellerna uppifrån och ner. Miljön behöver en Jupyter-kärna för det (`python -m pip install ipykernel`), som inte ingår i requirements-filerna eftersom programmet och testerna inte behöver den. Notebooken kör inte menyn, eftersom allt en cell skriver ut sparas i filen och repot är publikt.
+Notebooken `cuttrack_referens.ipynb` går igenom koden steg för steg och provar den med exempeldata. Öppna den i VS Code (med tillägget Jupyter) eller i Jupyter, välj den virtuella miljön som kernel och kör cellerna uppifrån och ner. Miljön behöver en Jupyter-kärna för det (`python -m pip install ipykernel`), som inte ingår i requirements-filerna eftersom programmet och testerna inte behöver den. Notebooken kör inte menyn, eftersom allt en cell skriver ut sparas i filen och repot är publikt.
 
 Ändrar du något i `models.py`, `analysis.py` eller `main.py` medan notebooken är öppen måste kerneln startas om (Restart), eftersom Python bara läser in en modul en gång per körning.
 
@@ -129,20 +129,20 @@ python -m pytest
 
 ```
 CutTrack/
-  models.py             DailyLog, User, CutProfile och normalize_date (data och regler)
-  analysis.py           filhantering (JSON, CSV) och diagram
-  main.py               textmenyn och programmets startpunkt (python main.py)
-  cuttrack.ipynb        förklaringar och exempelkörning (kör inte menyn)
-  tests/                automatiska tester (pytest)
-  .github/workflows/    kör testerna på GitHub vid varje push (GitHub Actions)
-  pytest.ini            inställning för pytest
-  requirements.txt      beroenden för att köra programmet (matplotlib)
-  requirements-dev.txt  beroenden för att köra testerna (pytest, tar med requirements.txt)
-  data/                 exempel_loggar.csv, simulerad exempeldata
-  docs/                 produktvision, kravspec, teknisk plan, statuslogg
-  LICENSE               MIT-licensen
+  models.py               DailyLog, User, CutProfile och normalize_date (data och regler)
+  analysis.py             filhantering (JSON, CSV) och diagram
+  main.py                 textmenyn och programmets startpunkt (python main.py)
+  cuttrack_referens.ipynb förklaringar och exempelkörning (kör inte menyn)
+  tests/                  automatiska tester (pytest)
+  .github/workflows/      kör testerna på GitHub vid varje push (GitHub Actions)
+  pytest.ini              inställning för pytest
+  requirements.txt        beroenden för att köra programmet (matplotlib)
+  requirements-dev.txt    beroenden för att köra testerna (pytest, tar med requirements.txt)
+  data/                   exempel_loggar.csv, simulerad exempeldata
+  docs/                   produktvision, kravspec, teknisk plan, statuslogg
+  LICENSE                 MIT-licensen
   README.md
-  *.png                 bilder till README
+  *.png                   bilder till README
 ```
 
 ## Hur det är byggt

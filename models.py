@@ -1,7 +1,7 @@
 """Klasserna som utgör CutTracks datamodell: DailyLog, User och CutProfile, funktionen
 normalize_date som kontrollerar och skriver om datum, och gränserna för vad som räknas som
 rimliga värden.
-Importeras i cuttrack.ipynb med: from models import DailyLog, User, CutProfile"""
+Importeras i cuttrack_referens.ipynb med: from models import DailyLog, User, CutProfile"""
 import math
 from datetime import datetime, timedelta
 

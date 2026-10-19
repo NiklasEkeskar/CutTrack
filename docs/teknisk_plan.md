@@ -361,7 +361,7 @@ Koden är uppdelad i fyra filer, i samma mapp:
 - `models.py`: DailyLog, User, CutProfile, normalize_date
 - `analysis.py`: make_safe_name, make_filename, make_csv_filename, save_profile, profile_file_exists, load_profile, export_logs_csv, parse_number, parse_trained, is_empty_row, make_log_from_row, import_logs_csv, seven_day_averages, plot_weight, plot_protein, plot_steps. Importerar DailyLog och CutProfile från models.py.
 - `main.py`: show_welcome, ask_number, ask_name, to_number, ask_waist, to_waist_reading, ask_period, create_profile, log_today, run_menu (UI-lagret) och main, startpunkten. Importerar från models.py och analysis.py. Startas med `python main.py`.
-- `cuttrack.ipynb`: importerar från de tre andra filerna. Innehåller förklaringar samt alla test- och democeller, men kör inte menyn.
+- `cuttrack_referens.ipynb`: importerar från de tre andra filerna. Innehåller förklaringar samt alla test- och democeller, men kör inte menyn.
 
 Exempeldata ligger i mappen `data/`: `exempel_loggar.csv` är simulerad data för 20 dagar och den enda CSV-filen som checkas in. Notebooken skriver den.
 
@@ -373,7 +373,7 @@ Testerna ligger i mappen `tests/`, fem filer (`test_models.py`, `test_analysis.p
 
 Notebooken måste ligga i samma mapp som models.py, analysis.py och main.py för att importen ska fungera. Ändras något i en av .py-filerna medan notebooken är öppen måste kerneln startas om (Restart) innan ändringen syns, Python läser bara in en modul en gång per körning. Det är den praktiska konsekvensen av uppdelningen.
 
-**Menyn ligger i main.py.** Klasser och funktioner finns bara i models.py, analysis.py och main.py, och notebooken importerar dem och förklarar dem i markdown. Programmet startas med `python main.py`. Notebooken kör inte menyn, eftersom allt en cell skriver ut sparas i `cuttrack.ipynb` och repot är publikt (kravspec.md D4). Raden `if __name__ == "__main__":` längst ned i main.py gör att menyn bara startar när filen körs som program och inte när notebooken importerar den: Python sätter `__name__` till `"__main__"` vid `python main.py` och till `"main"` vid `import main`.
+**Menyn ligger i main.py.** Klasser och funktioner finns bara i models.py, analysis.py och main.py, och notebooken importerar dem och förklarar dem i markdown. Programmet startas med `python main.py`. Notebooken kör inte menyn, eftersom allt en cell skriver ut sparas i `cuttrack_referens.ipynb` och repot är publikt (kravspec.md D4). Raden `if __name__ == "__main__":` längst ned i main.py gör att menyn bara startar när filen körs som program och inte när notebooken importerar den: Python sätter `__name__` till `"__main__"` vid `python main.py` och till `"main"` vid `import main`.
 
 Profil- och CSV-filerna skrivs i den mapp programmet startas från, inte i mappen där main.py ligger (analysis.py använder relativa filnamn). Startas programmet från rotmappen hamnar filerna där och ignoreras av git. Startas det från en annan mapp skapar det nya, tomma profiler där.
 

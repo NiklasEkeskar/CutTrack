@@ -1,5 +1,5 @@
 """Filhantering (JSON, CSV) och diagram för CutTrack.
-Importeras i cuttrack.ipynb med:
+Importeras i cuttrack_referens.ipynb med:
 from analysis import (make_filename, make_csv_filename,
                        save_profile, load_profile, profile_file_exists,
                        export_logs_csv, import_logs_csv,
